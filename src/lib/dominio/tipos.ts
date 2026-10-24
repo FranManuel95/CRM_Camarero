@@ -1,0 +1,361 @@
+import type { Bloque } from "../impresion/documento";
+
+/**
+ * Modelo de datos del local. Todo el estado vive en un único objeto `Estado` que el servidor
+ * guarda y reparte a las pantallas; los cambios entran como `Accion` (ver acciones.ts) y los
+ * aplica `reducir` (ver reducir.ts). Los importes van siempre en céntimos y con IVA incluido,
+ * que es como se ponen los precios en una carta en España.
+ */
+
+export type Id = string;
+/** Céntimos de euro. */
+export type Centimos = number;
+/** Fecha ISO 8601 (UTC). */
+export type FechaISO = string;
+
+export type Rol = "camarero" | "encargado";
+
+export type Empleado = {
+  id: Id;
+  nombre: string;
+  /** PIN de 4 a 6 cifras para entrar en la app. */
+  pin: string;
+  rol: Rol;
+  activo: boolean;
+};
+
+export type Ajustes = {
+  nombreLocal: string;
+  razonSocial: string;
+  nif: string;
+  direccion: string;
+  telefono: string;
+  /** IVA por defecto de la carta, en %. La hostelería en España va al 10 %. */
+  ivaPorDefecto: number;
+  /** Si es true, los pedidos de la carta QR esperan a que un camarero los acepte. */
+  confirmarPedidosQR: boolean;
+  /** Si es false, la carta QR solo se puede consultar (sin pedir). */
+  pedidosQRActivos: boolean;
+  /** Texto al pie del ticket. */
+  pieTicket: string;
+  /** Serie de los tickets (facturas simplificadas). */
+  serieTicket: string;
+};
+
+export type Zona = { id: Id; nombre: string; orden: number };
+
+export type FormaMesa = "cuadrada" | "redonda" | "alargada";
+
+export type Mesa = {
+  id: Id;
+  nombre: string;
+  zonaId: Id;
+  /** Posición y tamaño en el plano, en unidades de una rejilla de 100 × 100. */
+  x: number;
+  y: number;
+  ancho: number;
+  alto: number;
+  forma: FormaMesa;
+  plazas: number;
+  /** Código del QR de la mesa. Se puede regenerar si alguien se lleva la foto del QR. */
+  token: string;
+};
+
+/** A qué pantalla e impresora va un plato. */
+export type Destino = "cocina" | "barra";
+
+export type Categoria = {
+  id: Id;
+  nombre: string;
+  orden: number;
+  destino: Destino;
+  /** Si es false, no se enseña en la carta QR (pero sí en la app del camarero). */
+  visibleEnQR: boolean;
+};
+
+/** Los 14 alérgenos de declaración obligatoria (Reglamento UE 1169/2011). */
+export const ALERGENOS = [
+  "gluten",
+  "crustaceos",
+  "huevo",
+  "pescado",
+  "cacahuetes",
+  "soja",
+  "lacteos",
+  "frutos_cascara",
+  "apio",
+  "mostaza",
+  "sesamo",
+  "sulfitos",
+  "altramuces",
+  "moluscos",
+] as const;
+export type Alergeno = (typeof ALERGENOS)[number];
+
+export const NOMBRE_ALERGENO: Record<Alergeno, string> = {
+  gluten: "Gluten",
+  crustaceos: "Crustáceos",
+  huevo: "Huevo",
+  pescado: "Pescado",
+  cacahuetes: "Cacahuetes",
+  soja: "Soja",
+  lacteos: "Lácteos",
+  frutos_cascara: "Frutos de cáscara",
+  apio: "Apio",
+  mostaza: "Mostaza",
+  sesamo: "Sésamo",
+  sulfitos: "Sulfitos",
+  altramuces: "Altramuces",
+  moluscos: "Moluscos",
+};
+
+export type OpcionProducto = { id: Id; nombre: string; suplemento: Centimos };
+
+export type GrupoOpciones = {
+  id: Id;
+  /** Por ejemplo «Punto de la carne» o «Extras». */
+  nombre: string;
+  /** Hay que elegir al menos una. */
+  obligatorio: boolean;
+  /** Se puede elegir más de una. */
+  multiple: boolean;
+  opciones: OpcionProducto[];
+};
+
+export type Producto = {
+  id: Id;
+  categoriaId: Id;
+  nombre: string;
+  descripcion: string;
+  precio: Centimos;
+  /** IVA en %, incluido en el precio. */
+  iva: number;
+  alergenos: Alergeno[];
+  /** false = agotado hoy. Sigue en la carta pero no se puede pedir. */
+  disponible: boolean;
+  orden: number;
+  grupos: GrupoOpciones[];
+  /** Coste aproximado de la ración, para calcular el margen. */
+  coste?: Centimos;
+};
+
+export type EstadoLinea =
+  /** Pedida desde el QR y pendiente de que un camarero la acepte. */
+  | "por_confirmar"
+  /** En la comanda, aún sin mandar a cocina o barra. */
+  | "anotada"
+  /** Mandada a cocina o barra. */
+  | "enviada"
+  | "lista"
+  | "servida"
+  | "anulada";
+
+export type OrigenLinea = "qr" | "camarero";
+
+export type OpcionElegida = { grupo: string; nombre: string; suplemento: Centimos };
+
+export type LineaCuenta = {
+  id: Id;
+  productoId: Id;
+  /** Copia del nombre y el precio al pedir: si luego cambia la carta, la cuenta no cambia. */
+  nombre: string;
+  precioUnitario: Centimos;
+  iva: number;
+  destino: Destino;
+  cantidad: number;
+  opciones: OpcionElegida[];
+  nota: string;
+  estado: EstadoLinea;
+  origen: OrigenLinea;
+  /** Quién la anotó (vacío si llegó por QR y aún no la ha aceptado nadie). */
+  empleadoId: Id | null;
+  creadaEn: FechaISO;
+  enviadaEn: FechaISO | null;
+  listaEn: FechaISO | null;
+  /** Cada envío a cocina es una ronda; sirve para agrupar en la pantalla de cocina. */
+  ronda: number;
+  /** Si es una invitación de la casa, no se cobra. */
+  invitacion: boolean;
+  motivoAnulacion?: string;
+};
+
+export type MetodoPago = "efectivo" | "tarjeta" | "bizum" | "otro";
+
+export type Pago = { metodo: MetodoPago; importe: Centimos };
+
+export type EstadoCuenta = "abierta" | "cobrada" | "anulada";
+
+export type Cuenta = {
+  id: Id;
+  mesaId: Id;
+  estado: EstadoCuenta;
+  comensales: number;
+  abiertaEn: FechaISO;
+  cerradaEn: FechaISO | null;
+  /** Camarero que lleva la mesa. */
+  empleadoId: Id | null;
+  lineas: LineaCuenta[];
+  /** Descuento sobre el total, en %. */
+  descuento: number;
+  rondas: number;
+  ticketId: Id | null;
+};
+
+export type LineaTicket = {
+  /** Nombre como sale en el ticket, con las opciones elegidas. */
+  nombre: string;
+  /** Nombre del plato tal cual está en la carta, para los informes. */
+  producto: string;
+  cantidad: number;
+  precioUnitario: Centimos;
+  importe: Centimos;
+  iva: number;
+};
+
+export type DesgloseIva = { tipo: number; base: Centimos; cuota: Centimos; total: Centimos };
+
+/**
+ * Factura simplificada (lo que en un bar se llama «ticket»). Es inmutable: para corregirla se
+ * hace una rectificativa, nunca se edita.
+ */
+export type Ticket = {
+  id: Id;
+  /** Serie + número correlativo, por ejemplo «T2026-000123». */
+  numero: string;
+  serie: string;
+  secuencia: number;
+  fecha: FechaISO;
+  cuentaId: Id;
+  mesaNombre: string;
+  empleadoId: Id | null;
+  lineas: LineaTicket[];
+  descuento: number;
+  desglose: DesgloseIva[];
+  total: Centimos;
+  pagos: Pago[];
+  /** Cambio devuelto en efectivo. */
+  cambio: Centimos;
+  /** Huella encadenada con la del ticket anterior (ver huella.ts). */
+  huella: string;
+  huellaAnterior: string;
+  /** Si es rectificativa, el ticket al que anula. */
+  rectificaA: Id | null;
+};
+
+export type CategoriaGasto =
+  "proveedores" | "personal" | "alquiler" | "suministros" | "mantenimiento" | "impuestos" | "otros";
+
+export const NOMBRE_CATEGORIA_GASTO: Record<CategoriaGasto, string> = {
+  proveedores: "Proveedores y género",
+  personal: "Personal",
+  alquiler: "Alquiler",
+  suministros: "Luz, agua y gas",
+  mantenimiento: "Mantenimiento",
+  impuestos: "Impuestos y tasas",
+  otros: "Otros",
+};
+
+export type Gasto = {
+  id: Id;
+  fecha: FechaISO;
+  concepto: string;
+  categoria: CategoriaGasto;
+  proveedor: string;
+  /** Importe total pagado, con IVA. */
+  importe: Centimos;
+  /** IVA soportado en %, para el resumen trimestral. */
+  iva: number;
+  metodo: MetodoPago;
+  /** Si se pagó con dinero de la caja, sale como retirada en el arqueo. */
+  deCaja: boolean;
+  empleadoId: Id | null;
+};
+
+export type MovimientoCaja = {
+  id: Id;
+  fecha: FechaISO;
+  tipo: "entrada" | "salida";
+  importe: Centimos;
+  motivo: string;
+  empleadoId: Id | null;
+};
+
+/** Un turno de caja: de la apertura con el fondo al cierre con el arqueo (informe Z). */
+export type TurnoCaja = {
+  id: Id;
+  numero: number;
+  abiertoEn: FechaISO;
+  cerradoEn: FechaISO | null;
+  fondoInicial: Centimos;
+  movimientos: MovimientoCaja[];
+  /** Efectivo contado al cerrar. */
+  efectivoContado: Centimos | null;
+  abiertoPor: Id | null;
+  cerradoPor: Id | null;
+};
+
+export type TipoAviso = "llamar" | "cuenta" | "pedido_qr" | "listo";
+
+export type Aviso = {
+  id: Id;
+  mesaId: Id;
+  tipo: TipoAviso;
+  creadoEn: FechaISO;
+  atendido: boolean;
+  /** Detalle, por ejemplo «Pagará con tarjeta» o «Croquetas listas». */
+  detalle: string;
+};
+
+export type ConexionImpresora = "red" | "navegador";
+
+export type Impresora = {
+  id: Id;
+  nombre: string;
+  conexion: ConexionImpresora;
+  /** IP de la impresora térmica en la red del local (puerto 9100, estándar ESC/POS). */
+  ip: string;
+  puerto: number;
+  /** Caracteres por línea: 48 en papel de 80 mm, 32 en papel de 58 mm. */
+  columnas: number;
+  /** Qué imprime: comandas de cocina, de barra y/o tickets de cliente. */
+  imprimeCocina: boolean;
+  imprimeBarra: boolean;
+  imprimeTickets: boolean;
+  /** Abre el cajón portamonedas al cobrar en efectivo. */
+  abreCajon: boolean;
+  activa: boolean;
+};
+
+export type TipoTrabajo = "comanda" | "ticket" | "precuenta" | "cierre" | "prueba";
+
+/** Lo que se ha mandado a imprimir. Se guarda para poder verlo o reimprimirlo. */
+export type TrabajoImpresion = {
+  id: Id;
+  creadoEn: FechaISO;
+  tipo: TipoTrabajo;
+  impresoraId: Id | null;
+  /** En las comandas, si es de cocina o de barra. */
+  destino?: Destino;
+  titulo: string;
+  /** Lo que sale en el papel (ver impresion/documento.ts). */
+  documento: Bloque[];
+  estado: "pendiente" | "impreso" | "error" | "en_navegador";
+  error?: string;
+};
+
+export type Estado = {
+  version: number;
+  ajustes: Ajustes;
+  empleados: Empleado[];
+  zonas: Zona[];
+  mesas: Mesa[];
+  categorias: Categoria[];
+  productos: Producto[];
+  cuentas: Cuenta[];
+  tickets: Ticket[];
+  gastos: Gasto[];
+  turnos: TurnoCaja[];
+  avisos: Aviso[];
+  impresoras: Impresora[];
+  trabajos: TrabajoImpresion[];
+};

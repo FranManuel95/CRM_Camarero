@@ -1,0 +1,107 @@
+@import "tailwindcss";
+
+/*
+ * Paleta «azulejo y zinc»: el azul cobalto de los azulejos de bar, el gris de la barra de zinc
+ * y colores de estado que se distinguen de un vistazo (y no solo por el color: cada estado
+ * lleva también su texto o icono).
+ */
+@theme {
+  --font-sans: var(--fuente-texto), ui-sans-serif, system-ui, sans-serif;
+  --font-rotulo: var(--fuente-rotulo), ui-sans-serif, system-ui, sans-serif;
+
+  --color-tinta: #13212e;
+  --color-tinta-suave: #4a5a69;
+  --color-zinc: #e4e9ed;
+  --color-zinc-claro: #f3f6f8;
+  --color-zinc-oscuro: #b9c3cc;
+  --color-cobalto: #1d4fbf;
+  --color-cobalto-oscuro: #143a8f;
+  --color-cobalto-claro: #dfe8fb;
+  --color-ocupada: #f2b33d;
+  --color-ocupada-claro: #fdf0d3;
+  --color-cuenta: #23845a;
+  --color-cuenta-claro: #d9f0e4;
+  --color-aviso: #c8372b;
+  --color-aviso-claro: #fbe1de;
+  --color-qr: #6c45c9;
+  --color-qr-claro: #ebe4fa;
+}
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  background: var(--color-zinc-claro);
+  color: var(--color-tinta);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Azulejo: el motivo de la cabecera de la carta y de la portada. */
+.azulejo {
+  background-color: var(--color-cobalto);
+  background-image:
+    radial-gradient(
+      circle at 50% 50%,
+      transparent 9px,
+      rgb(255 255 255 / 0.9) 10px,
+      rgb(255 255 255 / 0.9) 12px,
+      transparent 13px
+    ),
+    radial-gradient(circle at 0 0, rgb(255 255 255 / 0.9) 6px, transparent 7px),
+    radial-gradient(circle at 100% 0, rgb(255 255 255 / 0.9) 6px, transparent 7px),
+    radial-gradient(circle at 0 100%, rgb(255 255 255 / 0.9) 6px, transparent 7px),
+    radial-gradient(circle at 100% 100%, rgb(255 255 255 / 0.9) 6px, transparent 7px),
+    linear-gradient(
+      45deg,
+      transparent 46%,
+      rgb(255 255 255 / 0.35) 47%,
+      rgb(255 255 255 / 0.35) 53%,
+      transparent 54%
+    ),
+    linear-gradient(
+      -45deg,
+      transparent 46%,
+      rgb(255 255 255 / 0.35) 47%,
+      rgb(255 255 255 / 0.35) 53%,
+      transparent 54%
+    );
+  background-size: 44px 44px;
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-cobalto);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@keyframes latido {
+  50% {
+    transform: scale(1.06);
+  }
+}
+.latido {
+  animation: latido 1.2s ease-in-out infinite;
+}
+
+/* Papel térmico para imprimir desde el navegador. */
+@media print {
+  @page {
+    size: 80mm auto;
+    margin: 0;
+  }
+  .no-imprimir {
+    display: none !important;
+  }
+  body {
+    background: white;
+  }
+}

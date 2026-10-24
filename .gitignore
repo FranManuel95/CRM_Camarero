@@ -1,0 +1,30 @@
+# dependencias
+/node_modules
+
+# next.js
+/.next/
+/out/
+next-env.d.ts
+*.tsbuildinfo
+
+# producción
+/build
+
+# pruebas
+/coverage
+/playwright-report/
+/test-results/
+/blob-report/
+
+# entorno (nunca subir secretos)
+.env
+.env*.local
+
+# sistema
+.DS_Store
+*.pem
+npm-debug.log*
+.vercel
+
+# datos del local (estado de la base local)
+/datos/

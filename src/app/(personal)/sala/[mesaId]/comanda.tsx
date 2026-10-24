@@ -1,0 +1,808 @@
+"use client";
+
+import clsx from "clsx";
+import {
+  ArrowLeft,
+  ArrowRightLeft,
+  Ban,
+  Check,
+  ChefHat,
+  Gift,
+  Minus,
+  MoreHorizontal,
+  Plus,
+  Printer,
+  QrCode,
+  Search,
+  Trash2,
+  Users,
+  X,
+} from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
+import { useDatos } from "@/components/datos-personal";
+import { Boton, Campo, claseEntrada, Dialogo, Vacio } from "@/components/ui";
+import { euros, importeLinea, subtotalCuenta, totalCuenta } from "@/lib/dominio/importes";
+import type { Cuenta, EstadoLinea, LineaCuenta, Producto } from "@/lib/dominio/tipos";
+import { formatearHora, minutosEntre } from "@/lib/fechas";
+import { useAhora } from "@/lib/cliente/use-ahora";
+import { Cobrar } from "./cobrar";
+
+const TEXTO_ESTADO: Record<EstadoLinea, string> = {
+  por_confirmar: "Por aceptar",
+  anotada: "Sin mandar",
+  enviada: "Preparando",
+  lista: "Listo",
+  servida: "Servido",
+  anulada: "Anulado",
+};
+
+export function Comanda({ mesaId }: { mesaId: string }) {
+  const { estado, hacer } = useDatos();
+  const router = useRouter();
+  const mesa = estado.mesas.find((m) => m.id === mesaId);
+  const cuenta = estado.cuentas.find((c) => c.mesaId === mesaId);
+  // Si hay un pedido del QR por aceptar, en el móvil se abre directamente la cuenta.
+  const [panel, setPanel] = useState<"carta" | "cuenta">(() =>
+    cuenta?.lineas.some((l) => l.estado === "por_confirmar") ? "cuenta" : "carta",
+  );
+  const [dialogo, setDialogo] = useState<null | "cobrar" | "mover" | "descuento" | "anular">(null);
+
+  if (!mesa)
+    return (
+      <main className="p-6">
+        <Vacio titulo="Esta mesa ya no existe" />
+      </main>
+    );
+  if (!cuenta)
+    return (
+      <main className="mx-auto max-w-md p-6">
+        <Vacio titulo={`${mesa.nombre} está libre`}>
+          <p className="mb-4">La cuenta se ha cobrado o cerrado desde otra pantalla.</p>
+          <Link href="/sala" className="font-semibold text-cobalto underline">
+            Volver a la sala
+          </Link>
+        </Vacio>
+      </main>
+    );
+
+  const sinMandar = cuenta.lineas.filter((l) => l.estado === "anotada");
+  const porAceptar = cuenta.lineas.filter((l) => l.estado === "por_confirmar");
+  const unidades = (ls: LineaCuenta[]) => ls.reduce((s, l) => s + l.cantidad, 0);
+
+  return (
+    <main className="mx-auto flex max-w-screen-2xl flex-col lg:h-[calc(100dvh-3.5rem)]">
+      <header className="flex flex-wrap items-center gap-2 border-b border-zinc-oscuro/50 bg-white px-3 py-2">
+        <Link href="/sala" className="rounded-lg p-2 hover:bg-zinc" aria-label="Volver a la sala">
+          <ArrowLeft aria-hidden className="size-5" />
+        </Link>
+        <h1 className="font-rotulo text-3xl font-bold">{mesa.nombre}</h1>
+        <div className="flex items-center gap-1 rounded-lg bg-zinc-claro px-1 ring-1 ring-zinc">
+          <button
+            type="button"
+            className="p-2"
+            aria-label="Una persona menos"
+            disabled={cuenta.comensales <= 1}
+            onClick={() =>
+              hacer({
+                tipo: "cambiar_comensales",
+                cuentaId: cuenta.id,
+                comensales: cuenta.comensales - 1,
+              })
+            }
+          >
+            <Minus aria-hidden className="size-4" />
+          </button>
+          <span className="flex items-center gap-1 font-semibold">
+            <Users aria-hidden className="size-4" /> {cuenta.comensales}
+            <span className="sr-only">personas</span>
+          </span>
+          <button
+            type="button"
+            className="p-2"
+            aria-label="Una persona más"
+            onClick={() =>
+              hacer({
+                tipo: "cambiar_comensales",
+                cuentaId: cuenta.id,
+                comensales: cuenta.comensales + 1,
+              })
+            }
+          >
+            <Plus aria-hidden className="size-4" />
+          </button>
+        </div>
+        <p className="text-sm text-tinta-suave">
+          Abierta a las {formatearHora(cuenta.abiertaEn)}
+          {cuenta.empleadoId &&
+            ` · ${estado.empleados.find((e) => e.id === cuenta.empleadoId)?.nombre ?? ""}`}
+        </p>
+        <div className="ml-auto flex flex-wrap gap-1">
+          <Boton tamano="pequeno" variante="fantasma" onClick={() => setDialogo("mover")}>
+            <ArrowRightLeft aria-hidden className="size-4" /> Mover o juntar
+          </Boton>
+          <Boton tamano="pequeno" variante="fantasma" onClick={() => setDialogo("descuento")}>
+            % Descuento
+          </Boton>
+          <Boton tamano="pequeno" variante="fantasma" onClick={() => setDialogo("anular")}>
+            <Ban aria-hidden className="size-4" /> Anular mesa
+          </Boton>
+        </div>
+      </header>
+
+      <div
+        role="tablist"
+        aria-label="Panel"
+        className="grid grid-cols-2 border-b border-zinc-oscuro/50 bg-white lg:hidden"
+      >
+        {(["carta", "cuenta"] as const).map((p) => (
+          <button
+            key={p}
+            role="tab"
+            type="button"
+            aria-selected={panel === p}
+            onClick={() => setPanel(p)}
+            className={clsx(
+              "h-11 font-semibold",
+              panel === p ? "border-b-3 border-cobalto text-cobalto" : "text-tinta-suave",
+            )}
+          >
+            {p === "carta" ? "Carta" : `Cuenta · ${euros(totalCuenta(cuenta))}`}
+          </button>
+        ))}
+      </div>
+
+      <div className="grid min-h-0 flex-1 lg:grid-cols-[1fr_26rem]">
+        <section
+          aria-label="Carta"
+          className={clsx("min-h-0 overflow-y-auto p-3", panel !== "carta" && "hidden lg:block")}
+        >
+          <Carta cuenta={cuenta} />
+          <div className="sticky bottom-0 -mx-3 mt-3 grid grid-cols-2 gap-2 border-t border-zinc-oscuro/50 bg-zinc-claro p-3 lg:hidden">
+            <Boton onClick={() => setPanel("cuenta")}>
+              Ver cuenta · {euros(totalCuenta(cuenta))}
+            </Boton>
+            <Boton
+              variante="primario"
+              disabled={!sinMandar.length}
+              onClick={() =>
+                hacer({ tipo: "enviar_comanda", cuentaId: cuenta.id }, "Comanda mandada")
+              }
+            >
+              <ChefHat aria-hidden className="size-5" />
+              Mandar{sinMandar.length ? ` (${unidades(sinMandar)})` : ""}
+            </Boton>
+          </div>
+        </section>
+        <section
+          aria-label="Cuenta"
+          className={clsx(
+            "flex min-h-0 flex-col border-zinc-oscuro/50 bg-white lg:border-l",
+            panel !== "cuenta" && "hidden lg:flex",
+          )}
+        >
+          <div className="min-h-0 flex-1 overflow-y-auto p-3">
+            {porAceptar.length > 0 && (
+              <div className="mb-4 rounded-xl bg-qr-claro p-3 ring-2 ring-qr">
+                <p className="mb-2 flex items-center gap-2 font-semibold">
+                  <QrCode aria-hidden className="size-5" /> Pedido desde el QR (
+                  {unidades(porAceptar)})
+                </p>
+                <Lineas cuenta={cuenta} lineas={porAceptar} />
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <Boton
+                    variante="secundario"
+                    onClick={() =>
+                      hacer({ tipo: "rechazar_pedido_qr", cuentaId: cuenta.id }, "Pedido rechazado")
+                    }
+                  >
+                    <X aria-hidden className="size-4" /> Rechazar
+                  </Boton>
+                  <Boton
+                    variante="primario"
+                    onClick={() =>
+                      hacer(
+                        { tipo: "aceptar_pedido_qr", cuentaId: cuenta.id },
+                        "Mandado a cocina y barra",
+                      )
+                    }
+                  >
+                    <Check aria-hidden className="size-4" /> Aceptar y mandar
+                  </Boton>
+                </div>
+              </div>
+            )}
+            {cuenta.lineas.length === 0 ? (
+              <Vacio titulo="Cuenta vacía">Toca un producto de la carta para anotarlo.</Vacio>
+            ) : (
+              <Lineas
+                cuenta={cuenta}
+                lineas={cuenta.lineas.filter((l) => l.estado !== "por_confirmar")}
+              />
+            )}
+          </div>
+
+          <footer className="border-t border-zinc-oscuro/50 p-3">
+            {cuenta.descuento > 0 && (
+              <p className="flex justify-between text-sm text-tinta-suave">
+                <span>Subtotal {euros(subtotalCuenta(cuenta))}</span>
+                <span>Descuento {cuenta.descuento} %</span>
+              </p>
+            )}
+            <p className="mb-3 flex items-baseline justify-between">
+              <span className="font-semibold">Total</span>
+              <span className="font-rotulo text-4xl font-bold">{euros(totalCuenta(cuenta))}</span>
+            </p>
+            <div className="grid grid-cols-[auto_1fr_1fr] gap-2">
+              <Boton
+                aria-label="Imprimir la cuenta"
+                onClick={() =>
+                  hacer(
+                    { tipo: "imprimir_precuenta", cuentaId: cuenta.id },
+                    "Cuenta mandada a imprimir",
+                  )
+                }
+              >
+                <Printer aria-hidden className="size-5" />
+              </Boton>
+              <Boton
+                variante="primario"
+                tamano="grande"
+                disabled={!sinMandar.length}
+                onClick={() =>
+                  hacer({ tipo: "enviar_comanda", cuentaId: cuenta.id }, "Comanda mandada")
+                }
+              >
+                <ChefHat aria-hidden className="size-5" />
+                Mandar{sinMandar.length ? ` (${unidades(sinMandar)})` : ""}
+              </Boton>
+              <Boton variante="exito" tamano="grande" onClick={() => setDialogo("cobrar")}>
+                Cobrar
+              </Boton>
+            </div>
+          </footer>
+        </section>
+      </div>
+
+      <Cobrar
+        abierto={dialogo === "cobrar"}
+        cuenta={cuenta}
+        alCerrar={() => setDialogo(null)}
+        alCobrar={() => router.push("/sala")}
+      />
+      <Mover abierto={dialogo === "mover"} cuenta={cuenta} alCerrar={() => setDialogo(null)} />
+      <Descuento
+        abierto={dialogo === "descuento"}
+        cuenta={cuenta}
+        alCerrar={() => setDialogo(null)}
+      />
+      <Dialogo
+        abierto={dialogo === "anular"}
+        alCerrar={() => setDialogo(null)}
+        titulo="Anular la mesa"
+      >
+        <p className="mb-4">
+          Se anula todo lo de {mesa.nombre} y la mesa queda libre. No sale ticket. Si ya se ha
+          servido algo, mejor cóbralo o invítalo.
+        </p>
+        <div className="flex justify-end gap-2">
+          <Boton onClick={() => setDialogo(null)}>No, volver</Boton>
+          <Boton
+            variante="peligro"
+            onClick={async () => {
+              if (await hacer({ tipo: "anular_cuenta", cuentaId: cuenta.id }, "Mesa anulada"))
+                router.push("/sala");
+            }}
+          >
+            Anular la mesa
+          </Boton>
+        </div>
+      </Dialogo>
+    </main>
+  );
+}
+
+function Carta({ cuenta }: { cuenta: Cuenta }) {
+  const { estado, hacer } = useDatos();
+  const categorias = useMemo(
+    () => [...estado.categorias].sort((a, b) => a.orden - b.orden),
+    [estado.categorias],
+  );
+  const [categoriaId, setCategoriaId] = useState(categorias[0]?.id ?? "");
+  const [busqueda, setBusqueda] = useState("");
+  const [detalle, setDetalle] = useState<Producto | null>(null);
+
+  const termino = busqueda.trim().toLowerCase();
+  const productos = estado.productos
+    .filter((p) =>
+      termino ? p.nombre.toLowerCase().includes(termino) : p.categoriaId === categoriaId,
+    )
+    .sort((a, b) => a.orden - b.orden);
+
+  function tocar(p: Producto) {
+    if (p.grupos.length) setDetalle(p);
+    else
+      void hacer({
+        tipo: "anotar",
+        cuentaId: cuenta.id,
+        lineas: [{ productoId: p.id, cantidad: 1, opciones: [], nota: "" }],
+      });
+  }
+
+  return (
+    <>
+      <div className="relative mb-3">
+        <Search
+          aria-hidden
+          className="pointer-events-none absolute top-3 left-3 size-5 text-tinta-suave"
+        />
+        <input
+          type="search"
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          placeholder="Buscar en la carta…"
+          aria-label="Buscar en la carta"
+          className={clsx(claseEntrada, "pl-10")}
+        />
+      </div>
+      {!termino && (
+        <div className="mb-3 flex flex-wrap gap-1.5" role="tablist" aria-label="Categorías">
+          {categorias.map((c) => (
+            <button
+              key={c.id}
+              role="tab"
+              type="button"
+              aria-selected={c.id === categoriaId}
+              onClick={() => setCategoriaId(c.id)}
+              className={clsx(
+                "h-10 rounded-full px-4 text-sm font-semibold",
+                c.id === categoriaId ? "bg-tinta text-white" : "bg-white ring-1 ring-zinc-oscuro",
+              )}
+            >
+              {c.nombre}
+            </button>
+          ))}
+        </div>
+      )}
+      <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
+        {productos.map((p) => (
+          <li key={p.id} className="relative">
+            <button
+              type="button"
+              disabled={!p.disponible}
+              onClick={() => tocar(p)}
+              className="flex h-24 w-full flex-col justify-between rounded-xl bg-white p-3 text-left ring-1 ring-zinc-oscuro transition hover:ring-cobalto active:scale-[0.97] disabled:opacity-45"
+            >
+              <span className="line-clamp-2 leading-tight font-semibold">{p.nombre}</span>
+              <span className="text-sm text-tinta-suave">
+                {p.disponible ? euros(p.precio) : "Agotado"}
+                {p.grupos.length > 0 && " · elegir"}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setDetalle(p)}
+              disabled={!p.disponible}
+              className="absolute top-1 right-1 rounded-lg p-1.5 text-tinta-suave hover:bg-zinc disabled:hidden"
+              aria-label={`Más opciones de ${p.nombre}: cantidad y nota`}
+            >
+              <MoreHorizontal aria-hidden className="size-4" />
+            </button>
+          </li>
+        ))}
+      </ul>
+      {productos.length === 0 && (
+        <Vacio titulo="Nada por aquí">
+          {termino ? "Prueba con otra palabra." : "Esta categoría está vacía."}
+        </Vacio>
+      )}
+      {detalle && (
+        <DetalleProducto producto={detalle} cuenta={cuenta} alCerrar={() => setDetalle(null)} />
+      )}
+    </>
+  );
+}
+
+/** Elegir opciones, cantidad y nota de un producto antes de anotarlo. */
+export function DetalleProducto({
+  producto,
+  alCerrar,
+  cuenta,
+}: {
+  producto: Producto;
+  alCerrar: () => void;
+  cuenta: Cuenta;
+}) {
+  const { hacer } = useDatos();
+  const [elegidas, setElegidas] = useState<string[]>([]);
+  const [cantidad, setCantidad] = useState(1);
+  const [nota, setNota] = useState("");
+  const faltan = producto.grupos.filter(
+    (g) => g.obligatorio && !g.opciones.some((o) => elegidas.includes(o.id)),
+  );
+  const suplemento = producto.grupos
+    .flatMap((g) => g.opciones)
+    .filter((o) => elegidas.includes(o.id))
+    .reduce((s, o) => s + o.suplemento, 0);
+
+  function elegir(grupoId: string, opcionId: string) {
+    const grupo = producto.grupos.find((g) => g.id === grupoId)!;
+    setElegidas((actuales) => {
+      if (grupo.multiple)
+        return actuales.includes(opcionId)
+          ? actuales.filter((i) => i !== opcionId)
+          : [...actuales, opcionId];
+      const sinGrupo = actuales.filter((i) => !grupo.opciones.some((o) => o.id === i));
+      return actuales.includes(opcionId) ? sinGrupo : [...sinGrupo, opcionId];
+    });
+  }
+
+  async function anotar() {
+    const ok = await hacer({
+      tipo: "anotar",
+      cuentaId: cuenta.id,
+      lineas: [{ productoId: producto.id, cantidad, opciones: elegidas, nota: nota.trim() }],
+    });
+    if (ok) alCerrar();
+  }
+
+  return (
+    <Dialogo abierto alCerrar={alCerrar} titulo={producto.nombre}>
+      {producto.grupos.map((g) => (
+        <fieldset key={g.id} className="mb-4">
+          <legend className="mb-2 font-semibold">
+            {g.nombre}
+            <span className="ml-2 text-sm font-normal text-tinta-suave">
+              {g.obligatorio ? "Obligatorio" : "Opcional"}
+              {g.multiple ? " · varias" : ""}
+            </span>
+          </legend>
+          <div className="flex flex-wrap gap-2">
+            {g.opciones.map((o) => {
+              const activa = elegidas.includes(o.id);
+              return (
+                <button
+                  key={o.id}
+                  type="button"
+                  aria-pressed={activa}
+                  onClick={() => elegir(g.id, o.id)}
+                  className={clsx(
+                    "h-11 rounded-lg px-3 font-medium ring-1",
+                    activa ? "bg-cobalto text-white ring-cobalto" : "bg-white ring-zinc-oscuro",
+                  )}
+                >
+                  {o.nombre}
+                  {o.suplemento > 0 && ` +${euros(o.suplemento)}`}
+                </button>
+              );
+            })}
+          </div>
+        </fieldset>
+      ))}
+      <Campo etiqueta="Nota para cocina o barra" className="mb-4">
+        <input
+          className={claseEntrada}
+          value={nota}
+          maxLength={140}
+          onChange={(e) => setNota(e.target.value)}
+          placeholder="Sin cebolla, para compartir…"
+        />
+      </Campo>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2" role="group" aria-label="Cantidad">
+          <Boton aria-label="Una menos" onClick={() => setCantidad((c) => Math.max(1, c - 1))}>
+            <Minus aria-hidden className="size-4" />
+          </Boton>
+          <span className="w-8 text-center font-rotulo text-2xl font-bold" aria-live="polite">
+            {cantidad}
+          </span>
+          <Boton aria-label="Una más" onClick={() => setCantidad((c) => Math.min(99, c + 1))}>
+            <Plus aria-hidden className="size-4" />
+          </Boton>
+        </div>
+        <Boton variante="primario" tamano="grande" disabled={faltan.length > 0} onClick={anotar}>
+          Anotar · {euros((producto.precio + suplemento) * cantidad)}
+        </Boton>
+      </div>
+      {faltan.length > 0 && (
+        <p className="mt-2 text-right text-sm text-tinta-suave">
+          Falta elegir: {faltan.map((g) => g.nombre.toLowerCase()).join(", ")}
+        </p>
+      )}
+    </Dialogo>
+  );
+}
+
+function Lineas({ cuenta, lineas }: { cuenta: Cuenta; lineas: LineaCuenta[] }) {
+  const { hacer } = useDatos();
+  const ahora = useAhora();
+  const [anulando, setAnulando] = useState<LineaCuenta | null>(null);
+  const [motivo, setMotivo] = useState("");
+
+  return (
+    <>
+      <ul className="divide-y divide-zinc">
+        {lineas.map((l) => {
+          const editable = l.estado === "anotada";
+          const anulada = l.estado === "anulada";
+          return (
+            <li key={l.id} className={clsx("py-2", anulada && "opacity-50")}>
+              <div className="flex items-start gap-2">
+                <span className="w-7 shrink-0 text-right font-rotulo text-xl font-bold">
+                  {l.cantidad}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className={clsx("font-semibold", anulada && "line-through")}>{l.nombre}</p>
+                  {l.opciones.length > 0 && (
+                    <p className="text-sm text-tinta-suave">
+                      {l.opciones.map((o) => o.nombre).join(", ")}
+                    </p>
+                  )}
+                  {l.nota && <p className="text-sm font-medium text-aviso">«{l.nota}»</p>}
+                  <p
+                    className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-tinta-suave"
+                    suppressHydrationWarning
+                  >
+                    <EtiquetaEstado estado={l.estado} />
+                    {l.origen === "qr" && <span>QR</span>}
+                    {l.enviadaEn && l.estado === "enviada" && (
+                      <span>hace {minutosEntre(l.enviadaEn, ahora)} min</span>
+                    )}
+                    {l.invitacion && <span className="font-semibold text-cuenta">Invitación</span>}
+                    {l.motivoAnulacion && <span>{l.motivoAnulacion}</span>}
+                  </p>
+                </div>
+                <span className="shrink-0 font-semibold tabular-nums">
+                  {anulada ? "—" : euros(importeLinea(l))}
+                </span>
+              </div>
+              {l.estado !== "por_confirmar" && !anulada && (
+                <div className="mt-1 flex flex-wrap justify-end gap-1 pl-9">
+                  {editable ? (
+                    <>
+                      <Boton
+                        tamano="pequeno"
+                        variante="fantasma"
+                        aria-label={`Una ${l.nombre} menos`}
+                        onClick={() =>
+                          l.cantidad > 1
+                            ? hacer({
+                                tipo: "cambiar_cantidad",
+                                cuentaId: cuenta.id,
+                                lineaId: l.id,
+                                cantidad: l.cantidad - 1,
+                              })
+                            : hacer({ tipo: "quitar_linea", cuentaId: cuenta.id, lineaId: l.id })
+                        }
+                      >
+                        <Minus aria-hidden className="size-4" />
+                      </Boton>
+                      <Boton
+                        tamano="pequeno"
+                        variante="fantasma"
+                        aria-label={`Una ${l.nombre} más`}
+                        onClick={() =>
+                          hacer({
+                            tipo: "cambiar_cantidad",
+                            cuentaId: cuenta.id,
+                            lineaId: l.id,
+                            cantidad: l.cantidad + 1,
+                          })
+                        }
+                      >
+                        <Plus aria-hidden className="size-4" />
+                      </Boton>
+                      <Boton
+                        tamano="pequeno"
+                        variante="fantasma"
+                        aria-label={`Quitar ${l.nombre}`}
+                        onClick={() =>
+                          hacer({ tipo: "quitar_linea", cuentaId: cuenta.id, lineaId: l.id })
+                        }
+                      >
+                        <Trash2 aria-hidden className="size-4" />
+                      </Boton>
+                    </>
+                  ) : (
+                    <>
+                      {l.estado === "lista" && (
+                        <Boton
+                          tamano="pequeno"
+                          variante="exito"
+                          onClick={() =>
+                            hacer({ tipo: "marcar_servida", cuentaId: cuenta.id, lineaIds: [l.id] })
+                          }
+                        >
+                          Servido
+                        </Boton>
+                      )}
+                      <Boton tamano="pequeno" variante="fantasma" onClick={() => setAnulando(l)}>
+                        Anular
+                      </Boton>
+                    </>
+                  )}
+                  <Boton
+                    tamano="pequeno"
+                    variante="fantasma"
+                    aria-pressed={l.invitacion}
+                    onClick={() =>
+                      hacer({
+                        tipo: "invitar_linea",
+                        cuentaId: cuenta.id,
+                        lineaId: l.id,
+                        invitacion: !l.invitacion,
+                      })
+                    }
+                  >
+                    <Gift aria-hidden className="size-4" /> {l.invitacion ? "Cobrar" : "Invitar"}
+                  </Boton>
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      <Dialogo
+        abierto={anulando !== null}
+        alCerrar={() => setAnulando(null)}
+        titulo={`Anular ${anulando?.nombre ?? ""}`}
+      >
+        <p className="mb-3 text-sm text-tinta-suave">
+          Ya está en cocina o barra. Queda apuntado quién lo anula y por qué.
+        </p>
+        <div className="mb-3 flex flex-wrap gap-2">
+          {["Error al pedir", "El cliente lo cancela", "Se ha caído", "Tarda demasiado"].map(
+            (m) => (
+              <Boton
+                key={m}
+                tamano="pequeno"
+                variante={motivo === m ? "primario" : "secundario"}
+                onClick={() => setMotivo(m)}
+              >
+                {m}
+              </Boton>
+            ),
+          )}
+        </div>
+        <Campo etiqueta="Motivo" className="mb-4">
+          <input
+            className={claseEntrada}
+            value={motivo}
+            onChange={(e) => setMotivo(e.target.value)}
+            maxLength={140}
+          />
+        </Campo>
+        <div className="flex justify-end">
+          <Boton
+            variante="peligro"
+            disabled={!motivo.trim()}
+            onClick={async () => {
+              if (
+                anulando &&
+                (await hacer({
+                  tipo: "anular_linea",
+                  cuentaId: cuenta.id,
+                  lineaId: anulando.id,
+                  motivo: motivo.trim(),
+                }))
+              ) {
+                setAnulando(null);
+                setMotivo("");
+              }
+            }}
+          >
+            Anular
+          </Boton>
+        </div>
+      </Dialogo>
+    </>
+  );
+}
+
+function EtiquetaEstado({ estado }: { estado: EstadoLinea }) {
+  return (
+    <span
+      className={clsx(
+        "rounded px-1.5 py-0.5 font-semibold",
+        estado === "anotada" && "bg-ocupada-claro text-tinta",
+        estado === "por_confirmar" && "bg-qr text-white",
+        estado === "enviada" && "bg-cobalto-claro text-cobalto-oscuro",
+        estado === "lista" && "bg-cuenta text-white",
+        estado === "servida" && "bg-zinc text-tinta-suave",
+        estado === "anulada" && "bg-zinc text-tinta-suave",
+      )}
+    >
+      {TEXTO_ESTADO[estado]}
+    </span>
+  );
+}
+
+function Mover({
+  abierto,
+  cuenta,
+  alCerrar,
+}: {
+  abierto: boolean;
+  cuenta: Cuenta;
+  alCerrar: () => void;
+}) {
+  const { estado, hacer } = useDatos();
+  const router = useRouter();
+  return (
+    <Dialogo abierto={abierto} alCerrar={alCerrar} titulo="Mover o juntar mesa" ancho="max-w-2xl">
+      <p className="mb-3 text-sm text-tinta-suave">
+        Elige la mesa de destino. Si está ocupada, las dos cuentas se juntan en una.
+      </p>
+      {[...estado.zonas]
+        .sort((a, b) => a.orden - b.orden)
+        .map((z) => (
+          <div key={z.id} className="mb-3">
+            <p className="mb-1 font-semibold">{z.nombre}</p>
+            <div className="flex flex-wrap gap-2">
+              {estado.mesas
+                .filter((m) => m.zonaId === z.id && m.id !== cuenta.mesaId)
+                .map((m) => {
+                  const ocupada = estado.cuentas.some((c) => c.mesaId === m.id);
+                  return (
+                    <Boton
+                      key={m.id}
+                      variante={ocupada ? "secundario" : "primario"}
+                      onClick={async () => {
+                        if (
+                          await hacer(
+                            { tipo: "mover_cuenta", cuentaId: cuenta.id, mesaId: m.id },
+                            ocupada ? `Juntada con ${m.nombre}` : `Movida a ${m.nombre}`,
+                          )
+                        ) {
+                          alCerrar();
+                          router.replace(`/sala/${m.id}`);
+                        }
+                      }}
+                    >
+                      {m.nombre}
+                      {ocupada && " (juntar)"}
+                    </Boton>
+                  );
+                })}
+            </div>
+          </div>
+        ))}
+    </Dialogo>
+  );
+}
+
+function Descuento({
+  abierto,
+  cuenta,
+  alCerrar,
+}: {
+  abierto: boolean;
+  cuenta: Cuenta;
+  alCerrar: () => void;
+}) {
+  const { hacer } = useDatos();
+  return (
+    <Dialogo abierto={abierto} alCerrar={alCerrar} titulo="Descuento a toda la cuenta">
+      <div className="grid grid-cols-4 gap-2">
+        {[0, 5, 10, 15, 20, 25, 50, 100].map((d) => (
+          <Boton
+            key={d}
+            tamano="grande"
+            variante={cuenta.descuento === d ? "primario" : "secundario"}
+            onClick={async () => {
+              if (await hacer({ tipo: "aplicar_descuento", cuentaId: cuenta.id, descuento: d }))
+                alCerrar();
+            }}
+          >
+            {d === 0 ? "Sin" : `${d} %`}
+          </Boton>
+        ))}
+      </div>
+      <p className="mt-3 text-sm text-tinta-suave">
+        Para invitar a algo suelto, usa «Invitar» en esa línea. Total ahora:{" "}
+        {euros(totalCuenta(cuenta))}
+      </p>
+    </Dialogo>
+  );
+}
