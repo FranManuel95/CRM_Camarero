@@ -28,3 +28,6 @@ npm-debug.log*
 
 # datos del local (estado de la base local)
 /datos/
+
+# capturas de pantalla para enseñar (no van al repositorio)
+/capturas/
