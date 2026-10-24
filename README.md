@@ -40,6 +40,12 @@ Arranca con un bar de ejemplo («La Esquina», ficticio) con dos semanas de vent
 1234** (encargada), **Luis 1111**, **Marta 2222**. En la portada hay un enlace a la carta QR de la
 Mesa 1 para probar como cliente; ábrelo en otra ventana y mira cómo llega el pedido a la sala.
 
+## En internet
+
+Funciona igual en la nube con **Supabase** (datos y avisos en directo) y **Vercel** (la web). Las
+impresoras del bar reciben los trabajos con el puente de impresión (Gestión → Impresoras). Ver
+`docs/ARQUITECTURA.md`.
+
 ## Documentación
 
 - `docs/INVESTIGACION.md`: repositorios parecidos, cómo se llama cada aparato, impresión y ley.

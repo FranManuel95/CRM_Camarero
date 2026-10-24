@@ -9,6 +9,18 @@
 - **Pruebas**: unitarias (`npm test`) y E2E en móvil y escritorio con axe (`npm run test:e2e`), en
   verde.
 
+## En la nube (24/10/2026)
+
+- **Supabase**: proyecto `comanda-tpv` (`ayuiugvmzgtzpfsgxeue`, París, plan gratuito). Migración
+  `20261024120000_tpv.sql` aplicada. Local `la-esquina` creado con su clave (hash en
+  `privado.claves`). Para hacer sitio se pausó **AppCitas** (`wltzweynizuzoicsoyjp`) con permiso
+  del usuario: sus datos siguen ahí y se reactiva desde el panel de Supabase.
+- **Vercel**: proyecto `comanda-tpv` enlazado a GitHub, rama de producción
+  `claude/hopeful-maxwell-o3aibm` (cada push despliega). Variables: `NEXT_PUBLIC_SUPABASE_URL`,
+  `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `TPV_LOCAL`, `TPV_CLAVE` (sensible). La clave está
+  también en `.env.local` del usuario (nunca en el repositorio).
+- En la nube los tickets son definitivos: «Volver a los datos de ejemplo» no funciona allí.
+
 ## Pendiente (por orden)
 
 1. **VERI\*FACTU** antes de usarlo como TPV fiscal real (ver `docs/INVESTIGACION.md`).

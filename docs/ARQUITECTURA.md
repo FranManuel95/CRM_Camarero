@@ -15,6 +15,29 @@ necesita la wifi del local. Las impresoras de red reciben las comandas directame
                                              └──────────────────────────────┘
 ```
 
+## Las dos formas de tenerlo
+
+|                    | En el ordenador del bar       | En la nube                                                                                     |
+| ------------------ | ----------------------------- | ---------------------------------------------------------------------------------------------- |
+| Dónde se guarda    | `datos/estado.json`           | Supabase (proyecto `comanda-tpv`, París)                                                       |
+| Se activa con      | Nada (es lo de por defecto)   | `TPV_CLAVE` + `NEXT_PUBLIC_SUPABASE_*`                                                         |
+| Cambios en directo | Flujo SSE del propio servidor | Supabase Realtime (solo avisa «hay cambios»; la pantalla pide los datos a la app)              |
+| Impresoras de red  | Las atiende el servidor       | Las atiende el **puente de impresión** (`public/puente-impresion.mjs`) en un ordenador del bar |
+| Sin internet       | Sigue funcionando             | No funciona                                                                                    |
+
+### En la nube, por dentro
+
+- Tablas `locales`, `estados` (un documento con lo vivo del local y un número de revisión) y
+  `tickets` (una fila por ticket, solo se pueden añadir). Todas con RLS y sin políticas: nadie las
+  lee desde fuera. Ver `supabase/migrations/`.
+- La app (Vercel) entra por dos funciones, `tpv_cargar` y `tpv_guardar`, que piden la **clave del
+  local**; en la base de datos solo está su resumen SHA-256, en un esquema que no sale en la API.
+- Cada acción: leer estado y revisión → aplicar con `reducir` → guardar solo si la revisión no ha
+  cambiado (si otra pantalla se adelantó, se repite). Estado y tickets nuevos se guardan en la
+  misma transacción, y entonces Supabase avisa por Realtime al canal `tpv:<local>`.
+- Los avisos de seguridad de Supabase «funciones SECURITY DEFINER ejecutables por anon» son
+  intencionados: sin la clave del local no hacen nada.
+
 ## Cómo fluye un cambio
 
 1. Una pantalla manda una **acción** (`src/lib/dominio/acciones.ts`, validada con Zod): «anotar dos
