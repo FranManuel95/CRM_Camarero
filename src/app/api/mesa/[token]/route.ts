@@ -13,7 +13,7 @@ const porMesa = crearLimite(12, 60_000);
 const porIp = crearLimite(30, 60_000);
 
 export async function GET(_request: Request, { params }: Params) {
-  const vista = vistaCliente(leerEstado(), (await params).token);
+  const vista = vistaCliente(await leerEstado(), (await params).token);
   return vista ? json(vista) : json({ error: "Este QR ya no es válido." }, 404);
 }
 
@@ -22,7 +22,7 @@ export async function POST(request: Request, { params }: Params) {
   if (!porMesa(token) || !porIp(ipDe(request)))
     return json({ error: "Vas muy rápido. Espera un momento y vuelve a probar." }, 429);
   try {
-    ejecutarCliente(token, accionCliente.parse(await request.json()));
+    await ejecutarCliente(token, accionCliente.parse(await request.json()));
     return json({ ok: true });
   } catch (e) {
     return respuestaDeError(e);

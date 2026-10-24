@@ -17,7 +17,7 @@ export default async function Imprimir({
 }) {
   if (!(await empleadoActual())) redirect("/entrar");
   const [{ id }, { columnas }] = await Promise.all([params, searchParams]);
-  const trabajo = leerEstado().trabajos.find((t) => t.id === id);
+  const trabajo = (await leerEstado()).trabajos.find((t) => t.id === id);
   if (!trabajo) return <p className="p-6">Este trabajo ya no está en la cola de impresión.</p>;
   return (
     <main className="bg-white">

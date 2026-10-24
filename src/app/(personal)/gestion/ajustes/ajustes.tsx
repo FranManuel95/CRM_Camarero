@@ -93,7 +93,12 @@ export function Ajustes() {
               // Recarga completa a propósito: la sesión ha cambiado y hay que empezar de cero.
               // eslint-disable-next-line @next/next/no-location-assign-relative-destination
               if (r.ok) window.location.assign("/sala");
-              else avisar("No se ha podido reiniciar.", "error");
+              else
+                avisar(
+                  ((await r.json().catch(() => null)) as { error?: string } | null)?.error ??
+                    "No se ha podido reiniciar.",
+                  "error",
+                );
             }}
           >
             Volver a los datos de ejemplo

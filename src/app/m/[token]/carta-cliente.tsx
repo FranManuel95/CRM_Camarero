@@ -2,12 +2,14 @@
 
 import clsx from "clsx";
 import { Bell, Check, Minus, Plus, Receipt, ShoppingBag } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Boton, Campo, claseEntrada, Dialogo } from "@/components/ui";
+import { useEnDirecto } from "@/lib/cliente/use-en-directo";
 import { useGuardado } from "@/lib/cliente/use-guardado";
 import type { LineaPedida } from "@/lib/dominio/acciones";
 import { euros } from "@/lib/dominio/importes";
 import { type Alergeno, ALERGENOS, NOMBRE_ALERGENO } from "@/lib/dominio/tipos";
+import type { ConfigDirecto } from "@/lib/servidor/almacen";
 import type { VistaCliente } from "@/lib/servidor/vistas";
 
 type Producto = VistaCliente["productos"][number];
@@ -32,7 +34,15 @@ function precioDe(p: Producto, opciones: string[]) {
   );
 }
 
-export function CartaCliente({ token, inicial }: { token: string; inicial: VistaCliente }) {
+export function CartaCliente({
+  token,
+  inicial,
+  directo,
+}: {
+  token: string;
+  inicial: VistaCliente;
+  directo: ConfigDirecto;
+}) {
   const [vista, setVista] = useState(inicial);
   const [cesta, setCesta] = useGuardado<EnCesta[]>(`comanda.cesta.${token}`, [], "sesion");
   const [sinAlergenos, setSinAlergenos] = useState<Alergeno[]>([]);
@@ -42,15 +52,13 @@ export function CartaCliente({ token, inicial }: { token: string; inicial: Vista
   const [mensaje, setMensaje] = useState<{ texto: string; error?: boolean } | null>(null);
   const [enviando, setEnviando] = useState(false);
 
-  useEffect(() => {
-    const fuente = new EventSource(`/api/mesa/${token}/eventos`);
-    fuente.onmessage = (e) => {
-      setVista(JSON.parse(e.data) as VistaCliente);
-      document.documentElement.dataset.conectado = "1";
-    };
-    fuente.addEventListener("fin", () => fuente.close());
-    return () => fuente.close();
-  }, [token]);
+  const { refrescar } = useEnDirecto<VistaCliente>(
+    directo,
+    { eventos: `/api/mesa/${token}/eventos`, datos: `/api/mesa/${token}` },
+    setVista,
+    // El QR ha dejado de valer (lo han regenerado): al recargar sale el aviso.
+    () => window.location.reload(),
+  );
 
   const porId = useMemo(() => new Map(vista.productos.map((p) => [p.id, p])), [vista.productos]);
   const totalCesta = cesta.reduce((s, l) => {
@@ -78,6 +86,7 @@ export function CartaCliente({ token, inicial }: { token: string; inicial: Vista
         avisar(datos.error, true);
         return false;
       }
+      if (directo.tipo === "supabase") refrescar();
       return true;
     } catch {
       avisar("No hay conexión. Prueba otra vez o llama al camarero.", true);

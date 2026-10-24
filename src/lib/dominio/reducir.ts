@@ -1,6 +1,7 @@
 import type { AccionCliente, AccionEncargado, AccionPersonal, LineaPedida } from "./acciones";
 import { turnoAbierto } from "./caja";
 import { calcularHuella } from "./huella";
+import { resumenPin } from "./pin";
 import {
   calcularCambio,
   desgloseIva,
@@ -767,7 +768,9 @@ function reducirEncargado(
       const previo = id ? buscar(estado.empleados, id, "esa persona") : undefined;
       const datos = {
         ...cambios,
-        pin: cambios.pin || previo?.pin || falla("Ponle un PIN de 4 a 6 cifras."),
+        pin: cambios.pin
+          ? resumenPin(cambios.pin)
+          : (previo?.pin ?? falla("Ponle un PIN de 4 a 6 cifras.")),
       };
       const pinRepetido = estado.empleados.find(
         (e) => e.id !== id && e.activo && e.pin === datos.pin,

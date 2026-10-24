@@ -5,6 +5,8 @@ import type { AccionPersonal } from "@/lib/dominio/acciones";
 import type { Rol } from "@/lib/dominio/tipos";
 import { enviarAccion, type RespuestaAccion } from "@/lib/cliente/api";
 import { imprimirTrabajos, imprimirUno, tocaAqui } from "@/lib/cliente/impresion-local";
+import { useEnDirecto } from "@/lib/cliente/use-en-directo";
+import type { ConfigDirecto } from "@/lib/servidor/almacen";
 import type { VistaPersonal } from "@/lib/servidor/vistas";
 
 export type EmpleadoSesion = { id: string; nombre: string; rol: Rol };
@@ -29,40 +31,34 @@ export function useDatos(): Datos {
 }
 
 /**
- * Mantiene el estado del local al día en esta pantalla: lo recibe del servidor por un flujo de
- * eventos (SSE) y se reconecta solo si se corta.
+ * Mantiene el estado del local al día en esta pantalla (ver useEnDirecto) y se reconecta solo
+ * si se corta.
  */
 export function DatosPersonal({
   inicial,
   empleado,
+  directo,
   children,
 }: {
   inicial: VistaPersonal;
   empleado: EmpleadoSesion;
+  directo: ConfigDirecto;
   children: React.ReactNode;
 }) {
   const [estado, setEstado] = useState(inicial);
-  const [conectado, setConectado] = useState(true);
   const [avisos, setAvisos] = useState<Aviso[]>([]);
   const contador = useRef(0);
 
-  useEffect(() => {
-    const fuente = new EventSource("/api/eventos");
-    fuente.onmessage = (e) => {
-      setEstado(JSON.parse(e.data) as VistaPersonal);
-      setConectado(true);
-      // Marca que la pantalla ya recibe datos en directo (lo usan las pruebas).
-      document.documentElement.dataset.conectado = "1";
-    };
-    fuente.addEventListener("fin", () => {
-      fuente.close();
-      // Recarga completa a propósito: la sesión ha cambiado y hay que empezar de cero.
+  const { conectado, refrescar } = useEnDirecto<VistaPersonal>(
+    directo,
+    { eventos: "/api/eventos", datos: "/api/estado" },
+    setEstado,
+    () => {
+      // Recarga completa a propósito: la sesión ha terminado y hay que empezar de cero.
       // eslint-disable-next-line @next/next/no-location-assign-relative-destination
       window.location.assign("/entrar");
-    });
-    fuente.onerror = () => setConectado(false);
-    return () => fuente.close();
-  }, []);
+    },
+  );
 
   // Puesto de impresión: lo nuevo que llega sin impresora de red y le toca a esta pantalla.
   const vistos = useRef<Set<string> | null>(null);
@@ -95,10 +91,12 @@ export function DatosPersonal({
         return false;
       }
       if (mensajeOk) avisar(mensajeOk);
+      // En la nube, quien hace el cambio no espera al aviso de Realtime: pide los datos ya.
+      if (directo.tipo === "supabase") refrescar();
       if (r.trabajos?.length) imprimirTrabajos(r.trabajos);
       return true;
     },
-    [avisar],
+    [avisar, directo.tipo, refrescar],
   );
 
   const valor = useMemo(

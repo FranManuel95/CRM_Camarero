@@ -1,7 +1,7 @@
 import "server-only";
 import { ZodError } from "zod";
 import { ErrorAccion } from "../dominio/reducir";
-import { suscribirse } from "./almacen";
+import { almacen } from "./almacen";
 
 export const json = (datos: unknown, status = 200) =>
   Response.json(datos, { status, headers: { "Cache-Control": "no-store" } });
@@ -24,21 +24,21 @@ export function respuestaDeError(e: unknown) {
  * Flujo de eventos del servidor (SSE): cada vez que cambia algo, manda la vista nueva. El
  * navegador se reconecta solo si se corta (por ejemplo, si el móvil pierde el wifi).
  */
-export function flujoDeCambios(request: Request, vista: () => unknown | null) {
+export function flujoDeCambios(request: Request, vista: () => Promise<unknown | null>) {
   const codificador = new TextEncoder();
   let cancelar = () => {};
   const flujo = new ReadableStream({
     start(controlador) {
-      const mandar = () => {
-        const datos = vista();
+      const mandar = async () => {
+        const datos = await vista();
         if (datos === null) {
           controlador.enqueue(codificador.encode(`event: fin\ndata: {}\n\n`));
           return;
         }
         controlador.enqueue(codificador.encode(`data: ${JSON.stringify(datos)}\n\n`));
       };
-      mandar();
-      const quitar = suscribirse(mandar);
+      void mandar();
+      const quitar = almacen().suscribirse?.(() => void mandar()) ?? (() => {});
       const latido = setInterval(
         () => controlador.enqueue(codificador.encode(`: latido\n\n`)),
         20_000,

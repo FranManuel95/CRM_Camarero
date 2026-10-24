@@ -28,7 +28,7 @@ const ESTADO_TRABAJO = {
   en_navegador: "Para imprimir desde una pantalla",
 } as const;
 
-export function Impresoras() {
+export function Impresoras({ puente }: { puente: { clave: string } | null }) {
   const { estado, hacer, avisar } = useDatos();
   const [borrador, setBorrador] = useState<Borrador | null>(null);
   const [viendo, setViendo] = useState<TrabajoImpresion | null>(null);
@@ -134,6 +134,8 @@ export function Impresoras() {
           </div>
         </details>
       </section>
+
+      {puente && <Puente clave={puente.clave} />}
 
       <EstaPantalla />
 
@@ -425,6 +427,57 @@ function EstaPantalla() {
       </fieldset>
       <p className="mt-3 text-xs text-tinta-suave">
         Deja esta pantalla abierta (por ejemplo, en Cocina) para que imprima lo que llegue.
+      </p>
+    </section>
+  );
+}
+
+/** Instrucciones del puente de impresión (solo cuando la app está en la nube). */
+function Puente({ clave }: { clave: string }) {
+  const { avisar } = useDatos();
+  const [ver, setVer] = useState(false);
+  const direccion = useDelNavegador(() => window.location.origin, "");
+  const orden = `node puente-impresion.mjs ${direccion} ${ver ? clave : "••••••••"}`;
+  return (
+    <section aria-labelledby="t-puente" className="rounded-2xl bg-white p-4 ring-1 ring-zinc">
+      <h2 id="t-puente" className="mb-1 font-rotulo text-3xl font-bold">
+        Puente de impresión
+      </h2>
+      <p className="mb-3 text-sm text-tinta-suave">
+        La app está en internet y las impresoras de red están en el bar. El puente es un programa
+        pequeño que se deja abierto en un ordenador del bar (en la misma red que las impresoras) y
+        les pasa lo que hay que imprimir.
+      </p>
+      <ol className="mb-3 list-decimal space-y-1 pl-5 text-sm">
+        <li>
+          Instala Node.js (nodejs.org) en ese ordenador y{" "}
+          <a href="/puente-impresion.mjs" download className="font-semibold text-cobalto underline">
+            descarga el puente
+          </a>
+          .
+        </li>
+        <li>Abre una terminal en la carpeta de la descarga y escribe:</li>
+      </ol>
+      <pre className="mb-2 overflow-x-auto rounded-lg bg-tinta p-3 text-sm text-white">{orden}</pre>
+      <div className="flex flex-wrap gap-2">
+        <Boton tamano="pequeno" onClick={() => setVer((v) => !v)}>
+          {ver ? "Ocultar la clave" : "Ver la clave"}
+        </Boton>
+        <Boton
+          tamano="pequeno"
+          onClick={() =>
+            navigator.clipboard
+              .writeText(`node puente-impresion.mjs ${direccion} ${clave}`)
+              .then(() => avisar("Orden copiada"))
+              .catch(() => avisar("No se ha podido copiar", "error"))
+          }
+        >
+          Copiar la orden
+        </Boton>
+      </div>
+      <p className="mt-2 text-xs text-tinta-suave">
+        No compartas la clave: con ella se pueden leer los trabajos de impresión. Los trabajos que
+        esperan al puente salen abajo como «Imprimiendo…».
       </p>
     </section>
   );

@@ -26,6 +26,7 @@ export default defineConfig({
     url: `http://localhost:${port}`,
     reuseExistingServer: false,
     timeout: 120_000,
-    env: { DATOS_DIR: datos },
+    // TPV_CLAVE vacía: las pruebas usan siempre el archivo local, nunca la base de datos real.
+    env: { DATOS_DIR: datos, TPV_CLAVE: "" },
   },
 });

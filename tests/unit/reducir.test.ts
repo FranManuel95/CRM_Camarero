@@ -268,3 +268,15 @@ describe("datos de ejemplo", () => {
     expect(estado.gastos).toHaveLength(10);
   });
 });
+
+describe("PIN y versiones", () => {
+  it("guarda los PIN resumidos y pone al día los datos antiguos", async () => {
+    const { migrar } = await import("@/lib/dominio/migraciones");
+    const { resumenPin } = await import("@/lib/dominio/pin");
+    const estado = estadoDeEjemplo(contexto());
+    expect(estado.empleados[0]!.pin).toBe(resumenPin("1234"));
+    const antiguo = { ...estado, version: 1, empleados: [{ ...estado.empleados[0]!, pin: "1234" }] };
+    expect(migrar(antiguo).empleados[0]!.pin).toBe(resumenPin("1234"));
+    expect(() => migrar({ ...estado, version: 99 })).toThrow("versión desconocida");
+  });
+});

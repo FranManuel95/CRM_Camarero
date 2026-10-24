@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { leerEstado } from "@/lib/servidor/almacen";
+import { configDirecto, leerEstado } from "@/lib/servidor/almacen";
 import { vistaCliente } from "@/lib/servidor/vistas";
 import { CartaCliente } from "./carta-cliente";
 
@@ -10,13 +10,13 @@ export async function generateMetadata({
 }: {
   params: Promise<{ token: string }>;
 }): Promise<Metadata> {
-  const vista = vistaCliente(leerEstado(), (await params).token);
+  const vista = vistaCliente(await leerEstado(), (await params).token);
   return { title: vista ? `Carta · ${vista.mesa.nombre}` : "Carta", robots: { index: false } };
 }
 
 export default async function PaginaCarta({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const vista = vistaCliente(leerEstado(), token);
+  const vista = vistaCliente(await leerEstado(), token);
   if (!vista)
     return (
       <main className="grid min-h-dvh place-items-center p-6 text-center">
@@ -26,5 +26,5 @@ export default async function PaginaCarta({ params }: { params: Promise<{ token:
         </div>
       </main>
     );
-  return <CartaCliente token={token} inicial={vista} />;
+  return <CartaCliente token={token} inicial={vista} directo={configDirecto()} />;
 }

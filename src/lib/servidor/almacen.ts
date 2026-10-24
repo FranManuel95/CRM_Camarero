@@ -1,33 +1,39 @@
 import "server-only";
-import { randomBytes, randomUUID } from "node:crypto";
-import { EventEmitter } from "node:events";
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
-import path from "node:path";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import type { AccionCliente, AccionPersonal } from "../dominio/acciones";
-import { estadoDeEjemplo, VERSION_ESTADO } from "../dominio/demo";
+import { resumenPin } from "../dominio/pin";
 import { type Contexto, type Resultado, reducirCliente, reducirPersonal } from "../dominio/reducir";
 import type { Empleado, Estado, TrabajoImpresion } from "../dominio/tipos";
-import { aEscpos } from "../impresion/escpos";
-import { enviarAImpresora } from "./impresora-red";
+import { almacenArchivo } from "./almacen-archivo";
+import { almacenSupabase } from "./almacen-supabase";
 
 /**
- * El almacén del local: guarda el estado en un archivo JSON en el propio PC del bar y avisa a
- * las pantallas cuando algo cambia. Es un solo proceso, así que las acciones se aplican de una
- * en una y nunca se pisan. Para varios locales o para la nube, el siguiente paso es Supabase
- * (ver docs/ARQUITECTURA.md); la interfaz de este módulo es la que habría que mantener.
+ * Dónde se guarda el estado del local. Dos formas, con la misma interfaz:
+ * - **archivo** (por defecto): un JSON en el ordenador del bar. Funciona sin internet y el
+ *   servidor imprime directamente en las impresoras de red.
+ * - **supabase** (si hay TPV_CLAVE): en la nube, para tenerlo en internet (Vercel). Las
+ *   impresoras de red las atiende el «puente de impresión» que corre en el bar.
  */
-
-type Almacen = {
-  estado: Estado;
-  revision: number;
-  eventos: EventEmitter;
-  secreto: string;
+export type Almacen = {
+  modo: "archivo" | "supabase";
+  leer(): Promise<Estado>;
+  /** Aplica un cambio de forma segura frente a otras pantallas; reintenta si hace falta. */
+  cambiar(aplicar: (estado: Estado) => Resultado): Promise<Resultado>;
+  /** Para la sesión del personal. */
+  secreto(): string;
+  /** Solo en modo archivo: avisos de cambios para el flujo SSE. */
+  suscribirse?(alCambiar: () => void): () => void;
+  reiniciar?(): Promise<void>;
+  /** Solo en modo archivo: el servidor imprime él mismo en las impresoras de red. */
+  imprimirEnRed?(trabajo: TrabajoImpresion): void;
 };
 
-const carpeta = () => process.env.DATOS_DIR ?? path.join(process.cwd(), "datos");
-const archivo = () => path.join(carpeta(), "estado.json");
+export type TrabajoResumen = Pick<
+  TrabajoImpresion,
+  "id" | "estado" | "titulo" | "impresoraId" | "destino" | "tipo"
+>;
 
-function contexto(): Contexto {
+export function contexto(): Contexto {
   return {
     ahora: new Date().toISOString(),
     nuevoId: () => randomUUID(),
@@ -35,65 +41,33 @@ function contexto(): Contexto {
   };
 }
 
-function cargar(): Almacen {
-  mkdirSync(carpeta(), { recursive: true });
-  let estado: Estado;
-  if (existsSync(archivo())) {
-    estado = JSON.parse(readFileSync(archivo(), "utf8")) as Estado;
-    if (estado.version !== VERSION_ESTADO)
-      throw new Error(`El archivo ${archivo()} es de otra versión.`);
-  } else {
-    estado = estadoDeEjemplo(contexto(), { conHistorial: process.env.DEMO !== "false" });
-    writeFileSync(archivo(), JSON.stringify(estado));
-  }
-  const rutaSecreto = path.join(carpeta(), "secreto");
-  if (!existsSync(rutaSecreto))
-    writeFileSync(rutaSecreto, randomBytes(32).toString("hex"), { mode: 0o600 });
-  const eventos = new EventEmitter();
-  eventos.setMaxListeners(200);
-  return { estado, revision: 1, eventos, secreto: readFileSync(rutaSecreto, "utf8").trim() };
-}
-
-// En desarrollo Next recarga los módulos; el almacén vive en globalThis para no duplicarse.
 const global = globalThis as typeof globalThis & { __almacenTPV?: Almacen };
-function almacen(): Almacen {
-  global.__almacenTPV ??= cargar();
+
+export function almacen(): Almacen {
+  global.__almacenTPV ??= process.env.TPV_CLAVE ? almacenSupabase() : almacenArchivo();
   return global.__almacenTPV;
 }
 
-export const leerEstado = (): Estado => almacen().estado;
-export const revision = () => almacen().revision;
-export const secreto = () => process.env.SESION_SECRETO ?? almacen().secreto;
+/** Cómo reciben las pantallas los cambios en directo. */
+export type ConfigDirecto =
+  { tipo: "sse" } | { tipo: "supabase"; url: string; clave: string; canal: string };
 
-/**
- * Guarda en cada cambio, antes de dar la acción por buena. Escribe en un archivo temporal y lo
- * renombra: si se va la luz a mitad, el archivo anterior sigue entero.
- */
-function guardar(estado: Estado) {
-  const temporal = `${archivo()}.tmp`;
-  writeFileSync(temporal, JSON.stringify(estado));
-  renameSync(temporal, archivo());
-}
-
-function cambiar(estado: Estado) {
+export function configDirecto(): ConfigDirecto {
   const a = almacen();
-  guardar(estado);
-  a.estado = estado;
-  a.revision += 1;
-  a.eventos.emit("cambio", a.revision);
+  if (a.modo === "archivo") return { tipo: "sse" };
+  return {
+    tipo: "supabase",
+    url: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+    clave: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "",
+    canal: `tpv:${process.env.TPV_LOCAL ?? "la-esquina"}`,
+  };
 }
 
-export function suscribirse(alCambiar: (revision: number) => void): () => void {
-  const { eventos } = almacen();
-  eventos.on("cambio", alCambiar);
-  return () => eventos.off("cambio", alCambiar);
-}
+export const leerEstado = () => almacen().leer();
+export const secreto = () => process.env.SESION_SECRETO ?? almacen().secreto();
 
-function tras(resultado: Resultado) {
-  cambiar(resultado.estado);
-  for (const trabajo of resultado.trabajos)
-    if (trabajo.estado === "pendiente") void imprimir(trabajo);
-  return resultado.trabajos.map(({ id, estado, titulo, impresoraId, destino, tipo }) => ({
+function resumir(trabajos: TrabajoImpresion[]): TrabajoResumen[] {
+  return trabajos.map(({ id, estado, titulo, impresoraId, destino, tipo }) => ({
     id,
     estado,
     titulo,
@@ -103,55 +77,49 @@ function tras(resultado: Resultado) {
   }));
 }
 
+async function tras(resultado: Promise<Resultado>) {
+  const r = await resultado;
+  const a = almacen();
+  if (a.imprimirEnRed) for (const t of r.trabajos) if (t.estado === "pendiente") a.imprimirEnRed(t);
+  return resumir(r.trabajos);
+}
+
 export function ejecutarPersonal(accion: AccionPersonal, empleado: Empleado) {
-  return tras(reducirPersonal(leerEstado(), accion, empleado, contexto()));
+  return tras(almacen().cambiar((e) => reducirPersonal(e, accion, empleado, contexto())));
 }
 
 export function ejecutarCliente(token: string, accion: AccionCliente) {
-  return tras(reducirCliente(leerEstado(), token, accion, contexto()));
+  return tras(almacen().cambiar((e) => reducirCliente(e, token, accion, contexto())));
 }
 
-/** Manda un trabajo a su impresora de red y apunta si salió bien. */
-async function imprimir(trabajo: TrabajoImpresion) {
-  const impresora = leerEstado().impresoras.find((i) => i.id === trabajo.impresoraId);
-  let resultado: Pick<TrabajoImpresion, "estado" | "error">;
-  if (!impresora) resultado = { estado: "error", error: "La impresora ya no existe." };
-  else {
-    try {
-      await enviarAImpresora(
-        impresora.ip,
-        impresora.puerto,
-        aEscpos(trabajo.documento, { columnas: impresora.columnas }),
-      );
-      resultado = { estado: "impreso" };
-    } catch (e) {
-      resultado = { estado: "error", error: e instanceof Error ? e.message : String(e) };
-    }
-  }
-  const estado = leerEstado();
-  cambiar({
-    ...estado,
-    trabajos: estado.trabajos.map((t) => (t.id === trabajo.id ? { ...t, ...resultado } : t)),
-  });
+/** Apunta cómo ha ido un trabajo de impresión (desde una pantalla, el puente o el servidor). */
+export async function marcarTrabajo(
+  trabajoId: string,
+  cambios: Pick<TrabajoImpresion, "estado" | "error">,
+) {
+  await almacen().cambiar((estado) => ({
+    estado: {
+      ...estado,
+      trabajos: estado.trabajos.map((t) => {
+        if (t.id !== trabajoId) return t;
+        const { error: _e, ...resto } = t;
+        void _e;
+        return cambios.error ? { ...resto, ...cambios } : { ...resto, estado: cambios.estado };
+      }),
+    },
+    trabajos: [],
+  }));
 }
 
-/** Marca un trabajo como impreso (lo usa la pantalla cuando imprime desde el navegador o USB). */
-export function marcarImpreso(trabajoId: string) {
-  const estado = leerEstado();
-  cambiar({
-    ...estado,
-    trabajos: estado.trabajos.map((t) =>
-      t.id === trabajoId ? { ...t, estado: "impreso" as const } : t,
-    ),
-  });
+export async function entrarConPin(pin: string): Promise<Empleado | null> {
+  const resumen = resumenPin(pin);
+  return (await leerEstado()).empleados.find((e) => e.activo && e.pin === resumen) ?? null;
 }
 
-/** Vuelve a los datos de ejemplo. Solo para la demostración. */
-export function reiniciarDemo() {
-  cambiar(estadoDeEjemplo(contexto(), { conHistorial: true }));
-}
-
-/** Comprueba un PIN. Devuelve el empleado o null. */
-export function entrarConPin(pin: string): Empleado | null {
-  return leerEstado().empleados.find((e) => e.activo && e.pin === pin) ?? null;
+/** Clave que usa el puente de impresión del bar (sale de la del local; no hace falta guardarla). */
+export function clavePuente(): string {
+  return createHash("sha256")
+    .update(`puente:${almacen().secreto()}`)
+    .digest("base64url")
+    .slice(0, 32);
 }

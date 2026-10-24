@@ -27,7 +27,7 @@ export async function POST(request: Request) {
     .object({ pin: z.string().max(6) })
     .safeParse(await request.json().catch(() => null));
   if (!datos.success) return json({ error: "Escribe tu PIN." }, 400);
-  const empleado = entrarConPin(datos.data.pin);
+  const empleado = await entrarConPin(datos.data.pin);
   if (!empleado) {
     if (!limite(ipDe(request)))
       return json({ error: "Demasiados intentos. Espera unos minutos." }, 429);

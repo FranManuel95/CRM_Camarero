@@ -45,5 +45,5 @@ export function opcionesCookie(request: Request) {
 export async function empleadoActual(): Promise<Empleado | null> {
   const id = leerValorSesion((await cookies()).get(COOKIE_SESION)?.value);
   if (!id) return null;
-  return leerEstado().empleados.find((e) => e.id === id && e.activo) ?? null;
+  return (await leerEstado()).empleados.find((e) => e.id === id && e.activo) ?? null;
 }

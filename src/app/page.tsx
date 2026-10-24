@@ -31,8 +31,8 @@ const PUERTAS = [
   },
 ];
 
-export default function Portada() {
-  const estado = leerEstado();
+export default async function Portada() {
+  const estado = await leerEstado();
   const mesa = estado.mesas.find((m) => m.nombre === "Mesa 1") ?? estado.mesas[0];
   return (
     <main>

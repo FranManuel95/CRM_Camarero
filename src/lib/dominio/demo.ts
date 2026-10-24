@@ -1,4 +1,6 @@
 import type { AccionPersonal } from "./acciones";
+import { VERSION_ESTADO } from "./migraciones";
+import { resumenPin } from "./pin";
 import { type Contexto, cuentaDeMesa, reducirPersonal } from "./reducir";
 import type { Alergeno, Categoria, Estado, Mesa, Producto, Zona } from "./tipos";
 
@@ -7,8 +9,6 @@ import type { Alergeno, Categoria, Estado, Mesa, Producto, Zona } from "./tipos"
  * semanas de ventas y gastos inventados para que los informes tengan algo que enseñar.
  * Todos los datos son inventados.
  */
-
-export const VERSION_ESTADO = 1;
 
 /** Generador pseudoaleatorio con semilla: los datos de ejemplo salen siempre iguales. */
 export function aleatorio(semilla: number) {
@@ -247,9 +247,9 @@ export function estadoDeEjemplo(ctx: Contexto, opciones: { conHistorial?: boolea
       serieTicket: "T",
     },
     empleados: [
-      { id: "emp-1", nombre: "Ana", pin: "1234", rol: "encargado", activo: true },
-      { id: "emp-2", nombre: "Luis", pin: "1111", rol: "camarero", activo: true },
-      { id: "emp-3", nombre: "Marta", pin: "2222", rol: "camarero", activo: true },
+      { id: "emp-1", nombre: "Ana", pin: resumenPin("1234"), rol: "encargado", activo: true },
+      { id: "emp-2", nombre: "Luis", pin: resumenPin("1111"), rol: "camarero", activo: true },
+      { id: "emp-3", nombre: "Marta", pin: resumenPin("2222"), rol: "camarero", activo: true },
     ],
     zonas,
     mesas,
