@@ -47,8 +47,8 @@
   `descripcionEn`) y fotos en Supabase Storage (bucket `fotos`, migración
   `20261025120000_fotos.sql` aplicada; la app da un permiso de 10 minutos por foto). En modo
   archivo las fotos van a `datos/fotos` y se sirven por `/api/fotos/[archivo]`.
-- El bar de demostración de la nube ya existía: para ver los nombres en inglés de la carta de
-  ejemplo, reiniciar la demo.
+- El bar de demostración de la nube ya existía: los nombres en inglés de su carta se añadieron con
+  una consulta SQL sobre `estados` (subiendo la revisión y avisando por Realtime).
 
 ## Pendiente (por orden)
 
