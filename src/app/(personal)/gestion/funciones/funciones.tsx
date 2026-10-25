@@ -16,6 +16,7 @@ const FALTA: Record<Servicio, string> = {
   ia: "Necesita la clave de Claude (ANTHROPIC_API_KEY) en el servidor.",
   pagos: "Necesita la cuenta de Stripe del bar (STRIPE_SECRET_KEY y STRIPE_WEBHOOK_SECRET).",
   correo: "Necesita un proveedor de correo (RESEND_API_KEY y CORREO_REMITENTE).",
+  aeat: "Necesita el certificado electrónico del bar y los datos del fabricante del programa (VERIFACTU_*).",
 };
 
 /** Encender y apagar funciones del bar. Apagar no borra nada: al encender, todo sigue ahí. */

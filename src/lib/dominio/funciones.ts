@@ -83,6 +83,14 @@ export const FUNCIONES = {
     defecto: true,
     necesita: "correo",
   },
+  verifactu: {
+    grupo: "Hacienda",
+    nombre: "VERI*FACTU",
+    descripcion:
+      "Cada ticket se manda a la AEAT al momento y lleva el QR para que el cliente lo compruebe.",
+    defecto: false,
+    necesita: "aeat",
+  },
   stock: {
     grupo: "Stock",
     nombre: "Stock y escandallos",
@@ -138,7 +146,7 @@ export const FUNCIONES = {
 } as const satisfies Record<string, DefinicionFuncion>;
 
 /** Servicios del servidor que algunas funciones necesitan (una clave o un certificado). */
-export type Servicio = "ia" | "pagos" | "correo";
+export type Servicio = "ia" | "pagos" | "correo" | "aeat";
 
 export type DefinicionFuncion = {
   grupo: string;

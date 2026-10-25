@@ -61,6 +61,14 @@ monta su bar sin ayuda.
 - [x] Historial de cambios (quién cambió qué) y copias de seguridad descargables.
 - [ ] Datáfono integrado.
 
+## VERI*FACTU
+
+- [x] Huella del registro de alta según la AEAT (probada con su ejemplo oficial).
+- [x] QR de cotejo y leyenda VERI*FACTU en el ticket.
+- [x] XML de los registros (validado con el XSD oficial) y envío con certificado.
+- [x] Gestión → VERI*FACTU: lo mandado, lo pendiente y lo rechazado.
+- [ ] Probar con la AEAT de pruebas y un certificado real; declaración responsable.
+
 ## Cosas que dependen del usuario
 
 - Supabase → Authentication → Sign In / Providers → Email: desactivar «Confirm email» (acordado el
@@ -72,3 +80,6 @@ monta su bar sin ayuda.
   `/api/pago/stripe`) y de Resend (`RESEND_API_KEY`, `CORREO_REMITENTE`) para encender el pago
   desde el QR y el ticket por correo.
 - Clave de la API de Claude (`ANTHROPIC_API_KEY` en Vercel) para leer facturas con foto (fase 3).
+- Para VERI*FACTU: el certificado electrónico del bar (`VERIFACTU_CERTIFICADO` en base64 y
+  `VERIFACTU_CLAVE`) y los datos del fabricante del programa (`VERIFACTU_PRODUCTOR_NOMBRE`,
+  `VERIFACTU_PRODUCTOR_NIF`).

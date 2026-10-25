@@ -27,6 +27,8 @@ export function vistaPersonal(
     local,
     /** Qué claves tiene el servidor: sin ellas, algunas funciones no se pueden encender. */
     servicios: servicios(),
+    /** A qué AEAT van los registros de VERI*FACTU (pruebas mientras no se diga otra cosa). */
+    entornoAeat: process.env.VERIFACTU_ENTORNO === "produccion" ? "produccion" : "pruebas",
     empleados: estado.empleados.map((e) => ({ ...e, pin: "" })),
     cuentas: estado.cuentas.filter((c) => cuentaEnJuego(c, ahora)),
     tickets: estado.tickets.filter((t) => t.fecha >= desde),

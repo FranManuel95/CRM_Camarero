@@ -318,6 +318,12 @@ export type Ticket = {
   huellaAnterior: string;
   /** Si es rectificativa, el ticket al que anula. */
   rectificaA: Id | null;
+  /** F2 (factura simplificada) o R5 (su rectificativa). Los tickets antiguos no lo tienen. */
+  tipoFactura?: "F2" | "R5";
+  /** Fecha, hora y huso con que se calculó la huella («2026-10-24T21:05:09+02:00»). */
+  generadoEn?: string;
+  /** Con VERI*FACTU: la dirección de cotejo de la AEAT que va en el QR del ticket. */
+  urlQr?: string;
 };
 
 export type CategoriaGasto =
@@ -480,6 +486,36 @@ export type PagoOnline = {
   ticketId?: Id;
 };
 
+/** Cómo ha ido el envío a la AEAT de un registro de facturación. */
+export type EstadoRegistroAeat = "pendiente" | "correcto" | "aceptado_con_errores" | "incorrecto";
+
+/**
+ * Registro de facturación de VERI*FACTU (alta de un ticket), con lo necesario para mandarlo a la
+ * AEAT aunque el ticket ya no esté en el estado (en la nube, los tickets viejos están aparte).
+ */
+export type RegistroAeat = {
+  ticketId: Id;
+  numero: string;
+  /** «24-10-2026». */
+  fechaExpedicion: string;
+  tipoFactura: "F2" | "R5";
+  desglose: DesgloseIva[];
+  cuotaTotal: Centimos;
+  importeTotal: Centimos;
+  huella: string;
+  generadoEn: string;
+  /** El registro anterior de la cadena (null si es el primero). */
+  anterior: { numero: string; fechaExpedicion: string; huella: string } | null;
+  /** En las rectificativas, el ticket que rectifican. */
+  rectifica?: { numero: string; fechaExpedicion: string };
+  estado: EstadoRegistroAeat;
+  /** Lo que ha dicho la AEAT si hay errores. */
+  error?: string;
+  /** Código seguro de verificación del envío en el que se aceptó. */
+  csv?: string;
+  enviadoEn?: FechaISO;
+};
+
 export type MovimientoCaja = {
   id: Id;
   fecha: FechaISO;
@@ -576,6 +612,14 @@ export type Estado = {
   historial: EntradaHistorial[];
   reservas: Reserva[];
   pagosOnline: PagoOnline[];
+  /** VERI*FACTU: registros por mandar a la AEAT y los últimos mandados. */
+  verifactu?: {
+    registros: RegistroAeat[];
+    /** La AEAT pide esperar entre envíos (normalmente 60 s). */
+    esperarHasta?: FechaISO;
+    /** Si el último envío no llegó (sin red, certificado…), por qué. */
+    ultimoError?: string;
+  };
   /**
    * Códigos de 6 cifras para vincular un móvil o una tablet a este bar sin la cuenta del dueño.
    * Caducan a los 15 minutos y se usan una sola vez.

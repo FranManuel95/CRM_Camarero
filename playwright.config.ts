@@ -27,6 +27,14 @@ export default defineConfig({
     reuseExistingServer: false,
     timeout: 120_000,
     // TPV_CLAVE vacía: las pruebas usan siempre el archivo local, nunca la base de datos real.
-    env: { DATOS_DIR: datos, TPV_CLAVE: "" },
+    env: {
+      DATOS_DIR: datos,
+      TPV_CLAVE: "",
+      // VERI*FACTU con un certificado que no vale: se puede encender y ver qué pasa si el envío
+      // falla, sin llegar nunca a la AEAT. Datos del fabricante inventados.
+      VERIFACTU_CERTIFICADO: Buffer.from("no es un certificado").toString("base64"),
+      VERIFACTU_PRODUCTOR_NIF: "B00000001",
+      VERIFACTU_PRODUCTOR_NOMBRE: "Fabricante Ficticio, S.L.",
+    },
   },
 });

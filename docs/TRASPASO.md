@@ -159,9 +159,44 @@
 - Sin probar contra Stripe ni Resend de verdad (no hay claves): firma y avisos con pruebas
   unitarias, el resto con la lógica.
 
+## VERI*FACTU (26/10/2026)
+
+- Fechas (RDL 15/2025): obligatorio desde el 1/1/2027 para sociedades y desde el 1/7/2027 para
+  el resto. Hacienda anunció en octubre de 2026 otro aplazamiento a 2028, sin publicar aún en el
+  BOE. El fabricante del programa ya está obligado desde el 29/7/2025.
+- **Huella** (`huella.ts`): la del registro de alta de la AEAT, con la fecha de Madrid
+  («dd-mm-aaaa») y la hora con huso. Probada con el ejemplo oficial de la AEAT. Todos los tickets
+  nuevos la usan, y además guardan `tipoFactura` (F2 o R5) y `generadoEn`. Los antiguos siguen
+  encadenados (la comprobación mira solo los enlaces).
+- **Con la función encendida** (`verifactu.ts`, `sellarTicket`):
+  - Cada ticket lleva el QR de cotejo (`urlQr`) con «QR tributario:» y la leyenda VERI*FACTU.
+  - Cada ticket deja su registro en `estado.verifactu.registros`.
+  - La rectificativa es R5, por diferencias, y dice qué ticket rectifica.
+- **Envío** (`src/lib/servidor/verifactu.ts`, `src/lib/aeat/xml.ts`):
+  - Cuándo: SOAP con el certificado del bar, después de cada cobro (`after`) o con «Mandar lo
+    pendiente» en Gestión → VERI*FACTU.
+  - Espera entre envíos: la que pida la AEAT (60 s), apartando el turno antes de mandar.
+  - Duplicados: el código 3000 cuenta como enviado.
+  - El XML se ha validado contra el XSD oficial (SuministroLR.xsd) con lxml, fuera del
+    repositorio.
+- **Variables:**
+  - `VERIFACTU_CERTIFICADO`: el .p12 en base64.
+  - `VERIFACTU_CLAVE`: su contraseña.
+  - `VERIFACTU_PRODUCTOR_NOMBRE` y `VERIFACTU_PRODUCTOR_NIF`: quien fabrica el programa.
+  - `VERIFACTU_ENTORNO=produccion`: sin ella, los QR y el envío van al entorno de pruebas.
+  - `VERIFACTU_SELLO=1`: si el certificado es de sello.
+- **Falta:**
+  - Probarlo contra la AEAT de pruebas con un certificado de verdad.
+  - La declaración responsable del fabricante (art. 13 RD 1007/2023).
+  - El registro de anulación: no se usa, porque los tickets se rectifican.
+  - Los registros de evento: solo hacen falta en la modalidad no VERI*FACTU.
+- Las pruebas E2E arrancan con un certificado falso (`playwright.config.ts`): se puede encender
+  y se ve el fallo del envío sin llegar a la AEAT.
+
 ## Pendiente (por orden)
 
-1. **VERI\*FACTU** antes de usarlo como TPV fiscal real (ver `docs/INVESTIGACION.md`).
+1. **VERI\*FACTU**: probarlo con la AEAT de pruebas y un certificado real, y la declaración
+   responsable, antes de usarlo como TPV fiscal real.
 2. Probar con una **impresora térmica real** de red (solo se ha probado el formato de los bytes y
    la vista previa; aquí no hay impresora).
 3. Datáfono integrado (hace falta elegir proveedor).

@@ -35,7 +35,7 @@ describe("funciones", () => {
   it("lo de dentro del bar viene encendido, y lo que necesita una clave solo se usa con ella", () => {
     const { ajustes } = estadoDeEjemplo(ctx);
     // Lo que abre el bar a los clientes por internet se enciende a propósito.
-    const apagadas = ["reservasOnline", "pedidosOnline", "resenas"];
+    const apagadas = ["reservasOnline", "pedidosOnline", "resenas", "verifactu"];
     expect(LISTA_FUNCIONES.filter((f) => !activa(ajustes, f))).toEqual(apagadas);
     expect(disponible(ajustes, { ia: false }, "facturasConFoto")).toBe(false);
     expect(disponible(ajustes, { ia: true }, "facturasConFoto")).toBe(true);

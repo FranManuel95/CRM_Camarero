@@ -157,7 +157,7 @@ export function plantillaTicket(datos: {
   ticket: Ticket;
   camarero?: Empleado;
   abrirCajon?: boolean;
-  /** Dirección para el QR del ticket; con VERI*FACTU será la de cotejo de la AEAT. */
+  /** Con VERI*FACTU, la dirección de cotejo de la AEAT (sale en un QR con la leyenda). */
   urlQr?: string;
   /** Enlace para dejar una reseña (sale con su propio QR al pie). */
   resena?: string;
@@ -222,7 +222,15 @@ export function plantillaTicket(datos: {
     });
   }
   if (t.cambio) bloques.push({ tipo: "par", izquierda: "Cambio", derecha: euros(t.cambio) });
-  if (datos.urlQr) bloques.push({ tipo: "espacio" }, { tipo: "qr", datos: datos.urlQr });
+  if (datos.urlQr) {
+    // QR tributario y leyenda de VERI*FACTU (Orden HAC/1177/2024, arts. 20 y 21).
+    bloques.push(
+      { tipo: "espacio" },
+      { tipo: "texto", texto: "QR tributario:", alinear: "centro" },
+      { tipo: "qr", datos: datos.urlQr },
+      { tipo: "texto", texto: "VERI*FACTU", alinear: "centro", negrita: true },
+    );
+  }
   if (datos.ajustes.pieTicket) {
     bloques.push(
       { tipo: "espacio" },

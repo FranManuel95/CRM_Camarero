@@ -1,6 +1,8 @@
+import { after } from "next/server";
 import { ejecutarPagoOnline } from "@/lib/servidor/almacen";
 import { json } from "@/lib/servidor/respuestas";
 import { firmaValida, pagoDelAviso } from "@/lib/servidor/stripe";
+import { enviarVerifactu } from "@/lib/servidor/verifactu";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +20,7 @@ export async function POST(request: Request) {
   try {
     const { local, ...datos } = pago;
     await ejecutarPagoOnline(local, datos);
+    after(() => enviarVerifactu(local));
     return json({ ok: true });
   } catch (e) {
     // Stripe lo reintenta solo si no contestamos 2xx.

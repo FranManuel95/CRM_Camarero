@@ -6,6 +6,7 @@ import {
   BookOpen,
   ChevronDown,
   History,
+  Landmark,
   Home,
   LayoutGrid,
   Package,
@@ -24,7 +25,7 @@ const SECCIONES: {
   href: string;
   texto: string;
   icono: typeof Home;
-  funcion?: "stock" | "historial";
+  funcion?: "stock" | "historial" | "verifactu";
 }[] = [
   { href: "/gestion", texto: "Resumen", icono: Home },
   { href: "/gestion/informes", texto: "Informes", icono: BarChart3 },
@@ -35,6 +36,7 @@ const SECCIONES: {
   { href: "/gestion/equipo", texto: "Equipo", icono: Users },
   { href: "/gestion/impresoras", texto: "Impresoras", icono: Printer },
   { href: "/gestion/historial", texto: "Historial", icono: History, funcion: "historial" },
+  { href: "/gestion/verifactu", texto: "VERI*FACTU", icono: Landmark, funcion: "verifactu" },
   { href: "/gestion/funciones", texto: "Funciones", icono: ToggleRight },
   { href: "/gestion/ajustes", texto: "Ajustes", icono: SlidersHorizontal },
 ];
@@ -46,7 +48,11 @@ const SECCIONES: {
 export function MenuGestion() {
   const ruta = usePathname();
   const [abierto, setAbierto] = useState(false);
-  const encendidas = { stock: useFuncion("stock"), historial: useFuncion("historial") };
+  const encendidas = {
+    stock: useFuncion("stock"),
+    historial: useFuncion("historial"),
+    verifactu: useFuncion("verifactu"),
+  };
   const secciones = SECCIONES.filter((s) => !s.funcion || encendidas[s.funcion]);
   const activa = (href: string) => (href === "/gestion" ? ruta === href : ruta.startsWith(href));
   const actual = secciones.find((s) => activa(s.href)) ?? SECCIONES[0]!;

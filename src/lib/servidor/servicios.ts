@@ -6,5 +6,10 @@ export function servicios(): Servicios {
     ia: Boolean(process.env.ANTHROPIC_API_KEY),
     pagos: Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET),
     correo: Boolean(process.env.RESEND_API_KEY && process.env.CORREO_REMITENTE),
+    aeat: Boolean(
+      process.env.VERIFACTU_CERTIFICADO &&
+      process.env.VERIFACTU_PRODUCTOR_NIF &&
+      process.env.VERIFACTU_PRODUCTOR_NOMBRE,
+    ),
   };
 }

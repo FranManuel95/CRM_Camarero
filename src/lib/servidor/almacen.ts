@@ -59,6 +59,7 @@ export function contexto(): Contexto {
     nuevoId: () => randomUUID(),
     nuevoToken: () => randomBytes(12).toString("base64url"),
     nuevoCodigo: () => String(randomInt(0, 1_000_000)).padStart(6, "0"),
+    entornoAeat: process.env.VERIFACTU_ENTORNO === "produccion" ? "produccion" : "pruebas",
   };
 }
 

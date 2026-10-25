@@ -7,7 +7,7 @@ import type {
   ReservaOnline,
 } from "./acciones";
 import { turnoAbierto } from "./caja";
-import { calcularHuella } from "./huella";
+import { type EntornoAeat, sellarTicket } from "./verifactu";
 import { resumenPin } from "./pin";
 import {
   calcularCambio,
@@ -68,6 +68,8 @@ export type Contexto = {
   nuevoToken: () => string;
   /** Seis cifras al azar, para vincular aparatos. */
   nuevoCodigo: () => string;
+  /** Con VERI*FACTU, a qué AEAT apuntan los QR (pruebas mientras no se diga otra cosa). */
+  entornoAeat?: EntornoAeat;
 };
 
 export type Resultado = { estado: Estado; trabajos: TrabajoImpresion[] };
@@ -336,32 +338,27 @@ function cobrarLineas(
   const lineas = lineasDeTicket(parte);
   const desglose = desgloseIva(lineas, cuenta.descuento);
   const sig = siguienteTicket(estado, ctx);
-  const ticket: Ticket = {
-    id: ctx.nuevoId(),
-    ...sig,
-    fecha: ctx.ahora,
-    cuentaId: cuenta.id,
-    mesaNombre: mesa.nombre,
-    empleadoId: cuenta.empleadoId ?? empleado.id,
-    lineas,
-    descuento: cuenta.descuento,
-    desglose,
-    total,
-    pagos: pagos.filter((p) => p.importe > 0),
-    cambio,
-    ...(propina ? { propina } : {}),
-    rectificaA: null,
-    huella: calcularHuella({
-      nif: estado.ajustes.nif,
-      numero: sig.numero,
+  const ticket = sellarTicket(
+    estado,
+    {
+      id: ctx.nuevoId(),
+      ...sig,
       fecha: ctx.ahora,
-      cuotaTotal: desglose.reduce((s, d) => s + d.cuota, 0),
-      importeTotal: total,
-      huellaAnterior: sig.huellaAnterior,
-      generadoEn: ctx.ahora,
-    }),
-  };
-  estado.tickets.push(ticket);
+      cuentaId: cuenta.id,
+      mesaNombre: mesa.nombre,
+      empleadoId: cuenta.empleadoId ?? empleado.id,
+      lineas,
+      descuento: cuenta.descuento,
+      desglose,
+      total,
+      pagos: pagos.filter((p) => p.importe > 0),
+      cambio,
+      ...(propina ? { propina } : {}),
+      rectificaA: null,
+    },
+    ctx.ahora,
+    ctx.entornoAeat,
+  );
   for (const l of seleccion) l.ticketId = ticket.id;
   cuenta.ticketId = ticket.id;
   if (lineasCobrables(cuenta).length === 0) {
@@ -415,6 +412,7 @@ function imprimirTicket(
       camarero: estado.empleados.find((e) => e.id === ticket.empleadoId),
       abrirCajon: conCajon,
       resena: enlaceResena(estado),
+      urlQr: ticket.urlQr,
     }),
     "tickets",
   );
@@ -813,34 +811,36 @@ function aplicarPersonal(
         cuota: -d.cuota,
         total: -d.total,
       }));
-      const ticket: Ticket = {
-        ...original,
-        id: ctx.nuevoId(),
-        ...sig,
-        fecha: ctx.ahora,
-        lineas: original.lineas.map((l) => ({ ...l, cantidad: -l.cantidad, importe: -l.importe })),
-        desglose,
-        total,
-        // Se devuelve por el mismo medio (si se pagó con cambio, se devuelve lo que se quedó).
-        pagos: original.pagos.map((p) => ({
-          ...p,
-          importe: -(p.metodo === "efectivo" ? p.importe - original.cambio : p.importe),
-        })),
-        cambio: 0,
-        ...(original.propina ? { propina: -original.propina } : {}),
-        rectificaA: original.id,
-        empleadoId: empleado.id,
-        huella: calcularHuella({
-          nif: estado.ajustes.nif,
-          numero: sig.numero,
+      // El original ya está sellado: se quitan su huella, su tipo y su QR para sellarla de nuevo.
+      const { huella: _h, tipoFactura: _t, generadoEn: _g, urlQr: _q, ...base } = original;
+      void [_h, _t, _g, _q];
+      const ticket = sellarTicket(
+        estado,
+        {
+          ...base,
+          id: ctx.nuevoId(),
+          ...sig,
           fecha: ctx.ahora,
-          cuotaTotal: desglose.reduce((s, d) => s + d.cuota, 0),
-          importeTotal: total,
-          huellaAnterior: sig.huellaAnterior,
-          generadoEn: ctx.ahora,
-        }),
-      };
-      estado.tickets.push(ticket);
+          lineas: original.lineas.map((l) => ({
+            ...l,
+            cantidad: -l.cantidad,
+            importe: -l.importe,
+          })),
+          desglose,
+          total,
+          // Se devuelve por el mismo medio (si se pagó con cambio, se devuelve lo que se quedó).
+          pagos: original.pagos.map((p) => ({
+            ...p,
+            importe: -(p.metodo === "efectivo" ? p.importe - original.cambio : p.importe),
+          })),
+          cambio: 0,
+          ...(original.propina ? { propina: -original.propina } : {}),
+          rectificaA: original.id,
+          empleadoId: empleado.id,
+        },
+        ctx.ahora,
+        ctx.entornoAeat,
+      );
       imprimirTicket(estado, ctx, trabajos, ticket, false);
       break;
     }
