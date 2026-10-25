@@ -33,11 +33,12 @@ monta su bar sin ayuda.
 
 ## Fase 3 · Stock y compras
 
-- [ ] Ingredientes con existencias y unidad.
-- [ ] Escandallos: cada plato descuenta lo que lleva al venderse.
-- [ ] Avisos de mínimos, lista de la compra y agotado automático.
-- [ ] Recepción de pedidos de proveedor (suma existencias y apunta el gasto).
-- [ ] Factura de proveedor con foto (lectura automática; necesita una clave de IA).
+- [x] Ingredientes con existencias y unidad.
+- [x] Escandallos: cada plato descuenta lo que lleva al venderse.
+- [x] Avisos de mínimos, lista de la compra y agotado automático.
+- [x] Recepción de pedidos de proveedor (suma existencias y apunta el gasto).
+- [x] Factura de proveedor con foto (lectura automática). Hecho; se activa al poner
+      `ANTHROPIC_API_KEY` en Vercel.
 
 ## Fase 4 · Equipo
 
@@ -67,4 +68,5 @@ monta su bar sin ayuda.
   y el correo de Supabase solo manda unos pocos por hora.
 - Supabase → Authentication → URL Configuration: poner `https://comanda-tpv.vercel.app` como
   Site URL y `https://comanda-tpv.vercel.app/**` en Redirect URLs (enlaces de los correos).
-- Cuentas de Stripe y de correo (fase 5), y una clave de IA para leer facturas (fase 3).
+- Cuentas de Stripe y de correo (fase 5).
+- Clave de la API de Claude (`ANTHROPIC_API_KEY` en Vercel) para leer facturas con foto (fase 3).

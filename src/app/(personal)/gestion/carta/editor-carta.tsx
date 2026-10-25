@@ -27,13 +27,16 @@ import {
   type Producto,
 } from "@/lib/dominio/tipos";
 
+import { aBorrador, Escandallo, type LineaBorrador, leerReceta } from "./escandallo";
+
 const nuevoId = () => Math.random().toString(36).slice(2, 10);
 const aTexto = (c: number) => (c / 100).toFixed(2).replace(".", ",");
 
-type BorradorProducto = Omit<Producto, "id" | "precio" | "coste" | "grupos"> & {
+type BorradorProducto = Omit<Producto, "id" | "precio" | "coste" | "grupos" | "receta"> & {
   id?: string;
   precio: string;
   coste: string;
+  receta: LineaBorrador[];
   grupos: (Omit<GrupoOpciones, "opciones"> & {
     opciones: {
       id: string;
@@ -65,6 +68,7 @@ function menuDelDia(categoriaId: string, orden: number): BorradorProducto {
     disponible: true,
     orden,
     coste: "",
+    receta: [],
     grupos: [
       {
         id: nuevoId(),
@@ -126,6 +130,7 @@ export function EditorCarta({ clavePublica }: { clavePublica: string }) {
       orden: (productos.at(-1)?.orden ?? -1) + 1,
       grupos: [],
       coste: "",
+      receta: [],
     });
   }
 
@@ -134,6 +139,7 @@ export function EditorCarta({ clavePublica }: { clavePublica: string }) {
       ...p,
       precio: aTexto(p.precio),
       coste: p.coste === undefined ? "" : aTexto(p.coste),
+      receta: aBorrador(p.receta),
       grupos: p.grupos.map((g) => ({
         ...g,
         opciones: g.opciones.map((o) => ({
@@ -149,6 +155,8 @@ export function EditorCarta({ clavePublica }: { clavePublica: string }) {
     const precio = leerEuros(prod.precio);
     if (precio === null) return;
     const coste = prod.coste ? (leerEuros(prod.coste) ?? undefined) : undefined;
+    const receta = leerReceta(prod.receta);
+    if (receta === null) return;
     const ok = await hacer(
       {
         tipo: "guardar_producto",
@@ -157,6 +165,7 @@ export function EditorCarta({ clavePublica }: { clavePublica: string }) {
           foto: prod.foto || undefined,
           precio,
           coste,
+          receta,
           grupos: prod.grupos.map((g) => ({
             ...g,
             opciones: g.opciones
@@ -621,18 +630,26 @@ export function EditorCarta({ clavePublica }: { clavePublica: string }) {
                 ))}
               </select>
             </Campo>
-            <Campo
-              etiqueta="Coste de la ración (opcional)"
-              ayuda="Para ver el margen en los informes."
-            >
-              <input
-                className={claseEntrada}
-                inputMode="decimal"
-                value={prod.coste}
-                onChange={(e) => setProd({ ...prod, coste: e.target.value })}
-                placeholder="0,00"
-              />
-            </Campo>
+            {!prod.receta.length && (
+              <Campo
+                etiqueta="Coste de la ración (opcional)"
+                ayuda="Para ver el margen en los informes. Con escandallo se calcula solo."
+              >
+                <input
+                  className={claseEntrada}
+                  inputMode="decimal"
+                  value={prod.coste}
+                  onChange={(e) => setProd({ ...prod, coste: e.target.value })}
+                  placeholder="0,00"
+                />
+              </Campo>
+            )}
+            <Escandallo
+              lineas={prod.receta}
+              alCambiar={(receta) => setProd({ ...prod, receta })}
+              ingredientes={estado.ingredientes}
+              precio={leerEuros(prod.precio)}
+            />
             <fieldset className="sm:col-span-2">
               <legend className="mb-2 text-sm font-semibold">Alérgenos</legend>
               <div className="flex flex-wrap gap-1.5">

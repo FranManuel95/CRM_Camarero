@@ -50,12 +50,30 @@
 - El bar de demostración de la nube ya existía: los nombres en inglés de su carta se añadieron con
   una consulta SQL sobre `estados` (subiendo la revisión y avisando por Realtime).
 
+## Fase 3: stock y compras (25/10/2026)
+
+- `src/lib/dominio/stock.ts`: ingredientes (kg, l o ud), escandallos (`Producto.receta`), lista de
+  la compra y lectura de facturas (`pedidoDeFactura`). Estado en versión 3 (`ingredientes`,
+  `movimientosStock`; la migración los crea vacíos).
+- Se descuenta al **mandar** a cocina (`mandarRonda`), no al cobrar; la línea queda `descontado`
+  y, si se anula, se devuelve. Los platos sin stock para una ración se ponen agotados solos
+  (`agotadoPorStock`) y vuelven al entrar género; lo agotado a mano no lo toca el stock.
+- Acciones: `ajustar_stock` (recuento o merma, cualquiera del equipo), `guardar_ingrediente`,
+  `borrar_ingrediente` y `recibir_compra` (suma, actualiza el precio y apunta el gasto).
+- Pantalla `/gestion/stock` y escandallo en el editor de la carta. Los bares nuevos con la carta de
+  ejemplo empiezan sin stock ni escandallos.
+- Facturas con foto: `/api/facturas` → `src/lib/servidor/facturas.ts` (SDK `@anthropic-ai/sdk`,
+  salida estructurada con Zod). Solo sale el botón si hay `ANTHROPIC_API_KEY`; sin la clave no se
+  ha podido probar contra la API de verdad.
+- Arreglado: en el móvil, el menú de Gestión ensanchaba toda la página
+  (`grid-cols-[minmax(0,1fr)]`).
+
 ## Pendiente (por orden)
 
 1. **VERI\*FACTU** antes de usarlo como TPV fiscal real (ver `docs/INVESTIGACION.md`).
 2. Probar con una **impresora térmica real** de red (solo se ha probado el formato de los bytes y
    la vista previa; aquí no hay impresora).
-3. Fases 3 a 6 de `docs/PLAN.md` (stock, equipo, clientes…), cuando el usuario lo pida.
+3. Fases 4 a 6 de `docs/PLAN.md` (stock, equipo, clientes…), cuando el usuario lo pida.
 
 ## Trucos del entorno
 

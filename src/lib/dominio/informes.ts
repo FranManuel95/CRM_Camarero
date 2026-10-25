@@ -1,5 +1,6 @@
 import { diaLocal, horaLocal } from "../fechas";
 import { calcularCambio } from "./importes";
+import { costeProducto } from "./stock";
 import type { CategoriaGasto, Centimos, Estado, MetodoPago } from "./tipos";
 
 export type Rango = { desde: string; hasta: string };
@@ -13,7 +14,7 @@ const base = (importe: Centimos, iva: number) => Math.round(importe / (1 + iva /
  * impuestos sobre beneficios. Es orientativo, no sustituye a la contabilidad de la gestoría.
  */
 export function informe(
-  estado: Pick<Estado, "tickets" | "gastos" | "productos" | "empleados">,
+  estado: Pick<Estado, "tickets" | "gastos" | "productos" | "empleados"> & Partial<Pick<Estado, "ingredientes">>,
   rango: Rango,
 ) {
   const tickets = estado.tickets.filter((t) => t.fecha >= rango.desde && t.fecha < rango.hasta);
@@ -77,7 +78,9 @@ export function informe(
     dia(diaLocal(g.fecha)).gastos += g.importe;
   }
 
-  const costes = new Map(estado.productos.map((p) => [p.nombre, p.coste]));
+  const costes = new Map(
+    estado.productos.map((p) => [p.nombre, costeProducto(p, estado.ingredientes ?? [])]),
+  );
   const productos = [...porProducto.entries()]
     .map(([nombre, p]) => {
       const coste = costes.get(nombre);

@@ -103,6 +103,7 @@ test("las pantallas principales pasan la revisión de accesibilidad", async ({ p
     "/gestion",
     "/gestion/informes",
     "/gestion/carta",
+    "/gestion/stock",
     "/gestion/impresoras",
   ]) {
     await page.goto(ruta);

@@ -147,6 +147,9 @@ export type GrupoOpciones = {
   opciones: OpcionProducto[];
 };
 
+/** Cuánto de un ingrediente lleva una ración (en la unidad del ingrediente). */
+export type LineaReceta = { ingredienteId: Id; cantidad: number };
+
 export type Producto = {
   id: Id;
   categoriaId: Id;
@@ -164,8 +167,12 @@ export type Producto = {
   disponible: boolean;
   orden: number;
   grupos: GrupoOpciones[];
-  /** Coste aproximado de la ración, para calcular el margen. */
+  /** Coste aproximado de la ración, para calcular el margen (si no tiene escandallo). */
   coste?: Centimos;
+  /** Escandallo: lo que gasta cada ración. Al mandarla a cocina se descuenta del stock. */
+  receta?: LineaReceta[];
+  /** Lo puso agotado el stock (no una persona): vuelve solo cuando entra género. */
+  agotadoPorStock?: boolean;
 };
 
 export type EstadoLinea =
@@ -215,6 +222,8 @@ export type LineaCuenta = {
   invitacion: boolean;
   /** Anotada como «para después»: al mandar, queda en espera hasta la marcha. */
   despues?: boolean;
+  /** Ya se descontó del stock (al mandarla). Si se anula, se devuelve. */
+  descontado?: boolean;
   /** Ticket con el que se pagó (cuando se cobra la cuenta por partes). */
   ticketId?: Id;
   motivoAnulacion?: string;
@@ -314,6 +323,42 @@ export type Gasto = {
   empleadoId: Id | null;
 };
 
+export type Unidad = "kg" | "l" | "ud";
+
+export const NOMBRE_UNIDAD: Record<Unidad, string> = { kg: "kg", l: "litros", ud: "unidades" };
+
+/** Lo que se compra y se gasta: patatas, cerveza de barril, huevos… */
+export type Ingrediente = {
+  id: Id;
+  nombre: string;
+  unidad: Unidad;
+  /** Lo que queda (puede ser negativo si se vendió más de lo que había apuntado). */
+  existencias: number;
+  /** Por debajo de esto sale el aviso y entra en la lista de la compra. */
+  minimo: number;
+  /** Hasta cuánto se pide al hacer la compra. Si no hay, el doble del mínimo. */
+  pedirHasta?: number;
+  /** Último precio de compra por unidad (kg, litro o unidad), con IVA. */
+  coste: Centimos;
+  proveedor: string;
+};
+
+export type TipoMovimientoStock = "compra" | "recuento" | "merma";
+
+/** Entradas y ajustes del almacén (lo que se gasta al vender no se apunta uno a uno). */
+export type MovimientoStock = {
+  id: Id;
+  fecha: FechaISO;
+  ingredienteId: Id;
+  tipo: TipoMovimientoStock;
+  /** Lo que sumó o restó. */
+  cantidad: number;
+  nota: string;
+  empleadoId: Id | null;
+  /** En las compras, el gasto que se apuntó. */
+  gastoId?: Id;
+};
+
 export type MovimientoCaja = {
   id: Id;
   fecha: FechaISO;
@@ -401,6 +446,8 @@ export type Estado = {
   avisos: Aviso[];
   impresoras: Impresora[];
   trabajos: TrabajoImpresion[];
+  ingredientes: Ingrediente[];
+  movimientosStock: MovimientoStock[];
   /**
    * Códigos de 6 cifras para vincular un móvil o una tablet a este bar sin la cuenta del dueño.
    * Caducan a los 15 minutos y se usan una sola vez.

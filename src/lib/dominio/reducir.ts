@@ -13,6 +13,7 @@ import {
 } from "./importes";
 import { dentroDeHorario } from "./horario";
 import { lineasPara, MESA_VENTA_RAPIDA } from "./selectores";
+import { descontar, devolver, redondear, revisarAgotados } from "./stock";
 import type {
   Aviso,
   Centimos,
@@ -20,8 +21,10 @@ import type {
   Destino,
   Empleado,
   Estado,
+  Gasto,
   LineaCuenta,
   Mesa,
+  MovimientoStock,
   OpcionElegida,
   Pago,
   Producto,
@@ -55,6 +58,7 @@ export type Resultado = { estado: Estado; trabajos: TrabajoImpresion[] };
 
 const MAX_TRABAJOS = 300;
 const MAX_AVISOS_ATENDIDOS = 200;
+const MAX_MOVIMIENTOS_STOCK = 1000;
 
 function falla(mensaje: string): never {
   throw new ErrorAccion(mensaje);
@@ -272,6 +276,7 @@ function mandarRonda(
     l.ronda = cuenta.rondas;
     if (!l.empleadoId) l.empleadoId = empleadoId;
   }
+  descontar(estado, lineas);
   imprimirComandas(estado, ctx, trabajos, cuenta, lineas, empleadoId);
 }
 
@@ -510,6 +515,7 @@ export function reducirPersonal(
       if (linea.estado === "anulada") falla("Esta línea ya estaba anulada.");
       linea.estado = "anulada";
       linea.motivoAnulacion = `${accion.motivo} (${empleado.nombre})`;
+      devolver(estado, [linea]);
       break;
     }
     case "invitar_linea": {
@@ -733,6 +739,7 @@ export function reducirPersonal(
       }
       cuenta.estado = "anulada";
       cuenta.cerradaEn = ctx.ahora;
+      devolver(estado, cuenta.lineas);
       atenderAvisos(estado, cuenta.mesaId, ["llamar", "cuenta", "listo", "pedido_qr"]);
       break;
     }
@@ -791,7 +798,27 @@ export function reducirPersonal(
       break;
     }
     case "cambiar_disponible": {
-      buscar(estado.productos, accion.productoId, "ese producto").disponible = accion.disponible;
+      const producto = buscar(estado.productos, accion.productoId, "ese producto");
+      producto.disponible = accion.disponible;
+      // A mano manda la persona; si no hay stock, la próxima venta lo vuelve a agotar.
+      delete producto.agotadoPorStock;
+      break;
+    }
+    case "ajustar_stock": {
+      const ing = buscar(estado.ingredientes, accion.ingredienteId, "ese ingrediente");
+      const nueva =
+        accion.ajuste === "recuento" ? accion.cantidad : ing.existencias - accion.cantidad;
+      const diferencia = redondear(nueva - ing.existencias);
+      if (accion.ajuste === "merma" && accion.cantidad <= 0) falla("¿Cuánto se ha tirado?");
+      ing.existencias = redondear(nueva);
+      apuntarMovimiento(estado, ctx, {
+        ingredienteId: ing.id,
+        tipo: accion.ajuste,
+        cantidad: diferencia,
+        nota: accion.nota,
+        empleadoId: empleado.id,
+      });
+      revisarAgotados(estado);
       break;
     }
     case "abrir_caja": {
@@ -882,18 +909,7 @@ function reducirEncargado(
         const gasto = buscar(estado.gastos, id, "ese gasto");
         Object.assign(gasto, datos);
       } else {
-        estado.gastos.push({ id: ctx.nuevoId(), ...datos, empleadoId: empleado.id });
-        const turno = turnoAbierto(estado);
-        if (datos.deCaja && turno) {
-          turno.movimientos.push({
-            id: ctx.nuevoId(),
-            fecha: ctx.ahora,
-            tipo: "salida",
-            importe: datos.importe,
-            motivo: `Gasto: ${datos.concepto}`,
-            empleadoId: empleado.id,
-          });
-        }
+        apuntarGasto(estado, ctx, { ...datos, empleadoId: empleado.id });
       }
       break;
     }
@@ -913,10 +929,87 @@ function reducirEncargado(
       estado.categorias = estado.categorias.filter((c) => c.id !== accion.categoriaId);
       break;
     case "guardar_producto": {
-      const { id, ...datos } = accion.producto;
+      const { id, receta, ...datos } = accion.producto;
       buscar(estado.categorias, datos.categoriaId, "esa categoría");
-      if (id) Object.assign(buscar(estado.productos, id, "ese producto"), datos);
-      else estado.productos.push({ id: ctx.nuevoId(), ...datos });
+      for (const r of receta ?? []) buscar(estado.ingredientes, r.ingredienteId, "ese ingrediente");
+      const producto = id
+        ? Object.assign(buscar(estado.productos, id, "ese producto"), datos)
+        : estado.productos[estado.productos.push({ id: ctx.nuevoId(), ...datos }) - 1]!;
+      if (receta?.length) producto.receta = receta;
+      else delete producto.receta;
+      if (producto.disponible) delete producto.agotadoPorStock;
+      revisarAgotados(estado);
+      break;
+    }
+    case "guardar_ingrediente": {
+      const { id, existencias, pedirHasta, ...datos } = accion.ingrediente;
+      const repetido = estado.ingredientes.find(
+        (i) => i.id !== id && i.nombre.toLowerCase() === datos.nombre.toLowerCase(),
+      );
+      if (repetido) falla(`Ya hay un ingrediente que se llama «${datos.nombre}».`);
+      const ing = id
+        ? Object.assign(buscar(estado.ingredientes, id, "ese ingrediente"), datos)
+        : estado.ingredientes[
+            estado.ingredientes.push({
+              id: ctx.nuevoId(),
+              ...datos,
+              existencias: redondear(existencias ?? 0),
+            }) - 1
+          ]!;
+      if (pedirHasta) ing.pedirHasta = pedirHasta;
+      else delete ing.pedirHasta;
+      revisarAgotados(estado);
+      break;
+    }
+    case "borrar_ingrediente": {
+      buscar(estado.ingredientes, accion.ingredienteId, "ese ingrediente");
+      estado.ingredientes = estado.ingredientes.filter((i) => i.id !== accion.ingredienteId);
+      for (const p of estado.productos) {
+        if (!p.receta) continue;
+        p.receta = p.receta.filter((r) => r.ingredienteId !== accion.ingredienteId);
+        if (!p.receta.length) delete p.receta;
+      }
+      revisarAgotados(estado);
+      break;
+    }
+    case "recibir_compra": {
+      const lineas = accion.lineas.map((l) => ({
+        ...l,
+        ingrediente: buscar(estado.ingredientes, l.ingredienteId, "ese ingrediente"),
+      }));
+      const total = lineas.reduce((s, l) => s + l.importe, 0);
+      const proveedor = accion.proveedor || lineas[0]!.ingrediente.proveedor;
+      let gastoId: string | undefined;
+      if (accion.apuntarGasto) {
+        if (!total) falla("Pon lo que ha costado para apuntar el gasto.");
+        const nombres = [...new Set(lineas.map((l) => l.ingrediente.nombre))];
+        gastoId = apuntarGasto(estado, ctx, {
+          fecha: ctx.ahora,
+          concepto: `Pedido: ${nombres.join(", ")}`.slice(0, 120),
+          categoria: "proveedores",
+          proveedor,
+          importe: total,
+          iva: accion.iva,
+          metodo: accion.metodo,
+          deCaja: accion.deCaja,
+          empleadoId: empleado.id,
+        }).id;
+      }
+      for (const l of lineas) {
+        l.ingrediente.existencias = redondear(l.ingrediente.existencias + l.cantidad);
+        // El precio que vale para los escandallos es el de la última compra.
+        if (l.importe) l.ingrediente.coste = Math.round(l.importe / l.cantidad);
+        if (proveedor && !l.ingrediente.proveedor) l.ingrediente.proveedor = proveedor;
+        apuntarMovimiento(estado, ctx, {
+          ingredienteId: l.ingrediente.id,
+          tipo: "compra",
+          cantidad: l.cantidad,
+          nota: proveedor,
+          empleadoId: empleado.id,
+          ...(gastoId ? { gastoId } : {}),
+        });
+      }
+      revisarAgotados(estado);
       break;
     }
     case "borrar_producto":
@@ -1009,6 +1102,34 @@ function reducirEncargado(
     }
   }
   return { estado, trabajos };
+}
+
+/** Apunta un gasto nuevo; si se pagó con la caja abierta, sale como retirada en el arqueo. */
+function apuntarGasto(estado: Estado, ctx: Contexto, datos: Omit<Gasto, "id">): Gasto {
+  const gasto: Gasto = { id: ctx.nuevoId(), ...datos };
+  estado.gastos.push(gasto);
+  const turno = turnoAbierto(estado);
+  if (datos.deCaja && turno) {
+    turno.movimientos.push({
+      id: ctx.nuevoId(),
+      fecha: ctx.ahora,
+      tipo: "salida",
+      importe: datos.importe,
+      motivo: `Gasto: ${datos.concepto}`,
+      empleadoId: datos.empleadoId,
+    });
+  }
+  return gasto;
+}
+
+function apuntarMovimiento(
+  estado: Estado,
+  ctx: Contexto,
+  datos: Omit<MovimientoStock, "id" | "fecha">,
+) {
+  estado.movimientosStock.push({ id: ctx.nuevoId(), fecha: ctx.ahora, ...datos });
+  if (estado.movimientosStock.length > MAX_MOVIMIENTOS_STOCK)
+    estado.movimientosStock.splice(0, estado.movimientosStock.length - MAX_MOVIMIENTOS_STOCK);
 }
 
 /** Aplica una acción que llega desde el QR de una mesa. */

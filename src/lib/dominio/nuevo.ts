@@ -43,7 +43,12 @@ export function estadoNuevo(ctx: Contexto, datos: DatosBarNuevo): Estado {
           { id: "cat-1", nombre: "Bebidas", orden: 0, destino: "barra", visibleEnQR: true },
           { id: "cat-2", nombre: "Comida", orden: 1, destino: "cocina", visibleEnQR: true },
         ],
-    productos: datos.conCartaDeEjemplo ? base.productos : [],
+    // La carta de ejemplo sin el stock: las existencias de un bar de mentira no le sirven.
+    productos: datos.conCartaDeEjemplo
+      ? base.productos.map(({ receta: _receta, ...p }) => (void _receta, p))
+      : [],
+    ingredientes: [],
+    movimientosStock: [],
     cuentas: [],
     tickets: [],
     gastos: [],

@@ -114,3 +114,14 @@ Los clientes solo ven su mesa y la carta (`vistaCliente`); el personal no recibe
 - **Propinas**: se apuntan al cobrar y salen aparte en el ticket, en el cierre Z y en los informes.
 - **Carta**: menú del día con opciones que van a otra pantalla, categorías con horario, textos en
   inglés para la carta QR y fotos (Supabase Storage con permiso de subida de un solo uso).
+
+## Stock (fase 3)
+
+- **Ingredientes** con existencias, mínimo, «pedir hasta», precio de la última compra y proveedor.
+- **Escandallo** de cada plato: al mandarlo a cocina se descuenta lo que lleva; si se anula, se
+  devuelve. Cuando no llega para una ración más, el plato se agota solo y vuelve al recibir género.
+- **Lista de la compra** por proveedor con lo que está en el mínimo, para copiar o mandar por
+  WhatsApp, y **recibir el pedido** (suma al stock y apunta el gasto en «Proveedores y género»).
+- El coste de la ración sale del escandallo, y con él el margen de los informes.
+- Con `ANTHROPIC_API_KEY`, el pedido se puede rellenar con una **foto de la factura**: Claude lee
+  las líneas y las casa con los ingredientes; el encargado las revisa antes de guardar.

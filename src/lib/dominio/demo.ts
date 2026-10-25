@@ -2,7 +2,7 @@ import type { AccionPersonal } from "./acciones";
 import { VERSION_ESTADO } from "./migraciones";
 import { resumenPin } from "./pin";
 import { type Contexto, cuentaDeMesa, reducirPersonal } from "./reducir";
-import type { Alergeno, Categoria, Estado, Mesa, Producto, Zona } from "./tipos";
+import type { Alergeno, Categoria, Estado, Ingrediente, Mesa, Producto, Zona } from "./tipos";
 
 /**
  * El bar de ejemplo con el que arranca la aplicación: «La Esquina», ficticio. Incluye dos
@@ -328,10 +328,143 @@ export function estadoDeEjemplo(ctx: Contexto, opciones: { conHistorial?: boolea
       },
     ],
     trabajos: [],
+    ingredientes: [],
+    movimientosStock: [],
   };
 
   if (opciones.conHistorial) estado = conHistorial(estado, ctx);
-  return estado;
+  // El stock se pone al final: así el historial de ejemplo no lo gasta.
+  return conStock(estado);
+}
+
+type IngredienteEjemplo = [
+  id: string,
+  nombre: string,
+  unidad: Ingrediente["unidad"],
+  existencias: number,
+  minimo: number,
+  pedirHasta: number,
+  coste: number,
+  proveedor: string,
+];
+
+const INGREDIENTES: IngredienteEjemplo[] = [
+  ["ing-cerveza", "Cerveza de barril", "l", 62, 30, 90, 160, "Distribuciones Ficticias"],
+  ["ing-tinto", "Vino tinto Rioja", "l", 9, 4, 12, 650, "Bodegas Inventadas"],
+  ["ing-cafe", "Café en grano", "kg", 2.4, 1, 4, 1800, "Cafés Ejemplo"],
+  ["ing-leche", "Leche entera", "l", 7, 6, 18, 95, "Lácteos Ficticios"],
+  ["ing-patata", "Patatas", "kg", 14, 8, 25, 110, "Huerta Ejemplo"],
+  ["ing-huevo", "Huevos", "ud", 54, 30, 120, 25, "Huerta Ejemplo"],
+  ["ing-aceite", "Aceite de oliva", "l", 6, 5, 15, 900, "Distribuciones Ficticias"],
+  ["ing-croqueta", "Croquetas de jamón", "ud", 48, 40, 160, 45, "Obrador Inventado"],
+  ["ing-calamar", "Calamar limpio", "kg", 3.2, 2, 6, 1400, "Lonja Inventada"],
+  ["ing-pulpo", "Pulpo cocido", "kg", 0.9, 1.5, 4, 2600, "Lonja Inventada"],
+  ["ing-jamon", "Jamón serrano", "kg", 1.8, 1, 3, 2200, "Carnicería Ejemplo"],
+  ["ing-pan", "Pan de barra", "ud", 12, 10, 30, 70, "Panadería Ejemplo"],
+];
+
+/** Escandallos de ejemplo: [plato, [ingrediente, cantidad por ración]…]. */
+const RECETAS: [string, [string, number][]][] = [
+  ["Caña", [["ing-cerveza", 0.2]]],
+  ["Doble", [["ing-cerveza", 0.33]]],
+  ["Clara con limón", [["ing-cerveza", 0.15]]],
+  ["Copa de tinto Rioja", [["ing-tinto", 0.15]]],
+  ["Tinto de verano", [["ing-tinto", 0.1]]],
+  ["Café solo", [["ing-cafe", 0.008]]],
+  [
+    "Cortado",
+    [
+      ["ing-cafe", 0.008],
+      ["ing-leche", 0.03],
+    ],
+  ],
+  [
+    "Café con leche",
+    [
+      ["ing-cafe", 0.008],
+      ["ing-leche", 0.15],
+    ],
+  ],
+  ["Croquetas de jamón (4 uds.)", [["ing-croqueta", 4]]],
+  [
+    "Patatas bravas",
+    [
+      ["ing-patata", 0.3],
+      ["ing-aceite", 0.05],
+    ],
+  ],
+  [
+    "Tortilla de patatas (pincho)",
+    [
+      ["ing-patata", 0.08],
+      ["ing-huevo", 1],
+      ["ing-aceite", 0.02],
+    ],
+  ],
+  [
+    "Calamares a la andaluza",
+    [
+      ["ing-calamar", 0.25],
+      ["ing-aceite", 0.05],
+    ],
+  ],
+  [
+    "Pulpo a la gallega",
+    [
+      ["ing-pulpo", 0.25],
+      ["ing-patata", 0.15],
+      ["ing-aceite", 0.02],
+    ],
+  ],
+  [
+    "Huevos rotos con jamón",
+    [
+      ["ing-huevo", 2],
+      ["ing-patata", 0.25],
+      ["ing-jamon", 0.05],
+      ["ing-aceite", 0.05],
+    ],
+  ],
+  [
+    "Bocadillo de calamares",
+    [
+      ["ing-calamar", 0.15],
+      ["ing-pan", 1],
+      ["ing-aceite", 0.03],
+    ],
+  ],
+  [
+    "Bocadillo vegetal",
+    [
+      ["ing-pan", 1],
+      ["ing-huevo", 1],
+    ],
+  ],
+];
+
+/** Ingredientes con existencias y los escandallos de los platos de la carta de ejemplo. */
+function conStock(estado: Estado): Estado {
+  const ingredientes: Ingrediente[] = INGREDIENTES.map(
+    ([id, nombre, unidad, existencias, minimo, pedirHasta, coste, proveedor]) => ({
+      id,
+      nombre,
+      unidad,
+      existencias,
+      minimo,
+      pedirHasta,
+      coste,
+      proveedor,
+    }),
+  );
+  const productos = estado.productos.map((p) => {
+    const receta = RECETAS.find(([nombre]) => nombre === p.nombre)?.[1];
+    if (!receta) return p;
+    return {
+      ...p,
+      receta: receta.map(([ingredienteId, cantidad]) => ({ ingredienteId, cantidad })),
+    };
+  });
+  return { ...estado, ingredientes, productos };
 }
 
 /** Simula dos semanas de servicio, pasando por las mismas acciones que usa la app. */

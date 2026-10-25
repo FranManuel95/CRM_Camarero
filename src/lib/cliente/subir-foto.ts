@@ -1,9 +1,16 @@
 "use client";
 
-/** Reduce la foto en el propio aparato (máx. 1000 px, WebP) para que la carta cargue rápido. */
-async function reducir(archivo: File): Promise<Blob> {
+/**
+ * Reduce la foto en el propio aparato para no mandar fotos de 10 MB: las de los platos a 1000 px
+ * en WebP, que la carta cargue rápido; las de las facturas, más grandes para que se lea la letra.
+ */
+export async function reducir(
+  archivo: File,
+  maximo = 1000,
+  tipo: "image/webp" | "image/jpeg" = "image/webp",
+): Promise<Blob> {
   const imagen = await createImageBitmap(archivo);
-  const escala = Math.min(1, 1000 / Math.max(imagen.width, imagen.height));
+  const escala = Math.min(1, maximo / Math.max(imagen.width, imagen.height));
   const lienzo = document.createElement("canvas");
   lienzo.width = Math.round(imagen.width * escala);
   lienzo.height = Math.round(imagen.height * escala);
@@ -11,7 +18,7 @@ async function reducir(archivo: File): Promise<Blob> {
   return new Promise((ok, mal) =>
     lienzo.toBlob(
       (b) => (b ? ok(b) : mal(new Error("No se ha podido preparar la foto."))),
-      "image/webp",
+      tipo,
       0.82,
     ),
   );

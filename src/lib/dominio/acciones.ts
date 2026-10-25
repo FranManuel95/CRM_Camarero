@@ -12,6 +12,11 @@ const centimos = z.number().int().min(0).max(10_000_000);
 const texto = (max = 200) => z.string().trim().max(max);
 const iva = z.number().min(0).max(30);
 const metodo = z.enum(["efectivo", "tarjeta", "bizum", "otro"]);
+/** Cantidad de stock: kilos, litros o unidades, con hasta tres decimales. */
+const cantidad = z.number().min(0).max(1_000_000);
+const receta = z
+  .array(z.object({ ingredienteId: id, cantidad: cantidad.positive() }))
+  .max(30);
 
 export const lineaPedida = z.object({
   productoId: id,
@@ -136,6 +141,15 @@ export const accionCamarero = z.discriminatedUnion("tipo", [
   z.object({ tipo: z.literal("reimprimir_cierre"), turnoId: id }),
   // Impresión
   z.object({ tipo: z.literal("reintentar_trabajo"), trabajoId: id }),
+  // Stock: cualquiera del equipo puede contar lo que hay o apuntar lo que se tira.
+  z.object({
+    tipo: z.literal("ajustar_stock"),
+    ingredienteId: id,
+    /** «recuento»: lo que hay ahora; «merma»: lo que se ha tirado o roto. */
+    ajuste: z.enum(["recuento", "merma"]),
+    cantidad,
+    nota: texto(140).default(""),
+  }),
 ]);
 
 /** Solo el encargado: carta, plano, equipo, gastos, ajustes e impresoras. */
@@ -203,9 +217,45 @@ export const accionEncargado = z.discriminatedUnion("tipo", [
       orden: z.number().int(),
       grupos: z.array(grupoOpciones).max(10),
       coste: centimos.optional(),
+      receta: receta.optional(),
     }),
   }),
   z.object({ tipo: z.literal("borrar_producto"), productoId: id }),
+  z.object({
+    tipo: z.literal("guardar_ingrediente"),
+    ingrediente: z.object({
+      id: id.optional(),
+      nombre: texto(60).min(1),
+      unidad: z.enum(["kg", "l", "ud"]),
+      /** Solo al darlo de alta; luego cambia con compras, recuentos y mermas. */
+      existencias: cantidad.optional(),
+      minimo: cantidad,
+      pedirHasta: cantidad.optional(),
+      coste: centimos,
+      proveedor: texto(120),
+    }),
+  }),
+  z.object({ tipo: z.literal("borrar_ingrediente"), ingredienteId: id }),
+  /** Llega un pedido del proveedor: suma al stock, actualiza precios y apunta el gasto. */
+  z.object({
+    tipo: z.literal("recibir_compra"),
+    proveedor: texto(120),
+    lineas: z
+      .array(
+        z.object({
+          ingredienteId: id,
+          cantidad: cantidad.positive(),
+          /** Lo que cuesta esta línea en la factura, con IVA. 0 si no se sabe. */
+          importe: centimos,
+        }),
+      )
+      .min(1)
+      .max(60),
+    apuntarGasto: z.boolean(),
+    iva,
+    metodo,
+    deCaja: z.boolean(),
+  }),
   z.object({
     tipo: z.literal("guardar_zona"),
     zona: z.object({ id: id.optional(), nombre: texto(40).min(1), orden: z.number().int() }),

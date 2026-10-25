@@ -6,6 +6,7 @@ import { Barras } from "@/components/barras";
 import { euros } from "@/lib/dominio/importes";
 import { informe, rangoDeDias, sumarDias } from "@/lib/dominio/informes";
 import { primerosPasos } from "@/lib/dominio/primeros-pasos";
+import { bajoMinimo } from "@/lib/dominio/stock";
 import { NOMBRE_CATEGORIA_GASTO } from "@/lib/dominio/tipos";
 import { diaLocal } from "@/lib/fechas";
 import { useAhora } from "@/lib/cliente/use-ahora";
@@ -25,6 +26,7 @@ export function Resumen() {
   const catorce = informe(estado, rangoDeDias(sumarDias(hoy, -13), hoy));
   const mes = informe(estado, rangoDeDias(`${hoy.slice(0, 8)}01`, hoy));
   const abiertas = estado.cuentas.filter((c) => c.estado === "abierta");
+  const bajos = estado.ingredientes.filter(bajoMinimo);
   const enMesas = abiertas.reduce(
     (s, c) =>
       s + c.lineas.filter((l) => l.estado !== "anulada" && l.estado !== "por_confirmar").length,
@@ -131,6 +133,14 @@ export function Resumen() {
               Agotado ahora: {agotados.map((p) => p.nombre).join(", ")}.{" "}
               <Link href="/gestion/carta" className="font-semibold underline">
                 Cambiar en la carta
+              </Link>
+            </p>
+          )}
+          {bajos.length > 0 && (
+            <p className="mt-4 rounded-lg bg-aviso-claro p-3 text-sm">
+              En el mínimo: {bajos.map((i) => i.nombre).join(", ")}.{" "}
+              <Link href="/gestion/stock" className="font-semibold underline">
+                Ver la lista de la compra
               </Link>
             </p>
           )}
