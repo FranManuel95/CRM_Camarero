@@ -68,7 +68,7 @@
 - Arreglado: en el móvil, el menú de Gestión ensanchaba toda la página
   (`grid-cols-[minmax(0,1fr)]`).
 
-## Fase 4: equipo (26/10/2026)
+## Fase 4: equipo (25/10/2026)
 
 - Estado en versión 4: `fichajes`, `cuadrante` e `incidencias` (`src/lib/dominio/equipo.ts`).
 - **Registro de jornada** (art. 34.9 ET: entrada y salida diarias, cuatro años, a disposición de
