@@ -123,18 +123,22 @@ export function Interruptor({
   alCambiar,
   etiqueta,
   ayuda,
+  bloqueado = false,
 }: {
   activo: boolean;
   alCambiar: (v: boolean) => void;
   etiqueta: string;
-  ayuda?: string;
+  ayuda?: React.ReactNode;
+  /** No se puede cambiar (por ejemplo, porque falta algo en el servidor). */
+  bloqueado?: boolean;
 }) {
   return (
-    <label className="flex cursor-pointer items-start gap-3">
+    <label className={clsx("flex items-start gap-3", bloqueado ? "opacity-60" : "cursor-pointer")}>
       <input
         type="checkbox"
         className="peer sr-only"
         checked={activo}
+        disabled={bloqueado}
         onChange={(e) => alCambiar(e.target.checked)}
       />
       <span

@@ -7,6 +7,7 @@ import type {
   Producto,
   Unidad,
 } from "./tipos";
+import { activa } from "./funciones";
 
 /**
  * Stock del almacén. Cada plato con escandallo descuenta lo que lleva al mandarlo a cocina o
@@ -72,6 +73,7 @@ function sumar(estado: Estado, cantidades: Map<string, number>, signo: 1 | -1) {
 
 /** Descuenta lo que llevan las líneas que se acaban de mandar. */
 export function descontar(estado: Estado, lineas: LineaCuenta[]) {
+  if (!activa(estado.ajustes, "stock")) return;
   const nuevas = lineas.filter((l) => !l.descontado);
   sumar(estado, consumo(estado, nuevas), -1);
   for (const l of nuevas) l.descontado = true;
@@ -102,7 +104,16 @@ export function hayParaUnaMas(
  * Lo que una persona puso agotado a mano no se toca.
  */
 export function revisarAgotados(estado: Estado) {
+  const conStock = activa(estado.ajustes, "stock");
   for (const p of estado.productos) {
+    if (!conStock) {
+      // Sin stock nada se agota solo: lo que agotó el stock vuelve a estar disponible.
+      if (p.agotadoPorStock) {
+        p.disponible = true;
+        delete p.agotadoPorStock;
+      }
+      continue;
+    }
     if (!p.receta?.length) {
       delete p.agotadoPorStock;
       continue;

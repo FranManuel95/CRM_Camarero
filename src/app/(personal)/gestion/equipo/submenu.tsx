@@ -3,14 +3,14 @@
 import clsx from "clsx";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useDatos } from "@/components/datos-personal";
+import { useDatos, useFuncion } from "@/components/datos-personal";
 import { sinSalida } from "@/lib/dominio/equipo";
 import { useAhora } from "@/lib/cliente/use-ahora";
 
-const SECCIONES = [
+const SECCIONES: { href: string; texto: string; funcion?: "cuadrante" | "fichajes" }[] = [
   { href: "/gestion/equipo", texto: "Personas" },
-  { href: "/gestion/equipo/cuadrante", texto: "Cuadrante" },
-  { href: "/gestion/equipo/fichajes", texto: "Fichajes" },
+  { href: "/gestion/equipo/cuadrante", texto: "Cuadrante", funcion: "cuadrante" },
+  { href: "/gestion/equipo/fichajes", texto: "Fichajes", funcion: "fichajes" },
 ];
 
 export function SubmenuEquipo() {
@@ -18,10 +18,11 @@ export function SubmenuEquipo() {
   const { estado } = useDatos();
   const ahora = useAhora(60_000);
   const olvidos = sinSalida(estado.fichajes, ahora).length;
+  const encendidas = { cuadrante: useFuncion("cuadrante"), fichajes: useFuncion("fichajes") };
   return (
     <nav aria-label="Equipo" className="no-imprimir mb-4">
       <ul className="flex gap-1 overflow-x-auto">
-        {SECCIONES.map(({ href, texto }) => {
+        {SECCIONES.filter((s) => !s.funcion || encendidas[s.funcion]).map(({ href, texto }) => {
           const activo = ruta === href;
           return (
             <li key={href}>

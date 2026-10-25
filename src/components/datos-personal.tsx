@@ -2,6 +2,7 @@
 
 import { createContext, use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AccionPersonal } from "@/lib/dominio/acciones";
+import { disponible, type Funcion } from "@/lib/dominio/funciones";
 import type { Rol } from "@/lib/dominio/tipos";
 import { enviarAccion, type RespuestaAccion } from "@/lib/cliente/api";
 import { imprimirTrabajos, imprimirUno, tocaAqui } from "@/lib/cliente/impresion-local";
@@ -132,4 +133,10 @@ export function DatosPersonal({
       </div>
     </Contexto>
   );
+}
+
+/** ¿Se puede usar esta función en este bar? (encendida y, si hace falta, con su clave). */
+export function useFuncion(funcion: Funcion): boolean {
+  const { estado } = useDatos();
+  return disponible(estado.ajustes, estado.servicios, funcion);
 }

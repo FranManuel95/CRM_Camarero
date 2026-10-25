@@ -17,7 +17,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { useDatos } from "@/components/datos-personal";
+import { useDatos, useFuncion } from "@/components/datos-personal";
 import { Boton, Dialogo } from "@/components/ui";
 import { euros } from "@/lib/dominio/importes";
 import { situacionMesa, type SituacionMesa, TEXTO_SITUACION } from "@/lib/dominio/selectores";
@@ -49,6 +49,7 @@ const TEXTO_AVISO = {
 
 export function Sala() {
   const { estado, hacer } = useDatos();
+  const ventaRapida = useFuncion("ventaRapida");
   const router = useRouter();
   const ahora = useAhora();
   const zonas = [...estado.zonas].sort((a, b) => a.orden - b.orden);
@@ -118,12 +119,14 @@ export function Sala() {
               );
             })}
           </div>
-          <Link
-            href="/sala/rapida"
-            className="inline-flex h-11 items-center gap-1.5 rounded-lg bg-cuenta px-4 font-semibold text-white hover:brightness-95"
-          >
-            <Zap aria-hidden className="size-4" /> Venta rápida
-          </Link>
+          {ventaRapida && (
+            <Link
+              href="/sala/rapida"
+              className="inline-flex h-11 items-center gap-1.5 rounded-lg bg-cuenta px-4 font-semibold text-white hover:brightness-95"
+            >
+              <Zap aria-hidden className="size-4" /> Venta rápida
+            </Link>
+          )}
           <p className="mr-auto text-sm text-tinta-suave sm:mr-0">
             {ocupadas} {ocupadas === 1 ? "mesa ocupada" : "mesas ocupadas"}
           </p>

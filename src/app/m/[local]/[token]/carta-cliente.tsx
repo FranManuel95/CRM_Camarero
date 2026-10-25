@@ -43,7 +43,9 @@ export function CartaCliente({
 }) {
   const [vista, setVista] = useState(inicial);
   const [cesta, setCesta] = useGuardado<EnCesta[]>(`comanda.cesta.${token}`, [], "sesion");
-  const [idioma, setIdioma] = useGuardado<Idioma>("comanda.idioma", "es");
+  const [idiomaGuardado, setIdioma] = useGuardado<Idioma>("comanda.idioma", "es");
+  // Si el bar apaga la carta en inglés, siempre en español.
+  const idioma: Idioma = vista.local.ingles ? idiomaGuardado : "es";
   const t = TEXTOS[idioma];
   const nombreAlergeno = (a: Alergeno) =>
     (idioma === "en" ? ALERGENO_EN[a] : NOMBRE_ALERGENO[a]).toLowerCase();
@@ -135,15 +137,17 @@ export function CartaCliente({
     <div className="min-h-dvh bg-white pb-32" lang={idioma}>
       <header className="azulejo">
         <div className="bg-gradient-to-b from-transparent to-cobalto-oscuro/80 px-4 pt-4 pb-5 text-white">
-          <div className="mb-6 flex justify-end">
-            <button
-              type="button"
-              onClick={() => setIdioma(idioma === "es" ? "en" : "es")}
-              className="flex h-9 items-center gap-1.5 rounded-full bg-black/25 px-3 text-sm font-semibold backdrop-blur"
-              lang={idioma === "es" ? "en" : "es"}
-            >
-              <Languages aria-hidden className="size-4" /> {t.cambiarIdioma}
-            </button>
+          <div className="mb-6 flex min-h-9 justify-end">
+            {vista.local.ingles && (
+              <button
+                type="button"
+                onClick={() => setIdioma(idioma === "es" ? "en" : "es")}
+                className="flex h-9 items-center gap-1.5 rounded-full bg-black/25 px-3 text-sm font-semibold backdrop-blur"
+                lang={idioma === "es" ? "en" : "es"}
+              >
+                <Languages aria-hidden className="size-4" /> {t.cambiarIdioma}
+              </button>
+            )}
           </div>
           <p className="text-sm font-semibold opacity-90">{vista.mesa.nombre}</p>
           <h1 className="font-rotulo text-5xl leading-none font-bold drop-shadow">

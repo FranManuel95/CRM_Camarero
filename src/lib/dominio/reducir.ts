@@ -15,6 +15,7 @@ import {
 import { dentroDeHorario } from "./horario";
 import { lineasPara, MESA_VENTA_RAPIDA } from "./selectores";
 import { descontar, devolver, redondear, revisarAgotados } from "./stock";
+import { activa, type Funcion, FUNCIONES } from "./funciones";
 import { diasDeSemana, jornadaAbierta, lunesDe } from "./equipo";
 import { sumarDias } from "./informes";
 import { formatearHora } from "../fechas";
@@ -119,7 +120,7 @@ function crearLineas(
       cantidad: p.cantidad,
       opciones: elegirOpciones(producto, p.opciones),
       nota: p.nota,
-      ...(p.despues ? { despues: true } : {}),
+      ...(p.despues && activa(estado.ajustes, "paraDespues") ? { despues: true } : {}),
       creadaEn: ctx.ahora,
       listaEn: null,
       invitacion: false,
@@ -644,8 +645,10 @@ export function reducirPersonal(
         falla("Hay un pedido del QR sin aceptar. Acéptalo o recházalo antes de cobrar.");
       if (cuenta.lineas.some((l) => l.estado === "anotada"))
         falla("Hay líneas anotadas sin mandar. Mándalas o quítalas antes de cobrar.");
+      if (accion.propina) apagada(estado, "propinas");
       let seleccion = lineasCobrables(cuenta);
       if (accion.partes) {
+        apagada(estado, "cobrarPorPartes");
         seleccion = [];
         for (const parte of accion.partes) {
           const linea = lineasCobrables(cuenta).find((l) => l.id === parte.lineaId);
@@ -676,6 +679,8 @@ export function reducirPersonal(
       break;
     }
     case "venta_rapida": {
+      apagada(estado, "ventaRapida");
+      if (accion.propina) apagada(estado, "propinas");
       const cuenta: Cuenta = {
         id: ctx.nuevoId(),
         mesaId: MESA_VENTA_RAPIDA,
@@ -821,6 +826,7 @@ export function reducirPersonal(
       break;
     }
     case "fichar": {
+      apagada(estado, "fichajes");
       const abierta = jornadaAbierta(estado.fichajes, empleado.id, ctx.ahora);
       const pausa = abierta?.pausas.find((p) => !p.fin);
       if (accion.que === "entrada") {
@@ -848,6 +854,7 @@ export function reducirPersonal(
       break;
     }
     case "ajustar_stock": {
+      apagada(estado, "stock");
       const ing = buscar(estado.ingredientes, accion.ingredienteId, "ese ingrediente");
       const nueva =
         accion.ajuste === "recuento" ? accion.cantidad : ing.existencias - accion.cantidad;
@@ -985,6 +992,7 @@ function reducirEncargado(
       break;
     }
     case "guardar_ingrediente": {
+      apagada(estado, "stock");
       const { id, existencias, pedirHasta, ...datos } = accion.ingrediente;
       const repetido = estado.ingredientes.find(
         (i) => i.id !== id && i.nombre.toLowerCase() === datos.nombre.toLowerCase(),
@@ -1016,6 +1024,7 @@ function reducirEncargado(
       break;
     }
     case "recibir_compra": {
+      apagada(estado, "stock");
       const lineas = accion.lineas.map((l) => ({
         ...l,
         ingrediente: buscar(estado.ingredientes, l.ingredienteId, "ese ingrediente"),
@@ -1110,7 +1119,13 @@ function reducirEncargado(
       break;
     }
     case "guardar_ajustes":
-      estado.ajustes = accion.ajustes;
+      // Las funciones se cambian aparte: guardar los datos del local no las toca.
+      estado.ajustes = { ...accion.ajustes, funciones: estado.ajustes.funciones };
+      break;
+    case "cambiar_funcion":
+      estado.ajustes.funciones = { ...estado.ajustes.funciones, [accion.funcion]: accion.activa };
+      // Al apagar el stock, lo que había agotado vuelve a la carta (y al revés).
+      if (accion.funcion === "stock") revisarAgotados(estado);
       break;
     case "guardar_impresora": {
       const { id, ...datos } = accion.impresora;
@@ -1155,6 +1170,7 @@ function reducirEncargado(
       break;
     }
     case "guardar_turno": {
+      apagada(estado, "cuadrante");
       const { id, ...datos } = accion.turno;
       buscar(estado.empleados, datos.empleadoId, "esa persona");
       if (datos.desde === datos.hasta) falla("El turno tiene que durar algo.");
@@ -1168,6 +1184,7 @@ function reducirEncargado(
       estado.cuadrante = estado.cuadrante.filter((t) => t.id !== accion.turnoId);
       break;
     case "copiar_semana": {
+      apagada(estado, "cuadrante");
       const origen = diasDeSemana(lunesDe(accion.desde));
       const destino = diasDeSemana(lunesDe(accion.hacia));
       if (origen[0] === destino[0]) falla("Elige otra semana.");
@@ -1212,6 +1229,12 @@ function reducirEncargado(
     }
   }
   return { estado, trabajos };
+}
+
+/** Corta la acción si la función está apagada en este bar. */
+function apagada(estado: Estado, funcion: Funcion) {
+  if (!activa(estado.ajustes, funcion))
+    falla(`«${FUNCIONES[funcion].nombre}» está apagado. Se enciende en Gestión → Funciones.`);
 }
 
 /** La línea ya había salido hacia cocina o barra (anularla es una anulación de verdad). */

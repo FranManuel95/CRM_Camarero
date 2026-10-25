@@ -40,6 +40,8 @@ export type Ajustes = {
   pieTicket: string;
   /** Serie de los tickets (facturas simplificadas). */
   serieTicket: string;
+  /** Funciones encendidas o apagadas (ver funciones.ts). Lo que no está, va por defecto. */
+  funciones?: Partial<Record<string, boolean>>;
 };
 
 export type Zona = { id: Id; nombre: string; orden: number };

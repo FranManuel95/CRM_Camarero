@@ -12,7 +12,7 @@ import {
   Truck,
 } from "lucide-react";
 import { useState } from "react";
-import { useDatos } from "@/components/datos-personal";
+import { useDatos, useFuncion } from "@/components/datos-personal";
 import { Boton, Vacio } from "@/components/ui";
 import { euros } from "@/lib/dominio/importes";
 import {
@@ -43,8 +43,10 @@ const NOMBRE_MOVIMIENTO: Record<TipoMovimientoStock, string> = {
   merma: "Merma",
 };
 
-export function Stock({ leerFacturas }: { leerFacturas: boolean }) {
+export function Stock() {
   const { estado, hacer, avisar } = useDatos();
+  // Leer facturas con foto: encendido y con la clave de la IA en el servidor.
+  const leerFacturas = useFuncion("facturasConFoto");
   const [pestana, setPestana] = useState<Pestana>("existencias");
   const [editando, setEditando] = useState<Ingrediente | "nuevo" | null>(null);
   const [ajuste, setAjuste] = useState<Ajuste | null>(null);

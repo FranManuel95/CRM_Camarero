@@ -13,7 +13,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useState } from "react";
-import { useDatos } from "@/components/datos-personal";
+import { useDatos, useFuncion } from "@/components/datos-personal";
 import { Boton, Campo, claseEntrada, Dialogo, Interruptor, Vacio } from "@/components/ui";
 import { subirFoto } from "@/lib/cliente/subir-foto";
 import { describirHorario, NOMBRE_DIA } from "@/lib/dominio/horario";
@@ -108,6 +108,7 @@ function menuDelDia(categoriaId: string, orden: number): BorradorProducto {
 
 export function EditorCarta({ clavePublica }: { clavePublica: string }) {
   const { estado, hacer, avisar } = useDatos();
+  const conStock = useFuncion("stock");
   const [subiendo, setSubiendo] = useState(false);
   const categorias = [...estado.categorias].sort((a, b) => a.orden - b.orden);
   const [categoriaId, setCategoriaId] = useState(categorias[0]?.id ?? "");
@@ -636,7 +637,7 @@ export function EditorCarta({ clavePublica }: { clavePublica: string }) {
                 ))}
               </select>
             </Campo>
-            {!prod.receta.length && (
+            {(!conStock || !prod.receta.length) && (
               <Campo
                 etiqueta="Coste de la ración (opcional)"
                 ayuda="Para ver el margen en los informes. Con escandallo se calcula solo."
@@ -650,12 +651,14 @@ export function EditorCarta({ clavePublica }: { clavePublica: string }) {
                 />
               </Campo>
             )}
-            <Escandallo
-              lineas={prod.receta}
-              alCambiar={(receta) => setProd({ ...prod, receta })}
-              ingredientes={estado.ingredientes}
-              precio={leerEuros(prod.precio)}
-            />
+            {conStock && (
+              <Escandallo
+                lineas={prod.receta}
+                alCambiar={(receta) => setProd({ ...prod, receta })}
+                ingredientes={estado.ingredientes}
+                precio={leerEuros(prod.precio)}
+              />
+            )}
             <fieldset className="sm:col-span-2">
               <legend className="mb-2 text-sm font-semibold">Alérgenos</legend>
               <div className="flex flex-wrap gap-1.5">

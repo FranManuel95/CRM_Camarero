@@ -103,6 +103,17 @@
 - Ojo con `pgrep -f next-server`: se encuentra a sí mismo. Usar `pgrep -f "^next-server"`.
 - Datos de ejemplo: los fichajes siguen el cuadrante (que ahora cubre también el historial).
 
+## Funciones activables (25/10/2026)
+
+- `src/lib/dominio/funciones.ts`: lista de funciones (grupo, nombre, explicación, valor por
+  defecto y, si hace falta, el servicio del servidor que necesitan). Se guardan en
+  `ajustes.funciones`; lo que no está va por defecto. Gestión → Funciones las enciende y apaga
+  (acción `cambiar_funcion`, solo encargado). `guardar_ajustes` no las toca.
+- Apagada, una función desaparece de las pantallas (`useFuncion`, `<SiFuncion>`) y sus
+  acciones se rechazan en el reductor (`apagada`). Los datos se conservan.
+- Para añadir una función nueva: entrada en `FUNCIONES`, comprobación en el reductor y en las
+  pantallas. Las que necesitan una clave declaran `necesita` y `servicios()` dice si está.
+
 ## Pendiente (por orden)
 
 1. **VERI\*FACTU** antes de usarlo como TPV fiscal real (ver `docs/INVESTIGACION.md`).

@@ -107,6 +107,7 @@ test("las pantallas principales pasan la revisión de accesibilidad", async ({ p
     "/gestion/equipo",
     "/gestion/equipo/cuadrante",
     "/gestion/equipo/fichajes",
+    "/gestion/funciones",
     "/fichar",
     "/gestion/impresoras",
   ]) {

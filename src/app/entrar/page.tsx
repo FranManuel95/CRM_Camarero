@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
+import { activa } from "@/lib/dominio/funciones";
 import { enLaNube, leerEstado, localDemo } from "@/lib/servidor/almacen";
 import { localDelAparato } from "@/lib/servidor/sesion";
 import { CambiarDeBar, VincularAparato } from "./vincular";
@@ -9,10 +10,10 @@ import { TecladoPin } from "./teclado-pin";
 export const metadata: Metadata = { title: "Entrar" };
 export const dynamic = "force-dynamic";
 
-async function nombreDelBar(local: string | null) {
+async function ajustesDelBar(local: string | null) {
   if (!local) return null;
   try {
-    return (await leerEstado(local)).ajustes.nombreLocal;
+    return (await leerEstado(local)).ajustes;
   } catch {
     return null;
   }
@@ -20,7 +21,8 @@ async function nombreDelBar(local: string | null) {
 
 export default async function Entrar() {
   const local = await localDelAparato();
-  const nombre = await nombreDelBar(local);
+  const ajustes = await ajustesDelBar(local);
+  const nombre = ajustes?.nombreLocal ?? null;
   const nube = enLaNube();
   const esDemo = local === localDemo();
 
@@ -38,12 +40,14 @@ export default async function Entrar() {
             <Suspense>
               <TecladoPin />
             </Suspense>
-            <p className="mt-6 text-center text-sm text-zinc">
-              ¿Vienes a fichar?{" "}
-              <Link href="/fichar" className="font-semibold text-white underline">
-                Ficha la entrada o la salida
-              </Link>
-            </p>
+            {ajustes && activa(ajustes, "fichajes") && (
+              <p className="mt-6 text-center text-sm text-zinc">
+                ¿Vienes a fichar?{" "}
+                <Link href="/fichar" className="font-semibold text-white underline">
+                  Ficha la entrada o la salida
+                </Link>
+              </p>
+            )}
             {esDemo && process.env.DEMO !== "false" && (
               <p className="mt-8 rounded-lg bg-white/10 p-3 text-center text-sm text-zinc">
                 Demostración: Ana (encargada) <b>1234</b> · Luis <b>1111</b> · Marta <b>2222</b>

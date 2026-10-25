@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { type Funcion, LISTA_FUNCIONES } from "./funciones";
 import { ALERGENOS } from "./tipos";
 
 /**
@@ -324,6 +325,12 @@ export const accionEncargado = z.discriminatedUnion("tipo", [
   z.object({ tipo: z.literal("borrar_impresora"), impresoraId: id }),
   z.object({ tipo: z.literal("imprimir_prueba"), impresoraId: id }),
   z.object({ tipo: z.literal("crear_codigo_vinculo") }),
+  /** Encender o apagar una función del bar (ver funciones.ts). */
+  z.object({
+    tipo: z.literal("cambiar_funcion"),
+    funcion: z.enum(LISTA_FUNCIONES as [Funcion, ...Funcion[]]),
+    activa: z.boolean(),
+  }),
   /** Corregir (o apuntar a mano) un fichaje. Queda anotado quién, cuándo y por qué. */
   z.object({
     tipo: z.literal("corregir_fichaje"),

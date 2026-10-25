@@ -4,7 +4,7 @@ import clsx from "clsx";
 import { Beer, ChefHat, Clock, LayoutGrid, LogOut, Settings, Wallet } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useDatos } from "./datos-personal";
+import { useDatos, useFuncion } from "./datos-personal";
 
 /** En el móvil, icono encima y nombre pequeño debajo; desde tablet, en línea. */
 const CLASE_BOTON =
@@ -12,6 +12,7 @@ const CLASE_BOTON =
 
 export function BarraPersonal() {
   const { empleado, estado } = useDatos();
+  const fichajes = useFuncion("fichajes");
   const ruta = usePathname();
   const destino = useSearchParams().get("destino");
   const router = useRouter();
@@ -90,10 +91,15 @@ export function BarraPersonal() {
           ))}
         </ul>
         <span className="hidden text-sm text-zinc-oscuro md:inline">{empleado.nombre}</span>
-        <Link href="/fichar" className={clsx(CLASE_BOTON, "shrink-0 text-zinc hover:bg-white/10")}>
-          <Clock aria-hidden className="size-5 sm:size-4" />
-          Fichar
-        </Link>
+        {fichajes && (
+          <Link
+            href="/fichar"
+            className={clsx(CLASE_BOTON, "shrink-0 text-zinc hover:bg-white/10")}
+          >
+            <Clock aria-hidden className="size-5 sm:size-4" />
+            Fichar
+          </Link>
+        )}
         <button
           type="button"
           onClick={salir}

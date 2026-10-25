@@ -1,4 +1,6 @@
 import { DIAS_EN_PANTALLA } from "../constantes";
+import { servicios } from "./servicios";
+import { activa } from "../dominio/funciones";
 import { cuentaDeMesa } from "../dominio/reducir";
 import { cuentaEnJuego } from "../dominio/selectores";
 import { pagadoCuenta, totalCuenta } from "../dominio/importes";
@@ -22,6 +24,8 @@ export function vistaPersonal(
     ...estado,
     /** Identificador del bar (va en la dirección de los QR). */
     local,
+    /** Qué claves tiene el servidor: sin ellas, algunas funciones no se pueden encender. */
+    servicios: servicios(),
     empleados: estado.empleados.map((e) => ({ ...e, pin: "" })),
     cuentas: estado.cuentas.filter((c) => cuentaEnJuego(c, ahora)),
     tickets: estado.tickets.filter((t) => t.fecha >= desde),
@@ -83,6 +87,7 @@ export function vistaCliente(estado: Estado, token: string, ahora = new Date().t
       nombre: estado.ajustes.nombreLocal,
       pedidosActivos: estado.ajustes.pedidosQRActivos,
       confirmarPedidos: estado.ajustes.confirmarPedidosQR,
+      ingles: activa(estado.ajustes, "cartaIngles"),
     },
     mesa: { nombre: mesa.nombre },
     categorias: categorias.map(({ id, nombre, nombreEn }) => ({ id, nombre, nombreEn })),

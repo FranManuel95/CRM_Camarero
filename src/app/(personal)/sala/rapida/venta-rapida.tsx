@@ -4,7 +4,8 @@ import { ArrowLeft, Minus, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { CartaTpv } from "@/components/carta-tpv";
-import { useDatos } from "@/components/datos-personal";
+import { useDatos, useFuncion } from "@/components/datos-personal";
+import { FuncionApagada } from "@/components/funcion-apagada";
 import { Boton, Vacio } from "@/components/ui";
 import type { LineaPedida } from "@/lib/dominio/acciones";
 import { euros, importeLinea } from "@/lib/dominio/importes";
@@ -47,6 +48,8 @@ function comoLinea(l: EnCesta, producto: Producto): LineaCuenta {
  */
 export function VentaRapida() {
   const { estado, hacer } = useDatos();
+  const propinas = useFuncion("propinas");
+  const activa = useFuncion("ventaRapida");
   const [cesta, setCesta] = useState<EnCesta[]>([]);
   const [cobrando, setCobrando] = useState(false);
   const porId = new Map(estado.productos.map((p) => [p.id, p]));
@@ -77,6 +80,8 @@ export function VentaRapida() {
             : [],
       ),
     );
+
+  if (!activa) return <FuncionApagada funcion="ventaRapida" />;
 
   return (
     <main className="mx-auto flex max-w-screen-2xl flex-col lg:h-[calc(100dvh-3.5rem)]">
@@ -170,6 +175,7 @@ export function VentaRapida() {
         descuento={0}
         comensales={1}
         permitirPartes={false}
+        permitirPropina={propinas}
         alCerrar={() => setCobrando(false)}
         cobrar={async ({ pagos, propina }, mensaje) => {
           const ok = await hacer(

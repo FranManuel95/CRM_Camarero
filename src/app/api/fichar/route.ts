@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { fichaPersonal } from "@/lib/dominio/equipo";
+import { activa } from "@/lib/dominio/funciones";
 import { ejecutarPersonal, entrarConPin, leerEstado } from "@/lib/servidor/almacen";
 import { crearLimite, ipDe } from "@/lib/servidor/limite";
 import { json, respuestaDeError } from "@/lib/servidor/respuestas";
@@ -25,6 +26,8 @@ export async function POST(request: Request) {
   const local = await localDelAparato();
   if (!local) return json({ error: "Este aparato aún no está vinculado a ningún bar." }, 409);
   try {
+    if (!activa((await leerEstado(local)).ajustes, "fichajes"))
+      return json({ error: "Los fichajes están apagados en este bar." }, 404);
     const empleado = await entrarConPin(local, datos.data.pin);
     if (!empleado) {
       if (!limite(`${ipDe(request)}|${local}`))
@@ -34,10 +37,14 @@ export async function POST(request: Request) {
     if (datos.data.que)
       await ejecutarPersonal(local, { tipo: "fichar", que: datos.data.que }, empleado);
     const estado = await leerEstado(local);
-    return json({
-      nombre: empleado.nombre,
-      ...fichaPersonal(estado, empleado.id, new Date().toISOString()),
-    });
+    const ficha = fichaPersonal(estado, empleado.id, new Date().toISOString());
+    // Sin cuadrante no hay turnos que enseñar.
+    if (!activa(estado.ajustes, "cuadrante")) {
+      ficha.hoy = [];
+      ficha.proximos = [];
+      ficha.semana.previstos = 0;
+    }
+    return json({ nombre: empleado.nombre, ...ficha });
   } catch (e) {
     return respuestaDeError(e);
   }

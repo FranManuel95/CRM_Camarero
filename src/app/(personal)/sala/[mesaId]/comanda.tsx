@@ -19,7 +19,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { useDatos } from "@/components/datos-personal";
+import { useDatos, useFuncion } from "@/components/datos-personal";
 import { Boton, Campo, claseEntrada, Dialogo, Vacio } from "@/components/ui";
 import {
   euros,
@@ -47,6 +47,9 @@ const TEXTO_ESTADO: Record<EstadoLinea, string> = {
 
 export function Comanda({ mesaId }: { mesaId: string }) {
   const { estado, hacer } = useDatos();
+  const paraDespues = useFuncion("paraDespues");
+  const porPartes = useFuncion("cobrarPorPartes");
+  const propinas = useFuncion("propinas");
   const router = useRouter();
   const mesa = estado.mesas.find((m) => m.id === mesaId);
   const cuenta = estado.cuentas.find((c) => c.mesaId === mesaId && c.estado === "abierta");
@@ -168,7 +171,7 @@ export function Comanda({ mesaId }: { mesaId: string }) {
           className={clsx("min-h-0 overflow-y-auto p-3", panel !== "carta" && "hidden lg:block")}
         >
           <CartaTpv
-            permitirDespues
+            permitirDespues={paraDespues}
             alAnotar={(linea) => hacer({ tipo: "anotar", cuentaId: cuenta.id, lineas: [linea] })}
           />
           <div className="sticky bottom-0 -mx-3 mt-3 grid grid-cols-2 gap-2 border-t border-zinc-oscuro/50 bg-zinc-claro p-3 lg:hidden">
@@ -299,6 +302,8 @@ export function Comanda({ mesaId }: { mesaId: string }) {
         lineas={lineasCobrables(cuenta)}
         descuento={cuenta.descuento}
         comensales={cuenta.comensales}
+        permitirPartes={porPartes}
+        permitirPropina={propinas}
         alCerrar={() => setDialogo(null)}
         cobrar={async ({ pagos, propina, partes }, mensaje) => {
           const ok = await hacer(
@@ -344,6 +349,7 @@ export function Comanda({ mesaId }: { mesaId: string }) {
 
 function Lineas({ cuenta, lineas }: { cuenta: Cuenta; lineas: LineaCuenta[] }) {
   const { hacer } = useDatos();
+  const paraDespues = useFuncion("paraDespues");
   const ahora = useAhora();
   const [anulando, setAnulando] = useState<LineaCuenta | null>(null);
   const [motivo, setMotivo] = useState("");
@@ -431,21 +437,23 @@ function Lineas({ cuenta, lineas }: { cuenta: Cuenta; lineas: LineaCuenta[] }) {
                       >
                         <Plus aria-hidden className="size-4" />
                       </Boton>
-                      <Boton
-                        tamano="pequeno"
-                        variante="fantasma"
-                        aria-pressed={Boolean(l.despues)}
-                        onClick={() =>
-                          hacer({
-                            tipo: "cambiar_despues",
-                            cuentaId: cuenta.id,
-                            lineaId: l.id,
-                            despues: !l.despues,
-                          })
-                        }
-                      >
-                        {l.despues ? "Ahora" : "Después"}
-                      </Boton>
+                      {(paraDespues || l.despues) && (
+                        <Boton
+                          tamano="pequeno"
+                          variante="fantasma"
+                          aria-pressed={Boolean(l.despues)}
+                          onClick={() =>
+                            hacer({
+                              tipo: "cambiar_despues",
+                              cuentaId: cuenta.id,
+                              lineaId: l.id,
+                              despues: !l.despues,
+                            })
+                          }
+                        >
+                          {l.despues ? "Ahora" : "Después"}
+                        </Boton>
+                      )}
                       <Boton
                         tamano="pequeno"
                         variante="fantasma"

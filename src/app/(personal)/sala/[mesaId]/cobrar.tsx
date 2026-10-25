@@ -42,6 +42,7 @@ export function Cobrar({
   alCerrar,
   cobrar,
   permitirPartes = true,
+  permitirPropina = true,
 }: {
   abierto: boolean;
   /** Lo que queda por cobrar. */
@@ -51,6 +52,7 @@ export function Cobrar({
   alCerrar: () => void;
   cobrar: (datos: DatosCobro, mensajeOk: string) => Promise<boolean>;
   permitirPartes?: boolean;
+  permitirPropina?: boolean;
 }) {
   const [modo, setModo] = useState<"todo" | "platos">("todo");
   const [cuantas, setCuantas] = useState<Record<string, number>>({});
@@ -237,33 +239,35 @@ export function Cobrar({
         )}
       </div>
 
-      <fieldset className="mb-4">
-        <legend className="mb-1 text-sm font-semibold">Propina</legend>
-        <div className="flex flex-wrap gap-2">
-          {atajosPropina.map((a) => (
-            <Boton
-              key={a.texto}
-              tamano="pequeno"
-              variante={
-                propina === a.valor && (a.valor > 0 || !propinaTexto) ? "primario" : "secundario"
-              }
-              onClick={() =>
-                setPropinaTexto(a.valor ? (a.valor / 100).toFixed(2).replace(".", ",") : "")
-              }
-            >
-              {a.texto}
-            </Boton>
-          ))}
-          <input
-            inputMode="decimal"
-            aria-label="Otra propina"
-            placeholder="Otra"
-            className={clsx(claseEntrada, "h-8 w-24")}
-            value={propinaTexto}
-            onChange={(e) => setPropinaTexto(e.target.value)}
-          />
-        </div>
-      </fieldset>
+      {permitirPropina && (
+        <fieldset className="mb-4">
+          <legend className="mb-1 text-sm font-semibold">Propina</legend>
+          <div className="flex flex-wrap gap-2">
+            {atajosPropina.map((a) => (
+              <Boton
+                key={a.texto}
+                tamano="pequeno"
+                variante={
+                  propina === a.valor && (a.valor > 0 || !propinaTexto) ? "primario" : "secundario"
+                }
+                onClick={() =>
+                  setPropinaTexto(a.valor ? (a.valor / 100).toFixed(2).replace(".", ",") : "")
+                }
+              >
+                {a.texto}
+              </Boton>
+            ))}
+            <input
+              inputMode="decimal"
+              aria-label="Otra propina"
+              placeholder="Otra"
+              className={clsx(claseEntrada, "h-8 w-24")}
+              value={propinaTexto}
+              onChange={(e) => setPropinaTexto(e.target.value)}
+            />
+          </div>
+        </fieldset>
+      )}
 
       {metodo === "mixto" && (
         <label className="mb-3 block">

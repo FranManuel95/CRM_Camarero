@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { activa } from "@/lib/dominio/funciones";
 import { pedidoDeFactura } from "@/lib/dominio/stock";
 import { leerEstado } from "@/lib/servidor/almacen";
 import { FacturaIlegible, leerFactura, TIPOS_FOTO, type TipoFoto } from "@/lib/servidor/facturas";
@@ -25,6 +26,8 @@ export async function POST(request: Request) {
     return json({ error: "La foto es demasiado grande." }, 413);
 
   const estado = await leerEstado(sesion.local);
+  if (!activa(estado.ajustes, "stock") || !activa(estado.ajustes, "facturasConFoto"))
+    return json({ error: "La lectura de facturas está apagada en este bar." }, 404);
   if (!estado.ingredientes.length)
     return json({ error: "Da de alta los ingredientes antes de leer facturas." }, 409);
   try {
