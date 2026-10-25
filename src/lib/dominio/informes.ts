@@ -27,12 +27,13 @@ export function informe(
   };
   const porHora = Array.from({ length: 24 }, () => 0);
   const porMetodo: Record<MetodoPago, Centimos> = { efectivo: 0, tarjeta: 0, bizum: 0, otro: 0 };
-  const porEmpleado = new Map<string, { ventas: Centimos; tickets: number }>();
+  const porEmpleado = new Map<string, { ventas: Centimos; tickets: number; propinas: Centimos }>();
   const porProducto = new Map<string, { unidades: number; ventas: Centimos }>();
   let ventas = 0;
   let ventasBase = 0;
   let ivaRepercutido = 0;
   let devoluciones = 0;
+  let propinas = 0;
 
   for (const t of tickets) {
     ventas += t.total;
@@ -48,7 +49,9 @@ export function informe(
     const cambio = t.cambio ?? calcularCambio(t.total, t.pagos);
     for (const p of t.pagos) porMetodo[p.metodo] += p.importe;
     porMetodo.efectivo -= cambio;
-    const e = porEmpleado.get(t.empleadoId ?? "") ?? { ventas: 0, tickets: 0 };
+    propinas += t.propina ?? 0;
+    const e = porEmpleado.get(t.empleadoId ?? "") ?? { ventas: 0, tickets: 0, propinas: 0 };
+    e.propinas += t.propina ?? 0;
     e.ventas += t.total;
     if (!t.rectificaA) e.tickets += 1;
     porEmpleado.set(t.empleadoId ?? "", e);
@@ -88,6 +91,7 @@ export function informe(
     ventasBase,
     ivaRepercutido,
     devoluciones,
+    propinas,
     tickets: numTickets,
     ticketMedio: numTickets ? Math.round(ventas / numTickets) : 0,
     gastos: totalGastos,

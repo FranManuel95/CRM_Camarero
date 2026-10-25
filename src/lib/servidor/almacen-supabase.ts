@@ -3,6 +3,7 @@ import { DIAS_EN_PANTALLA } from "../constantes";
 import { estadoDeEjemplo } from "../dominio/demo";
 import { migrar } from "../dominio/migraciones";
 import { ErrorAccion } from "../dominio/reducir";
+import { cuentaEnJuego } from "../dominio/selectores";
 import type { Estado, Ticket } from "../dominio/tipos";
 import { type Almacen, contexto } from "./almacen";
 import { rpc as llamar } from "./supabase-rpc";
@@ -41,7 +42,7 @@ export function almacenSupabase(local: string, esDemo: boolean): Almacen {
     return {
       ...estado,
       tickets: [],
-      cuentas: estado.cuentas.filter((c) => c.estado === "abierta"),
+      cuentas: estado.cuentas.filter((c) => cuentaEnJuego(c)),
       trabajos: estado.trabajos.slice(-MAX_TRABAJOS),
     };
   }

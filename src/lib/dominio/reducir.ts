@@ -6,12 +6,16 @@ import {
   calcularCambio,
   desgloseIva,
   euros,
+  lineasCobrables,
   lineasDeTicket,
   totalCuenta,
   totalPagos,
 } from "./importes";
+import { dentroDeHorario } from "./horario";
+import { lineasPara, MESA_VENTA_RAPIDA } from "./selectores";
 import type {
   Aviso,
+  Centimos,
   Cuenta,
   Destino,
   Empleado,
@@ -19,6 +23,7 @@ import type {
   LineaCuenta,
   Mesa,
   OpcionElegida,
+  Pago,
   Producto,
   Ticket,
   TipoAviso,
@@ -59,6 +64,13 @@ function buscar<T extends { id: string }>(lista: T[], id: string, queEs: string)
   return lista.find((x) => x.id === id) ?? falla(`No encuentro ${queEs}. Puede que ya no exista.`);
 }
 
+/** Cocina también trabaja con lo ya cobrado (ventas rápidas) mientras no salga. */
+function cuentaParaCocina(estado: Estado, cuentaId: string): Cuenta {
+  const cuenta = buscar(estado.cuentas, cuentaId, "esa cuenta");
+  if (cuenta.estado === "anulada") falla("Esta cuenta está anulada.");
+  return cuenta;
+}
+
 function cuentaAbierta(estado: Estado, cuentaId: string): Cuenta {
   const cuenta = buscar(estado.cuentas, cuentaId, "esa cuenta");
   if (cuenta.estado !== "abierta") falla("Esta cuenta ya está cerrada.");
@@ -83,6 +95,8 @@ function crearLineas(
     if (!producto.disponible) falla(`${producto.nombre} está agotado ahora mismo.`);
     if (soloVisiblesEnQR && categoria && !categoria.visibleEnQR)
       falla(`${producto.nombre} no se puede pedir desde aquí.`);
+    if (soloVisiblesEnQR && categoria && !dentroDeHorario(categoria.horario, ctx.ahora))
+      falla(`${producto.nombre} no se sirve a esta hora.`);
     return {
       id: ctx.nuevoId(),
       productoId: producto.id,
@@ -93,6 +107,7 @@ function crearLineas(
       cantidad: p.cantidad,
       opciones: elegirOpciones(producto, p.opciones),
       nota: p.nota,
+      ...(p.despues ? { despues: true } : {}),
       creadaEn: ctx.ahora,
       listaEn: null,
       invitacion: false,
@@ -112,7 +127,12 @@ export function elegirOpciones(producto: Producto, ids: string[]): OpcionElegida
       falla(`En ${grupo.nombre.toLowerCase()} solo vale una opción.`);
     for (const o of delGrupo) {
       usados.add(o.id);
-      elegidas.push({ grupo: grupo.nombre, nombre: o.nombre, suplemento: o.suplemento });
+      elegidas.push({
+        grupo: grupo.nombre,
+        nombre: o.nombre,
+        suplemento: o.suplemento,
+        ...(o.destino ? { destino: o.destino } : {}),
+      });
     }
   }
   if (ids.some((i) => !usados.has(i))) falla(`Alguna opción de ${producto.nombre} ya no existe.`);
@@ -196,6 +216,46 @@ function atenderAvisos(estado: Estado, mesaId: string, tipos: TipoAviso[]) {
 }
 
 /** Manda a cocina y barra las líneas indicadas como una ronda nueva, con su comanda impresa. */
+/** Imprime la comanda de cada sitio con las líneas dadas. */
+function imprimirComandas(
+  estado: Estado,
+  ctx: Contexto,
+  trabajos: TrabajoImpresion[],
+  cuenta: Cuenta,
+  lineas: LineaCuenta[],
+  empleadoId: string | null,
+  marcha = false,
+) {
+  const mesa = mesaDeCuenta(estado, cuenta);
+  for (const destino of ["cocina", "barra"] as Destino[]) {
+    const deEste = lineasPara(destino, lineas);
+    if (!deEste.length) continue;
+    encolar(
+      estado,
+      ctx,
+      trabajos,
+      "comanda",
+      `${marcha ? "Marcha · " : ""}${destino === "cocina" ? "Cocina" : "Barra"} · ${mesa.nombre} · ronda ${cuenta.rondas}`,
+      plantillaComanda({
+        mesa,
+        destino,
+        lineas: deEste,
+        ronda: cuenta.rondas,
+        camarero: nombreEmpleado(estado, empleadoId ?? cuenta.empleadoId),
+        comensales: cuenta.comensales,
+        fecha: ctx.ahora,
+        marcha,
+      }),
+      destino,
+    );
+  }
+}
+
+/**
+ * Manda a cocina y barra las líneas indicadas como una ronda nueva, con su comanda impresa. Las
+ * marcadas «para después» quedan en espera hasta la marcha (salen en la comanda para que cocina
+ * sepa lo que viene).
+ */
 function mandarRonda(
   estado: Estado,
   ctx: Contexto,
@@ -206,34 +266,106 @@ function mandarRonda(
 ) {
   if (!lineas.length) return;
   cuenta.rondas += 1;
-  const mesa = buscar(estado.mesas, cuenta.mesaId, "la mesa");
   for (const l of lineas) {
-    l.estado = "enviada";
+    l.estado = l.despues ? "en_espera" : "enviada";
     l.enviadaEn = ctx.ahora;
     l.ronda = cuenta.rondas;
     if (!l.empleadoId) l.empleadoId = empleadoId;
   }
-  for (const destino of ["cocina", "barra"] as Destino[]) {
-    const deEste = lineas.filter((l) => l.destino === destino);
-    if (!deEste.length) continue;
-    encolar(
-      estado,
-      ctx,
-      trabajos,
-      "comanda",
-      `${destino === "cocina" ? "Cocina" : "Barra"} · ${mesa.nombre} · ronda ${cuenta.rondas}`,
-      plantillaComanda({
-        mesa,
-        destino,
-        lineas: deEste,
-        ronda: cuenta.rondas,
-        camarero: nombreEmpleado(estado, empleadoId ?? cuenta.empleadoId),
-        comensales: cuenta.comensales,
-        fecha: ctx.ahora,
-      }),
-      destino,
-    );
+  imprimirComandas(estado, ctx, trabajos, cuenta, lineas, empleadoId);
+}
+
+/** La mesa de una cuenta (las ventas rápidas no tienen mesa de verdad). */
+function mesaDeCuenta(estado: Estado, cuenta: Cuenta): Mesa {
+  if (cuenta.mesaId === MESA_VENTA_RAPIDA) return MESA_RAPIDA;
+  return buscar(estado.mesas, cuenta.mesaId, "la mesa");
+}
+
+const MESA_RAPIDA: Mesa = {
+  id: MESA_VENTA_RAPIDA,
+  nombre: "Venta rápida",
+  zonaId: "",
+  x: 0,
+  y: 0,
+  ancho: 0,
+  alto: 0,
+  forma: "cuadrada",
+  plazas: 1,
+  token: "",
+};
+
+/**
+ * Cobra unas líneas de una cuenta: hace el ticket, lo imprime y apunta en cada línea con qué
+ * ticket se pagó. Si ya no queda nada por pagar, cierra la cuenta.
+ */
+function cobrarLineas(
+  estado: Estado,
+  ctx: Contexto,
+  trabajos: TrabajoImpresion[],
+  cuenta: Cuenta,
+  seleccion: LineaCuenta[],
+  pagos: Pago[],
+  propina: Centimos,
+  empleado: Empleado,
+  cerrarServidas: boolean,
+) {
+  if (!turnoAbierto(estado)) falla("Abre la caja antes de cobrar (Gestión → Caja).");
+  const parte = { lineas: seleccion, descuento: cuenta.descuento };
+  const total = totalCuenta(parte);
+  const aPagar = total + propina;
+  const entregado = totalPagos(pagos);
+  if (entregado < aPagar) falla(`Faltan ${euros(aPagar - entregado)} por cobrar.`);
+  const cambio = calcularCambio(aPagar, pagos);
+  if (entregado - aPagar > cambio) falla("Con tarjeta o Bizum no se puede cobrar de más.");
+  const mesa = mesaDeCuenta(estado, cuenta);
+  const lineas = lineasDeTicket(parte);
+  const desglose = desgloseIva(lineas, cuenta.descuento);
+  const sig = siguienteTicket(estado, ctx);
+  const ticket: Ticket = {
+    id: ctx.nuevoId(),
+    ...sig,
+    fecha: ctx.ahora,
+    cuentaId: cuenta.id,
+    mesaNombre: mesa.nombre,
+    empleadoId: cuenta.empleadoId ?? empleado.id,
+    lineas,
+    descuento: cuenta.descuento,
+    desglose,
+    total,
+    pagos: pagos.filter((p) => p.importe > 0),
+    cambio,
+    ...(propina ? { propina } : {}),
+    rectificaA: null,
+    huella: calcularHuella({
+      nif: estado.ajustes.nif,
+      numero: sig.numero,
+      fecha: ctx.ahora,
+      cuotaTotal: desglose.reduce((s, d) => s + d.cuota, 0),
+      importeTotal: total,
+      huellaAnterior: sig.huellaAnterior,
+      generadoEn: ctx.ahora,
+    }),
+  };
+  estado.tickets.push(ticket);
+  for (const l of seleccion) l.ticketId = ticket.id;
+  cuenta.ticketId = ticket.id;
+  if (lineasCobrables(cuenta).length === 0) {
+    cuenta.estado = "cobrada";
+    cuenta.cerradaEn = ctx.ahora;
+    if (cerrarServidas)
+      for (const l of cuenta.lineas)
+        if (l.estado === "enviada" || l.estado === "lista" || l.estado === "en_espera")
+          l.estado = "servida";
+    atenderAvisos(estado, cuenta.mesaId, ["llamar", "cuenta", "listo", "pedido_qr"]);
   }
+  imprimirTicket(
+    estado,
+    ctx,
+    trabajos,
+    ticket,
+    pagos.some((p) => p.metodo === "efectivo"),
+  );
+  return ticket;
 }
 
 function siguienteTicket(estado: Estado, ctx: Contexto) {
@@ -331,15 +463,26 @@ export function reducirPersonal(
     case "anotar": {
       const cuenta = cuentaAbierta(estado, accion.cuentaId);
       cuenta.empleadoId ??= empleado.id;
-      cuenta.lineas.push(
-        ...crearLineas(estado, accion.lineas, ctx, {
-          estado: "anotada",
-          origen: "camarero",
-          empleadoId: empleado.id,
-          ronda: 0,
-          enviadaEn: null,
-        }),
-      );
+      const nuevas = crearLineas(estado, accion.lineas, ctx, {
+        estado: "anotada",
+        origen: "camarero",
+        empleadoId: empleado.id,
+        ronda: 0,
+        enviadaEn: null,
+      });
+      for (const nueva of nuevas) {
+        // Tocar dos veces la caña suma una a la línea sin mandar, no hace otra.
+        const igual = cuenta.lineas.find(
+          (l) =>
+            l.estado === "anotada" &&
+            l.productoId === nueva.productoId &&
+            l.nota === nueva.nota &&
+            Boolean(l.despues) === Boolean(nueva.despues) &&
+            JSON.stringify(l.opciones) === JSON.stringify(nueva.opciones),
+        );
+        if (igual) igual.cantidad = Math.min(99, igual.cantidad + nueva.cantidad);
+        else cuenta.lineas.push(nueva);
+      }
       break;
     }
     case "cambiar_cantidad": {
@@ -408,7 +551,7 @@ export function reducirPersonal(
     case "marcar_lista":
     case "volver_a_preparar":
     case "marcar_servida": {
-      const cuenta = cuentaAbierta(estado, accion.cuentaId);
+      const cuenta = cuentaParaCocina(estado, accion.cuentaId);
       const lineas = cuenta.lineas.filter((l) => accion.lineaIds.includes(l.id));
       if (!lineas.length) falla("No encuentro esos platos en la cuenta.");
       for (const l of lineas) {
@@ -477,58 +620,102 @@ export function reducirPersonal(
     }
     case "cobrar": {
       const cuenta = cuentaAbierta(estado, accion.cuentaId);
-      if (!turnoAbierto(estado)) falla("Abre la caja antes de cobrar (Gestión → Caja).");
       if (cuenta.lineas.some((l) => l.estado === "por_confirmar"))
         falla("Hay un pedido del QR sin aceptar. Acéptalo o recházalo antes de cobrar.");
       if (cuenta.lineas.some((l) => l.estado === "anotada"))
         falla("Hay líneas anotadas sin mandar. Mándalas o quítalas antes de cobrar.");
-      const total = totalCuenta(cuenta);
-      const entregado = totalPagos(accion.pagos);
-      if (entregado < total) falla(`Faltan ${euros(total - entregado)} por cobrar.`);
-      const cambio = calcularCambio(total, accion.pagos);
-      if (entregado - total > cambio) falla("Con tarjeta o Bizum no se puede cobrar de más.");
-      const mesa = buscar(estado.mesas, cuenta.mesaId, "la mesa");
-      const lineas = lineasDeTicket(cuenta);
-      const desglose = desgloseIva(lineas, cuenta.descuento);
-      const sig = siguienteTicket(estado, ctx);
-      const ticket: Ticket = {
-        id: ctx.nuevoId(),
-        ...sig,
-        fecha: ctx.ahora,
-        cuentaId: cuenta.id,
-        mesaNombre: mesa.nombre,
-        empleadoId: cuenta.empleadoId ?? empleado.id,
-        lineas,
-        descuento: cuenta.descuento,
-        desglose,
-        total,
-        pagos: accion.pagos.filter((p) => p.importe > 0),
-        cambio,
-        rectificaA: null,
-        huella: calcularHuella({
-          nif: estado.ajustes.nif,
-          numero: sig.numero,
-          fecha: ctx.ahora,
-          cuotaTotal: desglose.reduce((s, d) => s + d.cuota, 0),
-          importeTotal: total,
-          huellaAnterior: sig.huellaAnterior,
-          generadoEn: ctx.ahora,
-        }),
-      };
-      estado.tickets.push(ticket);
-      cuenta.estado = "cobrada";
-      cuenta.cerradaEn = ctx.ahora;
-      cuenta.ticketId = ticket.id;
-      for (const l of cuenta.lineas)
-        if (l.estado === "enviada" || l.estado === "lista") l.estado = "servida";
-      atenderAvisos(estado, cuenta.mesaId, ["llamar", "cuenta", "listo", "pedido_qr"]);
-      imprimirTicket(
+      let seleccion = lineasCobrables(cuenta);
+      if (accion.partes) {
+        seleccion = [];
+        for (const parte of accion.partes) {
+          const linea = lineasCobrables(cuenta).find((l) => l.id === parte.lineaId);
+          if (!linea) falla("Alguna de esas líneas ya está pagada o anulada.");
+          if (parte.cantidad > linea.cantidad)
+            falla(`De ${linea.nombre} solo quedan ${linea.cantidad}.`);
+          if (parte.cantidad < linea.cantidad) {
+            // Se paga una parte: la línea se parte en dos (lo que se paga y lo que queda).
+            linea.cantidad -= parte.cantidad;
+            const pagada: LineaCuenta = { ...linea, id: ctx.nuevoId(), cantidad: parte.cantidad };
+            cuenta.lineas.splice(cuenta.lineas.indexOf(linea) + 1, 0, pagada);
+            seleccion.push(pagada);
+          } else seleccion.push(linea);
+        }
+      }
+      if (!seleccion.length) falla("No hay nada pendiente de cobrar.");
+      cobrarLineas(
         estado,
         ctx,
         trabajos,
-        ticket,
-        accion.pagos.some((p) => p.metodo === "efectivo"),
+        cuenta,
+        seleccion,
+        accion.pagos,
+        accion.propina ?? 0,
+        empleado,
+        true,
       );
+      break;
+    }
+    case "venta_rapida": {
+      const cuenta: Cuenta = {
+        id: ctx.nuevoId(),
+        mesaId: MESA_VENTA_RAPIDA,
+        estado: "abierta",
+        comensales: 1,
+        abiertaEn: ctx.ahora,
+        cerradaEn: null,
+        empleadoId: empleado.id,
+        lineas: crearLineas(
+          estado,
+          accion.lineas.map((l) => ({ ...l, despues: false })),
+          ctx,
+          {
+            estado: "anotada",
+            origen: "camarero",
+            empleadoId: empleado.id,
+            ronda: 0,
+            enviadaEn: null,
+          },
+        ),
+        descuento: 0,
+        rondas: 0,
+        ticketId: null,
+      };
+      estado.cuentas.push(cuenta);
+      mandarRonda(estado, ctx, trabajos, cuenta, cuenta.lineas, empleado.id);
+      // Lo de cocina sigue en su pantalla hasta que lo saquen, aunque ya esté pagado.
+      cobrarLineas(
+        estado,
+        ctx,
+        trabajos,
+        cuenta,
+        lineasCobrables(cuenta),
+        accion.pagos,
+        accion.propina ?? 0,
+        empleado,
+        false,
+      );
+      break;
+    }
+    case "marchar": {
+      const cuenta = cuentaAbierta(estado, accion.cuentaId);
+      const enEspera = cuenta.lineas.filter((l) => l.estado === "en_espera");
+      if (!enEspera.length) falla("No hay nada esperando la marcha.");
+      for (const l of enEspera) {
+        l.estado = "enviada";
+        l.enviadaEn = ctx.ahora;
+      }
+      imprimirComandas(estado, ctx, trabajos, cuenta, enEspera, empleado.id, true);
+      break;
+    }
+    case "cambiar_despues": {
+      const linea = buscar(
+        cuentaAbierta(estado, accion.cuentaId).lineas,
+        accion.lineaId,
+        "esa línea",
+      );
+      soloEditable(linea);
+      if (accion.despues) linea.despues = true;
+      else delete linea.despues;
       break;
     }
     case "anular_cuenta": {
@@ -582,6 +769,7 @@ export function reducirPersonal(
           importe: -(p.metodo === "efectivo" ? p.importe - original.cambio : p.importe),
         })),
         cambio: 0,
+        ...(original.propina ? { propina: -original.propina } : {}),
         rectificaA: original.id,
         empleadoId: empleado.id,
         huella: calcularHuella({

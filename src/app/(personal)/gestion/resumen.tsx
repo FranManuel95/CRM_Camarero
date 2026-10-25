@@ -24,7 +24,8 @@ export function Resumen() {
   const ayer = informe(estado, rangoDeDias(sumarDias(hoy, -1), sumarDias(hoy, -1)));
   const catorce = informe(estado, rangoDeDias(sumarDias(hoy, -13), hoy));
   const mes = informe(estado, rangoDeDias(`${hoy.slice(0, 8)}01`, hoy));
-  const enMesas = estado.cuentas.reduce(
+  const abiertas = estado.cuentas.filter((c) => c.estado === "abierta");
+  const enMesas = abiertas.reduce(
     (s, c) =>
       s + c.lineas.filter((l) => l.estado !== "anulada" && l.estado !== "por_confirmar").length,
     0,
@@ -51,7 +52,7 @@ export function Resumen() {
         />
         <Tarjeta
           titulo="Mesas abiertas"
-          valor={String(estado.cuentas.length)}
+          valor={String(abiertas.length)}
           nota={`${enMesas} ${enMesas === 1 ? "línea" : "líneas"} sin cobrar`}
         />
         <Tarjeta

@@ -2,6 +2,7 @@
 
 import clsx from "clsx";
 import {
+  Zap,
   BellRing,
   CheckCheck,
   Clock,
@@ -59,7 +60,7 @@ export function Sala() {
   const avisos = estado.avisos
     .filter((a) => !a.atendido)
     .sort((a, b) => a.creadoEn.localeCompare(b.creadoEn));
-  const ocupadas = estado.cuentas.length;
+  const ocupadas = estado.cuentas.filter((c) => c.estado === "abierta").length;
 
   function tocarMesa(mesa: Mesa) {
     if (situacionMesa(estado, mesa).cuenta) router.push(`/sala/${mesa.id}`);
@@ -113,6 +114,12 @@ export function Sala() {
               );
             })}
           </div>
+          <Link
+            href="/sala/rapida"
+            className="inline-flex h-11 items-center gap-1.5 rounded-lg bg-cuenta px-4 font-semibold text-white hover:brightness-95"
+          >
+            <Zap aria-hidden className="size-4" /> Venta rápida
+          </Link>
           <p className="text-sm text-tinta-suave">
             {ocupadas} {ocupadas === 1 ? "mesa ocupada" : "mesas ocupadas"}
           </p>

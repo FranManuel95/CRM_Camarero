@@ -1,8 +1,13 @@
 import type { Metadata } from "next";
+import { enLaNube } from "@/lib/servidor/almacen";
 import { EditorCarta } from "./editor-carta";
 
 export const metadata: Metadata = { title: "Carta" };
 
 export default function PaginaCarta() {
-  return <EditorCarta />;
+  return (
+    <EditorCarta
+      clavePublica={enLaNube() ? (process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "") : ""}
+    />
+  );
 }

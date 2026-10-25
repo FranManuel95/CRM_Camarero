@@ -22,14 +22,14 @@ monta su bar sin ayuda.
 
 ## Fase 2 · El servicio del día a día
 
-- [ ] **Dividir la cuenta por platos** («yo pago lo mío») y cobros parciales.
-- [ ] **Venta rápida en barra**: cobrar sin abrir mesa.
-- [ ] **Tiempos de servicio**: marcar platos como «después» y mandarlos con «marcha».
-- [ ] **Propinas** al cobrar, en el cierre de caja y por camarero.
-- [ ] **Menú del día**: primero, segundo, postre y bebida a precio cerrado.
-- [ ] **Cartas por horario**: desayunos, comidas, noches.
-- [ ] **Carta QR en inglés** (y textos de la carta traducibles).
-- [ ] **Fotos de los platos** (Supabase Storage).
+- [x] **Dividir la cuenta por platos** («yo pago lo mío») y cobros parciales.
+- [x] **Venta rápida en barra**: cobrar sin abrir mesa.
+- [x] **Tiempos de servicio**: marcar platos como «después» y mandarlos con «marcha».
+- [x] **Propinas** al cobrar, en el cierre de caja y por camarero.
+- [x] **Menú del día**: primero, segundo, postre y bebida a precio cerrado.
+- [x] **Cartas por horario**: desayunos, comidas, noches.
+- [x] **Carta QR en inglés** (y textos de la carta traducibles).
+- [x] **Fotos de los platos** (Supabase Storage).
 
 ## Fase 3 · Stock y compras
 

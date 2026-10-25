@@ -42,11 +42,13 @@ export function plantillaComanda(datos: {
   camarero: string;
   comensales: number;
   fecha: string;
+  /** Comanda de «marcha»: lo que estaba en espera, a prepararse ya. */
+  marcha?: boolean;
 }): Bloque[] {
   const bloques: Bloque[] = [
     {
       tipo: "texto",
-      texto: datos.destino === "cocina" ? "COCINA" : "BARRA",
+      texto: `${datos.marcha ? "¡MARCHA! " : ""}${datos.destino === "cocina" ? "COCINA" : "BARRA"}`,
       alinear: "centro",
       negrita: true,
     },
@@ -65,7 +67,7 @@ export function plantillaComanda(datos: {
     { tipo: "texto", texto: `Camarero: ${datos.camarero}`, alinear: "centro" },
     { tipo: "separador", caracter: "=" },
   ];
-  for (const l of datos.lineas) {
+  const escribir = (l: LineaCuenta) => {
     bloques.push({
       tipo: "texto",
       texto: `${l.cantidad} x ${l.nombre}`,
@@ -75,6 +77,21 @@ export function plantillaComanda(datos: {
     for (const o of l.opciones) bloques.push({ tipo: "texto", texto: `   > ${o.nombre}` });
     if (l.nota) bloques.push({ tipo: "texto", texto: `   ¡${l.nota}!`, negrita: true });
     if (l.origen === "qr") bloques.push({ tipo: "texto", texto: "   (pedido desde el QR)" });
+  };
+  const ahora = datos.marcha ? datos.lineas : datos.lineas.filter((l) => l.estado !== "en_espera");
+  const despues = datos.marcha ? [] : datos.lineas.filter((l) => l.estado === "en_espera");
+  ahora.forEach(escribir);
+  if (despues.length) {
+    bloques.push(
+      { tipo: "separador" },
+      {
+        tipo: "texto",
+        texto: "PARA DESPUÉS · esperar la marcha",
+        alinear: "centro",
+        negrita: true,
+      },
+    );
+    despues.forEach(escribir);
   }
   bloques.push(
     { tipo: "separador", caracter: "=" },
@@ -195,6 +212,13 @@ export function plantillaTicket(datos: {
   bloques.push({ tipo: "separador" });
   for (const p of t.pagos)
     bloques.push({ tipo: "par", izquierda: NOMBRE_METODO[p.metodo], derecha: euros(p.importe) });
+  if (t.propina) {
+    bloques.push({
+      tipo: "par",
+      izquierda: "Propina (fuera de la factura)",
+      derecha: euros(t.propina),
+    });
+  }
   if (t.cambio) bloques.push({ tipo: "par", izquierda: "Cambio", derecha: euros(t.cambio) });
   if (datos.urlQr) bloques.push({ tipo: "espacio" }, { tipo: "qr", datos: datos.urlQr });
   if (datos.ajustes.pieTicket) {
@@ -232,6 +256,9 @@ export function plantillaCierre(datos: {
     { tipo: "separador" },
     { tipo: "par", izquierda: "Tickets", derecha: String(r.tickets) },
     { tipo: "par", izquierda: "Ventas (IVA incl.)", derecha: euros(r.ventas), negrita: true },
+    ...(r.propinas
+      ? [{ tipo: "par", izquierda: "Propinas", derecha: euros(r.propinas) } as Bloque]
+      : []),
     ...r.desglose.map((d): Bloque => ({
       tipo: "par",
       izquierda: `  IVA ${d.tipo} %  base ${euros(d.base)}`,

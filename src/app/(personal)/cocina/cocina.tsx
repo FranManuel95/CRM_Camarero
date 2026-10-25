@@ -19,7 +19,9 @@ export function Cocina({ destino }: { destino: Destino | "todo" }) {
   const { estado, hacer } = useDatos();
   const ahora = useAhora(15_000);
   const pedidos = pedidosCocina(estado, destino);
-  const pendientes = pedidos.filter((p) => p.lineas.some((l) => l.estado === "enviada"));
+  const pendientes = pedidos.filter((p) =>
+    p.lineas.some((l) => l.estado === "enviada" && !l.ajena),
+  );
   const anteriores = useRef<number | null>(null);
 
   // Un pitido cuando entra un pedido nuevo (si el navegador deja sonar audio).
@@ -31,7 +33,8 @@ export function Cocina({ destino }: { destino: Destino | "todo" }) {
   const resumen = new Map<string, number>();
   for (const p of pendientes)
     for (const l of p.lineas)
-      if (l.estado === "enviada") resumen.set(l.nombre, (resumen.get(l.nombre) ?? 0) + l.cantidad);
+      if (l.estado === "enviada" && !l.ajena)
+        resumen.set(l.nombre, (resumen.get(l.nombre) ?? 0) + l.cantidad);
 
   return (
     <main className="min-h-[calc(100dvh-3.5rem)] bg-tinta p-3 text-white sm:p-4">
@@ -63,7 +66,9 @@ export function Cocina({ destino }: { destino: Destino | "todo" }) {
         <ul className="grid grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-3">
           {pedidos.map((p) => {
             const minutos = minutosEntre(p.enviadaEn, ahora);
-            const todoListo = p.lineas.every((l) => l.estado === "lista");
+            const propias = p.lineas.filter((l) => !l.ajena && l.estado !== "en_espera");
+            const todoListo = propias.length > 0 && propias.every((l) => l.estado === "lista");
+            const soloEspera = propias.length === 0;
             const deQR = p.lineas.some((l) => l.origen === "qr");
             return (
               <li
@@ -85,7 +90,7 @@ export function Cocina({ destino }: { destino: Destino | "todo" }) {
                           : "bg-zinc",
                   )}
                 >
-                  <span className="font-rotulo text-2xl font-bold">{p.mesa?.nombre ?? "Mesa"}</span>
+                  <span className="font-rotulo text-2xl font-bold">{p.nombre}</span>
                   <span
                     className="text-right text-sm leading-tight font-semibold"
                     suppressHydrationWarning
@@ -101,28 +106,16 @@ export function Cocina({ destino }: { destino: Destino | "todo" }) {
                   </p>
                 )}
                 <ul className="flex-1 divide-y divide-zinc">
-                  {p.lineas.map((l) => (
-                    <li key={l.id}>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          hacer({
-                            tipo: l.estado === "lista" ? "volver_a_preparar" : "marcar_lista",
-                            cuentaId: p.cuenta.id,
-                            lineaIds: [l.id],
-                          })
-                        }
-                        className="flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-zinc-claro"
+                  {p.lineas.map((l) =>
+                    l.ajena || l.estado === "en_espera" ? (
+                      <li
+                        key={`${l.id}-${l.ajena ? "a" : "e"}`}
+                        className="flex items-start gap-2 bg-zinc-claro px-3 py-2 text-tinta-suave"
                       >
                         <span className="w-7 shrink-0 font-rotulo text-2xl leading-none font-bold">
                           {l.cantidad}
                         </span>
-                        <span
-                          className={clsx(
-                            "flex-1",
-                            l.estado === "lista" && "text-tinta-suave line-through",
-                          )}
-                        >
+                        <span className="flex-1">
                           <span className="block text-lg leading-tight font-semibold">
                             {l.nombre}
                           </span>
@@ -131,33 +124,75 @@ export function Cocina({ destino }: { destino: Destino | "todo" }) {
                               {l.opciones.map((o) => o.nombre).join(", ")}
                             </span>
                           )}
-                          {l.nota && (
-                            <span className="block text-sm font-bold text-aviso">¡{l.nota}!</span>
+                          <span className="mt-0.5 inline-block rounded bg-qr-claro px-1.5 text-xs font-semibold text-qr">
+                            {l.ajena
+                              ? `Del ${l.nombre.toLowerCase().startsWith("menú") ? "menú" : "plato"}: lo demás lo hace ${l.destino === "cocina" ? "cocina" : "barra"}`
+                              : "Para después · espera la marcha"}
+                          </span>
+                        </span>
+                      </li>
+                    ) : (
+                      <li key={l.id}>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            hacer({
+                              tipo: l.estado === "lista" ? "volver_a_preparar" : "marcar_lista",
+                              cuentaId: p.cuenta.id,
+                              lineaIds: [l.id],
+                            })
+                          }
+                          className="flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-zinc-claro"
+                        >
+                          <span className="w-7 shrink-0 font-rotulo text-2xl leading-none font-bold">
+                            {l.cantidad}
+                          </span>
+                          <span
+                            className={clsx(
+                              "flex-1",
+                              l.estado === "lista" && "text-tinta-suave line-through",
+                            )}
+                          >
+                            <span className="block text-lg leading-tight font-semibold">
+                              {l.nombre}
+                            </span>
+                            {l.opciones.length > 0 && (
+                              <span className="block text-sm">
+                                {l.opciones.map((o) => o.nombre).join(", ")}
+                              </span>
+                            )}
+                            {l.nota && (
+                              <span className="block text-sm font-bold text-aviso">¡{l.nota}!</span>
+                            )}
+                          </span>
+                          <span className="sr-only">
+                            {l.estado === "lista"
+                              ? "listo; tocar para deshacer"
+                              : "tocar cuando esté listo"}
+                          </span>
+                          {l.estado === "lista" ? (
+                            <Undo2 aria-hidden className="size-5 shrink-0 text-tinta-suave" />
+                          ) : (
+                            <Check aria-hidden className="size-5 shrink-0 text-zinc-oscuro" />
                           )}
-                        </span>
-                        <span className="sr-only">
-                          {l.estado === "lista"
-                            ? "listo; tocar para deshacer"
-                            : "tocar cuando esté listo"}
-                        </span>
-                        {l.estado === "lista" ? (
-                          <Undo2 aria-hidden className="size-5 shrink-0 text-tinta-suave" />
-                        ) : (
-                          <Check aria-hidden className="size-5 shrink-0 text-zinc-oscuro" />
-                        )}
-                      </button>
-                    </li>
-                  ))}
+                        </button>
+                      </li>
+                    ),
+                  )}
                 </ul>
                 <div className="p-2">
-                  {todoListo ? (
+                  {soloEspera ? (
+                    <p className="py-2 text-center text-sm font-semibold text-tinta-suave">
+                      Esperando la marcha
+                    </p>
+                  ) : todoListo ? (
                     <Boton
                       className="w-full"
                       onClick={() =>
                         hacer({
                           tipo: "marcar_servida",
                           cuentaId: p.cuenta.id,
-                          lineaIds: p.lineas.map((l) => l.id),
+                          lineaIds: propias.map((l) => l.id),
                         })
                       }
                     >
@@ -171,7 +206,7 @@ export function Cocina({ destino }: { destino: Destino | "todo" }) {
                         hacer({
                           tipo: "marcar_lista",
                           cuentaId: p.cuenta.id,
-                          lineaIds: p.lineas.filter((l) => l.estado === "enviada").map((l) => l.id),
+                          lineaIds: propias.filter((l) => l.estado === "enviada").map((l) => l.id),
                         })
                       }
                     >

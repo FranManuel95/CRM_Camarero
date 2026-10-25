@@ -9,24 +9,30 @@ import {
   ChefHat,
   Gift,
   Minus,
-  MoreHorizontal,
   Plus,
   Printer,
   QrCode,
-  Search,
   Trash2,
   Users,
   X,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useDatos } from "@/components/datos-personal";
 import { Boton, Campo, claseEntrada, Dialogo, Vacio } from "@/components/ui";
-import { euros, importeLinea, subtotalCuenta, totalCuenta } from "@/lib/dominio/importes";
-import type { Cuenta, EstadoLinea, LineaCuenta, Producto } from "@/lib/dominio/tipos";
+import {
+  euros,
+  importeLinea,
+  lineasCobrables,
+  pagadoCuenta,
+  subtotalCuenta,
+  totalCuenta,
+} from "@/lib/dominio/importes";
+import type { Cuenta, EstadoLinea, LineaCuenta } from "@/lib/dominio/tipos";
 import { formatearHora, minutosEntre } from "@/lib/fechas";
 import { useAhora } from "@/lib/cliente/use-ahora";
+import { CartaTpv } from "@/components/carta-tpv";
 import { Cobrar } from "./cobrar";
 
 const TEXTO_ESTADO: Record<EstadoLinea, string> = {
@@ -36,13 +42,14 @@ const TEXTO_ESTADO: Record<EstadoLinea, string> = {
   lista: "Listo",
   servida: "Servido",
   anulada: "Anulado",
+  en_espera: "Para después",
 };
 
 export function Comanda({ mesaId }: { mesaId: string }) {
   const { estado, hacer } = useDatos();
   const router = useRouter();
   const mesa = estado.mesas.find((m) => m.id === mesaId);
-  const cuenta = estado.cuentas.find((c) => c.mesaId === mesaId);
+  const cuenta = estado.cuentas.find((c) => c.mesaId === mesaId && c.estado === "abierta");
   // Si hay un pedido del QR por aceptar, en el móvil se abre directamente la cuenta.
   const [panel, setPanel] = useState<"carta" | "cuenta">(() =>
     cuenta?.lineas.some((l) => l.estado === "por_confirmar") ? "cuenta" : "carta",
@@ -69,6 +76,8 @@ export function Comanda({ mesaId }: { mesaId: string }) {
 
   const sinMandar = cuenta.lineas.filter((l) => l.estado === "anotada");
   const porAceptar = cuenta.lineas.filter((l) => l.estado === "por_confirmar");
+  const enEspera = cuenta.lineas.filter((l) => l.estado === "en_espera");
+  const pagado = pagadoCuenta(cuenta);
   const unidades = (ls: LineaCuenta[]) => ls.reduce((s, l) => s + l.cantidad, 0);
 
   return (
@@ -158,7 +167,10 @@ export function Comanda({ mesaId }: { mesaId: string }) {
           aria-label="Carta"
           className={clsx("min-h-0 overflow-y-auto p-3", panel !== "carta" && "hidden lg:block")}
         >
-          <Carta cuenta={cuenta} />
+          <CartaTpv
+            permitirDespues
+            alAnotar={(linea) => hacer({ tipo: "anotar", cuentaId: cuenta.id, lineas: [linea] })}
+          />
           <div className="sticky bottom-0 -mx-3 mt-3 grid grid-cols-2 gap-2 border-t border-zinc-oscuro/50 bg-zinc-claro p-3 lg:hidden">
             <Boton onClick={() => setPanel("cuenta")}>
               Ver cuenta · {euros(totalCuenta(cuenta))}
@@ -230,8 +242,25 @@ export function Comanda({ mesaId }: { mesaId: string }) {
                 <span>Descuento {cuenta.descuento} %</span>
               </p>
             )}
+            {pagado > 0 && (
+              <p className="flex justify-between text-sm text-cuenta">
+                <span>Ya pagado</span>
+                <span className="font-semibold">{euros(pagado)}</span>
+              </p>
+            )}
+            {enEspera.length > 0 && (
+              <Boton
+                variante="secundario"
+                className="mb-2 w-full ring-2 ring-qr"
+                onClick={() =>
+                  hacer({ tipo: "marchar", cuentaId: cuenta.id }, "¡Marcha! Mandado a preparar")
+                }
+              >
+                Marcha · {unidades(enEspera)} para después
+              </Boton>
+            )}
             <p className="mb-3 flex items-baseline justify-between">
-              <span className="font-semibold">Total</span>
+              <span className="font-semibold">{pagado > 0 ? "Pendiente" : "Total"}</span>
               <span className="font-rotulo text-4xl font-bold">{euros(totalCuenta(cuenta))}</span>
             </p>
             <div className="grid grid-cols-[auto_1fr_1fr] gap-2">
@@ -267,9 +296,19 @@ export function Comanda({ mesaId }: { mesaId: string }) {
 
       <Cobrar
         abierto={dialogo === "cobrar"}
-        cuenta={cuenta}
+        lineas={lineasCobrables(cuenta)}
+        descuento={cuenta.descuento}
+        comensales={cuenta.comensales}
         alCerrar={() => setDialogo(null)}
-        alCobrar={() => router.push("/sala")}
+        cobrar={async ({ pagos, propina, partes }, mensaje) => {
+          const ok = await hacer(
+            { tipo: "cobrar", cuentaId: cuenta.id, pagos, propina, partes },
+            mensaje,
+          );
+          // Si queda algo por pagar, la mesa sigue abierta.
+          if (ok && !partes) router.push("/sala");
+          return ok;
+        }}
       />
       <Mover abierto={dialogo === "mover"} cuenta={cuenta} alCerrar={() => setDialogo(null)} />
       <Descuento
@@ -300,217 +339,6 @@ export function Comanda({ mesaId }: { mesaId: string }) {
         </div>
       </Dialogo>
     </main>
-  );
-}
-
-function Carta({ cuenta }: { cuenta: Cuenta }) {
-  const { estado, hacer } = useDatos();
-  const categorias = useMemo(
-    () => [...estado.categorias].sort((a, b) => a.orden - b.orden),
-    [estado.categorias],
-  );
-  const [categoriaId, setCategoriaId] = useState(categorias[0]?.id ?? "");
-  const [busqueda, setBusqueda] = useState("");
-  const [detalle, setDetalle] = useState<Producto | null>(null);
-
-  const termino = busqueda.trim().toLowerCase();
-  const productos = estado.productos
-    .filter((p) =>
-      termino ? p.nombre.toLowerCase().includes(termino) : p.categoriaId === categoriaId,
-    )
-    .sort((a, b) => a.orden - b.orden);
-
-  function tocar(p: Producto) {
-    if (p.grupos.length) setDetalle(p);
-    else
-      void hacer({
-        tipo: "anotar",
-        cuentaId: cuenta.id,
-        lineas: [{ productoId: p.id, cantidad: 1, opciones: [], nota: "" }],
-      });
-  }
-
-  return (
-    <>
-      <div className="relative mb-3">
-        <Search
-          aria-hidden
-          className="pointer-events-none absolute top-3 left-3 size-5 text-tinta-suave"
-        />
-        <input
-          type="search"
-          value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
-          placeholder="Buscar en la carta…"
-          aria-label="Buscar en la carta"
-          className={clsx(claseEntrada, "pl-10")}
-        />
-      </div>
-      {!termino && (
-        <div className="mb-3 flex flex-wrap gap-1.5" role="tablist" aria-label="Categorías">
-          {categorias.map((c) => (
-            <button
-              key={c.id}
-              role="tab"
-              type="button"
-              aria-selected={c.id === categoriaId}
-              onClick={() => setCategoriaId(c.id)}
-              className={clsx(
-                "h-10 rounded-full px-4 text-sm font-semibold",
-                c.id === categoriaId ? "bg-tinta text-white" : "bg-white ring-1 ring-zinc-oscuro",
-              )}
-            >
-              {c.nombre}
-            </button>
-          ))}
-        </div>
-      )}
-      <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
-        {productos.map((p) => (
-          <li key={p.id} className="relative">
-            <button
-              type="button"
-              disabled={!p.disponible}
-              onClick={() => tocar(p)}
-              className="flex h-24 w-full flex-col justify-between rounded-xl bg-white p-3 text-left ring-1 ring-zinc-oscuro transition hover:ring-cobalto active:scale-[0.97] disabled:opacity-45"
-            >
-              <span className="line-clamp-2 leading-tight font-semibold">{p.nombre}</span>
-              <span className="text-sm text-tinta-suave">
-                {p.disponible ? euros(p.precio) : "Agotado"}
-                {p.grupos.length > 0 && " · elegir"}
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setDetalle(p)}
-              disabled={!p.disponible}
-              className="absolute top-1 right-1 rounded-lg p-1.5 text-tinta-suave hover:bg-zinc disabled:hidden"
-              aria-label={`Más opciones de ${p.nombre}: cantidad y nota`}
-            >
-              <MoreHorizontal aria-hidden className="size-4" />
-            </button>
-          </li>
-        ))}
-      </ul>
-      {productos.length === 0 && (
-        <Vacio titulo="Nada por aquí">
-          {termino ? "Prueba con otra palabra." : "Esta categoría está vacía."}
-        </Vacio>
-      )}
-      {detalle && (
-        <DetalleProducto producto={detalle} cuenta={cuenta} alCerrar={() => setDetalle(null)} />
-      )}
-    </>
-  );
-}
-
-/** Elegir opciones, cantidad y nota de un producto antes de anotarlo. */
-export function DetalleProducto({
-  producto,
-  alCerrar,
-  cuenta,
-}: {
-  producto: Producto;
-  alCerrar: () => void;
-  cuenta: Cuenta;
-}) {
-  const { hacer } = useDatos();
-  const [elegidas, setElegidas] = useState<string[]>([]);
-  const [cantidad, setCantidad] = useState(1);
-  const [nota, setNota] = useState("");
-  const faltan = producto.grupos.filter(
-    (g) => g.obligatorio && !g.opciones.some((o) => elegidas.includes(o.id)),
-  );
-  const suplemento = producto.grupos
-    .flatMap((g) => g.opciones)
-    .filter((o) => elegidas.includes(o.id))
-    .reduce((s, o) => s + o.suplemento, 0);
-
-  function elegir(grupoId: string, opcionId: string) {
-    const grupo = producto.grupos.find((g) => g.id === grupoId)!;
-    setElegidas((actuales) => {
-      if (grupo.multiple)
-        return actuales.includes(opcionId)
-          ? actuales.filter((i) => i !== opcionId)
-          : [...actuales, opcionId];
-      const sinGrupo = actuales.filter((i) => !grupo.opciones.some((o) => o.id === i));
-      return actuales.includes(opcionId) ? sinGrupo : [...sinGrupo, opcionId];
-    });
-  }
-
-  async function anotar() {
-    const ok = await hacer({
-      tipo: "anotar",
-      cuentaId: cuenta.id,
-      lineas: [{ productoId: producto.id, cantidad, opciones: elegidas, nota: nota.trim() }],
-    });
-    if (ok) alCerrar();
-  }
-
-  return (
-    <Dialogo abierto alCerrar={alCerrar} titulo={producto.nombre}>
-      {producto.grupos.map((g) => (
-        <fieldset key={g.id} className="mb-4">
-          <legend className="mb-2 font-semibold">
-            {g.nombre}
-            <span className="ml-2 text-sm font-normal text-tinta-suave">
-              {g.obligatorio ? "Obligatorio" : "Opcional"}
-              {g.multiple ? " · varias" : ""}
-            </span>
-          </legend>
-          <div className="flex flex-wrap gap-2">
-            {g.opciones.map((o) => {
-              const activa = elegidas.includes(o.id);
-              return (
-                <button
-                  key={o.id}
-                  type="button"
-                  aria-pressed={activa}
-                  onClick={() => elegir(g.id, o.id)}
-                  className={clsx(
-                    "h-11 rounded-lg px-3 font-medium ring-1",
-                    activa ? "bg-cobalto text-white ring-cobalto" : "bg-white ring-zinc-oscuro",
-                  )}
-                >
-                  {o.nombre}
-                  {o.suplemento > 0 && ` +${euros(o.suplemento)}`}
-                </button>
-              );
-            })}
-          </div>
-        </fieldset>
-      ))}
-      <Campo etiqueta="Nota para cocina o barra" className="mb-4">
-        <input
-          className={claseEntrada}
-          value={nota}
-          maxLength={140}
-          onChange={(e) => setNota(e.target.value)}
-          placeholder="Sin cebolla, para compartir…"
-        />
-      </Campo>
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2" role="group" aria-label="Cantidad">
-          <Boton aria-label="Una menos" onClick={() => setCantidad((c) => Math.max(1, c - 1))}>
-            <Minus aria-hidden className="size-4" />
-          </Boton>
-          <span className="w-8 text-center font-rotulo text-2xl font-bold" aria-live="polite">
-            {cantidad}
-          </span>
-          <Boton aria-label="Una más" onClick={() => setCantidad((c) => Math.min(99, c + 1))}>
-            <Plus aria-hidden className="size-4" />
-          </Boton>
-        </div>
-        <Boton variante="primario" tamano="grande" disabled={faltan.length > 0} onClick={anotar}>
-          Anotar · {euros((producto.precio + suplemento) * cantidad)}
-        </Boton>
-      </div>
-      {faltan.length > 0 && (
-        <p className="mt-2 text-right text-sm text-tinta-suave">
-          Falta elegir: {faltan.map((g) => g.nombre.toLowerCase()).join(", ")}
-        </p>
-      )}
-    </Dialogo>
   );
 }
 
@@ -545,6 +373,16 @@ function Lineas({ cuenta, lineas }: { cuenta: Cuenta; lineas: LineaCuenta[] }) {
                     suppressHydrationWarning
                   >
                     <EtiquetaEstado estado={l.estado} />
+                    {l.ticketId && (
+                      <span className="rounded bg-cuenta-claro px-1.5 py-0.5 font-semibold text-cuenta">
+                        Pagado
+                      </span>
+                    )}
+                    {l.estado === "anotada" && l.despues && (
+                      <span className="rounded bg-qr-claro px-1.5 py-0.5 font-semibold text-qr">
+                        Para después
+                      </span>
+                    )}
                     {l.origen === "qr" && <span>QR</span>}
                     {l.enviadaEn && l.estado === "enviada" && (
                       <span>hace {minutosEntre(l.enviadaEn, ahora)} min</span>
@@ -557,7 +395,7 @@ function Lineas({ cuenta, lineas }: { cuenta: Cuenta; lineas: LineaCuenta[] }) {
                   {anulada ? "—" : euros(importeLinea(l))}
                 </span>
               </div>
-              {l.estado !== "por_confirmar" && !anulada && (
+              {l.estado !== "por_confirmar" && !anulada && !l.ticketId && (
                 <div className="mt-1 flex flex-wrap justify-end gap-1 pl-9">
                   {editable ? (
                     <>
@@ -592,6 +430,21 @@ function Lineas({ cuenta, lineas }: { cuenta: Cuenta; lineas: LineaCuenta[] }) {
                         }
                       >
                         <Plus aria-hidden className="size-4" />
+                      </Boton>
+                      <Boton
+                        tamano="pequeno"
+                        variante="fantasma"
+                        aria-pressed={Boolean(l.despues)}
+                        onClick={() =>
+                          hacer({
+                            tipo: "cambiar_despues",
+                            cuentaId: cuenta.id,
+                            lineaId: l.id,
+                            despues: !l.despues,
+                          })
+                        }
+                      >
+                        {l.despues ? "Ahora" : "Después"}
                       </Boton>
                       <Boton
                         tamano="pequeno"
@@ -711,6 +564,7 @@ function EtiquetaEstado({ estado }: { estado: EstadoLinea }) {
         estado === "lista" && "bg-cuenta text-white",
         estado === "servida" && "bg-zinc text-tinta-suave",
         estado === "anulada" && "bg-zinc text-tinta-suave",
+        estado === "en_espera" && "bg-qr-claro text-qr",
       )}
     >
       {TEXTO_ESTADO[estado]}
@@ -743,7 +597,9 @@ function Mover({
               {estado.mesas
                 .filter((m) => m.zonaId === z.id && m.id !== cuenta.mesaId)
                 .map((m) => {
-                  const ocupada = estado.cuentas.some((c) => c.mesaId === m.id);
+                  const ocupada = estado.cuentas.some(
+                    (c) => c.mesaId === m.id && c.estado === "abierta",
+                  );
                   return (
                     <Boton
                       key={m.id}

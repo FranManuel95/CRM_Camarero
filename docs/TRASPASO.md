@@ -32,14 +32,30 @@
 - Supabase rechaza correos de dominios inventados (example.com…): para probar altas hace falta un
   correo real.
 
+## Fase 2: el servicio del día a día (25/10/2026)
+
+- Cobro de una parte (`cobrar` con `partes`): las líneas cobradas llevan `ticketId` y la cuenta se
+  cierra sola cuando no queda nada. La cuenta cobrada sigue en cocina mientras haya platos sin
+  servir (`cuentaEnJuego`).
+- Venta rápida (`/sala/rapida`, acción `venta_rapida`): cuenta con mesa `venta-rapida`.
+- «Para después» y «Marcha»: las líneas `despues` se quedan `en_espera` hasta la acción `marchar`,
+  que imprime una comanda con el título «¡MARCHA!».
+- Propinas: en el ticket fuera de la base imponible, en el cierre Z y en informes por camarero.
+- Menú del día: plantilla en el editor de la carta; cada opción puede ir a otra pantalla
+  (`destino`), y cocina la ve en gris si el plato principal no es suyo.
+- Cartas por horario (`src/lib/dominio/horario.ts`), textos en inglés (`nombreEn`,
+  `descripcionEn`) y fotos en Supabase Storage (bucket `fotos`, migración
+  `20261025120000_fotos.sql` aplicada; la app da un permiso de 10 minutos por foto). En modo
+  archivo las fotos van a `datos/fotos` y se sirven por `/api/fotos/[archivo]`.
+- El bar de demostración de la nube ya existía: para ver los nombres en inglés de la carta de
+  ejemplo, reiniciar la demo.
+
 ## Pendiente (por orden)
 
 1. **VERI\*FACTU** antes de usarlo como TPV fiscal real (ver `docs/INVESTIGACION.md`).
 2. Probar con una **impresora térmica real** de red (solo se ha probado el formato de los bytes y
    la vista previa; aquí no hay impresora).
-3. Decidir con el usuario si se queda **en el PC del bar** (como ahora) o pasa a **la nube con
-   Supabase** para varios locales.
-4. Integración con datáfono, stock, reservas (ideas en `docs/ARQUITECTURA.md`).
+3. Fases 3 a 6 de `docs/PLAN.md` (stock, equipo, clientes…), cuando el usuario lo pida.
 
 ## Trucos del entorno
 

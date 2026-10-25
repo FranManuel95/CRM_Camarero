@@ -111,6 +111,57 @@ const CARTA: { categoria: Omit<Categoria, "id" | "orden">; platos: Plato[] }[] =
   },
 ];
 
+/** Nombres en inglés para la carta QR de ejemplo. */
+const EN_INGLES: Record<string, string> = {
+  Cervezas: "Beers",
+  Vinos: "Wines",
+  "Refrescos y agua": "Soft drinks & water",
+  Cafés: "Coffee & tea",
+  Tapas: "Tapas",
+  Raciones: "Sharing plates",
+  Bocadillos: "Sandwiches",
+  Postres: "Desserts",
+  Caña: "Small draught beer",
+  Doble: "Large draught beer",
+  Tercio: "Bottled beer",
+  "Cerveza sin alcohol": "Alcohol-free beer",
+  "Clara con limón": "Beer with lemonade",
+  "Copa de tinto Rioja": "Glass of Rioja red",
+  "Copa de Ribera": "Glass of Ribera red",
+  "Copa de Verdejo": "Glass of Verdejo white",
+  "Tinto de verano": "Red wine with lemonade",
+  "Vermut de grifo": "Vermouth on tap",
+  "Agua mineral": "Mineral water",
+  "Refresco de cola": "Cola",
+  "Refresco de naranja": "Orange soda",
+  Tónica: "Tonic water",
+  "Zumo de naranja natural": "Fresh orange juice",
+  "Café solo": "Espresso",
+  Cortado: "Cortado (espresso with a dash of milk)",
+  "Café con leche": "White coffee",
+  Infusión: "Herbal tea",
+  Colacao: "Hot chocolate milk",
+  "Croquetas de jamón (4 uds.)": "Ham croquettes (4)",
+  "Patatas bravas": "Patatas bravas (spicy potatoes)",
+  "Tortilla de patatas (pincho)": "Spanish omelette (slice)",
+  "Ensaladilla rusa": "Russian salad",
+  "Pimientos de Padrón": "Padrón peppers",
+  "Boquerones en vinagre": "Anchovies in vinegar",
+  "Calamares a la andaluza": "Fried squid",
+  "Pulpo a la gallega": "Galician-style octopus",
+  "Huevos rotos con jamón": "Fried eggs with ham and chips",
+  "Secreto ibérico": "Iberian pork steak",
+  "Gambas al ajillo": "Garlic prawns",
+  "Ensalada de la casa": "House salad",
+  "Bocadillo de calamares": "Fried squid sandwich",
+  "Pepito de ternera": "Beef steak sandwich",
+  "Bocadillo vegetal": "Veggie sandwich",
+  "Hamburguesa La Esquina": "La Esquina burger",
+  "Tarta de queso": "Cheesecake",
+  "Flan casero": "Homemade flan",
+  Torrija: "Spanish French toast",
+};
+
 export function estadoDeEjemplo(ctx: Contexto, opciones: { conHistorial?: boolean } = {}): Estado {
   const zonas: Zona[] = ["Barra", "Salón", "Terraza"].map((nombre, orden) => ({
     id: `zona-${orden + 1}`,
@@ -162,12 +213,13 @@ export function estadoDeEjemplo(ctx: Contexto, opciones: { conHistorial?: boolea
   const productos: Producto[] = [];
   CARTA.forEach(({ categoria, platos }, i) => {
     const id = `cat-${i + 1}`;
-    categorias.push({ id, orden: i, ...categoria });
+    categorias.push({ id, orden: i, ...categoria, nombreEn: EN_INGLES[categoria.nombre] });
     platos.forEach(([nombre, precio, alergenos, descripcion], j) => {
       productos.push({
         id: `prod-${i + 1}-${j + 1}`,
         categoriaId: id,
         nombre,
+        nombreEn: EN_INGLES[nombre],
         descripcion: descripcion ?? "",
         precio,
         iva: 10,

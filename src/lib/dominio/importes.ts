@@ -18,9 +18,20 @@ export function precioConOpciones(linea: Pick<LineaCuenta, "precioUnitario" | "o
   return linea.precioUnitario + linea.opciones.reduce((s, o) => s + o.suplemento, 0);
 }
 
-/** Las líneas que cuentan para cobrar: ni anuladas ni pendientes de aceptar. */
+/** Las líneas que quedan por cobrar: ni anuladas, ni pendientes de aceptar, ni ya pagadas. */
 export function lineasCobrables(cuenta: Pick<Cuenta, "lineas">): LineaCuenta[] {
-  return cuenta.lineas.filter((l) => l.estado !== "anulada" && l.estado !== "por_confirmar");
+  return cuenta.lineas.filter(
+    (l) => l.estado !== "anulada" && l.estado !== "por_confirmar" && !l.ticketId,
+  );
+}
+
+/** Lo ya pagado de una cuenta que se está cobrando por partes. */
+export function pagadoCuenta(cuenta: Pick<Cuenta, "lineas" | "descuento">): Centimos {
+  const pagadas = cuenta.lineas.filter((l) => l.ticketId && l.estado !== "anulada");
+  return aplicarDescuento(
+    pagadas.reduce((s, l) => s + importeLinea(l), 0),
+    cuenta.descuento,
+  );
 }
 
 export function importeLinea(linea: LineaCuenta): Centimos {

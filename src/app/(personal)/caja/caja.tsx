@@ -178,7 +178,7 @@ function TurnoAbierto({
   const turno = turnoAbierto(estado)!;
   const r = resumenTurno(estado, turno);
   const tickets = ticketsDelTurno(estado, turno).slice().reverse();
-  const abiertas = estado.cuentas.length;
+  const abiertas = estado.cuentas.filter((c) => c.estado === "abierta").length;
 
   return (
     <>
@@ -190,6 +190,7 @@ function TurnoAbierto({
         <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <Dato titulo="Ventas" valor={euros(r.ventas)} grande />
           <Dato titulo="Tickets" valor={String(r.tickets)} />
+          {r.propinas > 0 && <Dato titulo="Propinas" valor={euros(r.propinas)} />}
           <Dato
             titulo="Ticket medio"
             valor={r.tickets ? euros(Math.round(r.ventas / r.tickets)) : "—"}

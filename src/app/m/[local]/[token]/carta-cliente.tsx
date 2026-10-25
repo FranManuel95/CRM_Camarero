@@ -1,11 +1,12 @@
 "use client";
 
 import clsx from "clsx";
-import { Bell, Check, Minus, Plus, Receipt, ShoppingBag } from "lucide-react";
+import { Bell, Check, Languages, Minus, Plus, Receipt, ShoppingBag } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Boton, Campo, claseEntrada, Dialogo } from "@/components/ui";
 import { useEnDirecto } from "@/lib/cliente/use-en-directo";
 import { useGuardado } from "@/lib/cliente/use-guardado";
+import { ALERGENO_EN, type Idioma, TEXTOS } from "@/lib/cliente/textos-carta";
 import type { LineaPedida } from "@/lib/dominio/acciones";
 import { euros } from "@/lib/dominio/importes";
 import { type Alergeno, ALERGENOS, NOMBRE_ALERGENO } from "@/lib/dominio/tipos";
@@ -14,15 +15,6 @@ import type { VistaCliente } from "@/lib/servidor/vistas";
 
 type Producto = VistaCliente["productos"][number];
 type EnCesta = LineaPedida & { clave: string };
-
-const ESTADO_CLIENTE = {
-  por_confirmar: "Esperando al camarero",
-  anotada: "Anotado",
-  enviada: "Preparando",
-  lista: "¡Listo! Ya viene",
-  servida: "Servido",
-  anulada: "Anulado",
-} as const;
 
 function precioDe(p: Producto, opciones: string[]) {
   return (
@@ -33,6 +25,10 @@ function precioDe(p: Producto, opciones: string[]) {
       .reduce((s, o) => s + o.suplemento, 0)
   );
 }
+
+/** El texto en inglés si lo hay y se ha elegido inglés; si no, el original. */
+const en = (idioma: Idioma, es: string, ingles?: string) =>
+  idioma === "en" && ingles ? ingles : es;
 
 export function CartaCliente({
   local,
@@ -47,6 +43,10 @@ export function CartaCliente({
 }) {
   const [vista, setVista] = useState(inicial);
   const [cesta, setCesta] = useGuardado<EnCesta[]>(`comanda.cesta.${token}`, [], "sesion");
+  const [idioma, setIdioma] = useGuardado<Idioma>("comanda.idioma", "es");
+  const t = TEXTOS[idioma];
+  const nombreAlergeno = (a: Alergeno) =>
+    (idioma === "en" ? ALERGENO_EN[a] : NOMBRE_ALERGENO[a]).toLowerCase();
   const [sinAlergenos, setSinAlergenos] = useState<Alergeno[]>([]);
   const [detalle, setDetalle] = useState<Producto | null>(null);
   const [verCesta, setVerCesta] = useState(false);
@@ -91,7 +91,7 @@ export function CartaCliente({
       if (directo.tipo === "supabase") refrescar();
       return true;
     } catch {
-      avisar("No hay conexión. Prueba otra vez o llama al camarero.", true);
+      avisar(t.sinConexion, true);
       return false;
     } finally {
       setEnviando(false);
@@ -108,7 +108,7 @@ export function CartaCliente({
         );
       return [...c, { ...linea, clave }];
     });
-    avisar("Añadido a tu pedido");
+    avisar(t.añadido);
   }
 
   async function enviarPedido() {
@@ -121,11 +121,7 @@ export function CartaCliente({
     if (await mandar({ tipo: "pedir", lineas })) {
       setCesta([]);
       setVerCesta(false);
-      avisar(
-        vista.local.confirmarPedidos
-          ? "¡Pedido enviado! El camarero lo confirma enseguida."
-          : "¡Pedido enviado a cocina!",
-      );
+      avisar(t.enviado(vista.local.confirmarPedidos));
     }
   }
 
@@ -136,19 +132,29 @@ export function CartaCliente({
   const cuentaPedida = vista.avisos.includes("cuenta");
 
   return (
-    <div className="min-h-dvh bg-white pb-32">
+    <div className="min-h-dvh bg-white pb-32" lang={idioma}>
       <header className="azulejo">
-        <div className="bg-gradient-to-b from-transparent to-cobalto-oscuro/80 px-4 pt-10 pb-5 text-white">
+        <div className="bg-gradient-to-b from-transparent to-cobalto-oscuro/80 px-4 pt-4 pb-5 text-white">
+          <div className="mb-6 flex justify-end">
+            <button
+              type="button"
+              onClick={() => setIdioma(idioma === "es" ? "en" : "es")}
+              className="flex h-9 items-center gap-1.5 rounded-full bg-black/25 px-3 text-sm font-semibold backdrop-blur"
+              lang={idioma === "es" ? "en" : "es"}
+            >
+              <Languages aria-hidden className="size-4" /> {t.cambiarIdioma}
+            </button>
+          </div>
           <p className="text-sm font-semibold opacity-90">{vista.mesa.nombre}</p>
           <h1 className="font-rotulo text-5xl leading-none font-bold drop-shadow">
             {vista.local.nombre}
           </h1>
-          {!pedir && <p className="mt-2 text-sm">Consulta la carta y pide al camarero.</p>}
+          {!pedir && <p className="mt-2 text-sm">{t.pideAlCamarero}</p>}
         </div>
       </header>
 
       <nav
-        aria-label="Secciones de la carta"
+        aria-label={t.secciones}
         className="sticky top-0 z-30 border-b border-zinc bg-white/95 backdrop-blur"
       >
         <ul className="flex gap-1 overflow-x-auto px-3 py-2">
@@ -158,7 +164,7 @@ export function CartaCliente({
                 href={`#cat-${c.id}`}
                 className="block h-9 shrink-0 rounded-full bg-zinc-claro px-3.5 py-1.5 text-sm font-semibold whitespace-nowrap ring-1 ring-zinc"
               >
-                {c.nombre}
+                {en(idioma, c.nombre, c.nombreEn)}
               </a>
             </li>
           ))}
@@ -167,11 +173,10 @@ export function CartaCliente({
 
       <details className="mx-4 mt-4 rounded-xl bg-zinc-claro p-3 text-sm">
         <summary className="cursor-pointer font-semibold">
-          Alergias e intolerancias{sinAlergenos.length ? ` · ocultando ${sinAlergenos.length}` : ""}
+          {t.alergias}
+          {sinAlergenos.length ? t.ocultando(sinAlergenos.length) : ""}
         </summary>
-        <p className="mt-2 mb-2 text-tinta-suave">
-          Marca lo que no puedes tomar y escondemos los platos que lo llevan.
-        </p>
+        <p className="mt-2 mb-2 text-tinta-suave">{t.alergiasAyuda}</p>
         <div className="flex flex-wrap gap-1.5">
           {ALERGENOS.map((a) => {
             const activo = sinAlergenos.includes(a);
@@ -188,15 +193,13 @@ export function CartaCliente({
                   activo ? "bg-aviso text-white ring-aviso" : "bg-white ring-zinc-oscuro",
                 )}
               >
-                {activo ? "Sin " : ""}
-                {NOMBRE_ALERGENO[a].toLowerCase()}
+                {activo ? t.sin : ""}
+                {nombreAlergeno(a)}
               </button>
             );
           })}
         </div>
-        <p className="mt-2 text-xs text-tinta-suave">
-          Si tienes una alergia grave, díselo también al camarero.
-        </p>
+        <p className="mt-2 text-xs text-tinta-suave">{t.alergiaGrave}</p>
       </details>
 
       <main className="px-4">
@@ -214,47 +217,65 @@ export function CartaCliente({
                 id={`t-${c.id}`}
                 className="mb-2 border-b-2 border-cobalto pb-1 font-rotulo text-3xl font-bold text-cobalto"
               >
-                {c.nombre}
+                {en(idioma, c.nombre, c.nombreEn)}
               </h2>
               <ul className="divide-y divide-zinc">
-                {productos.map((p) => (
-                  <li key={p.id} className={clsx("flex gap-3 py-3", !p.disponible && "opacity-50")}>
-                    <div className="min-w-0 flex-1">
-                      <h3 className="text-lg leading-tight font-semibold">{p.nombre}</h3>
-                      {p.descripcion && <p className="text-sm text-tinta-suave">{p.descripcion}</p>}
-                      {p.alergenos.length > 0 && (
-                        <p className="mt-1 text-xs text-tinta-suave">
-                          Contiene:{" "}
-                          {p.alergenos.map((a) => NOMBRE_ALERGENO[a].toLowerCase()).join(", ")}
-                        </p>
+                {productos.map((p) => {
+                  const nombre = en(idioma, p.nombre, p.nombreEn);
+                  const descripcion = en(idioma, p.descripcion, p.descripcionEn);
+                  return (
+                    <li
+                      key={p.id}
+                      className={clsx("flex gap-3 py-3", !p.disponible && "opacity-50")}
+                    >
+                      {p.foto && (
+                        // Fotos que suben los bares a su almacenamiento; tamaño ya reducido al subir.
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={p.foto}
+                          alt=""
+                          loading="lazy"
+                          decoding="async"
+                          className="size-20 shrink-0 rounded-xl object-cover"
+                        />
                       )}
-                    </div>
-                    <div className="flex shrink-0 flex-col items-end gap-1.5">
-                      <span className="font-rotulo text-xl font-bold">{euros(p.precio)}</span>
-                      {!p.disponible ? (
-                        <span className="text-sm font-semibold">Agotado</span>
-                      ) : pedir ? (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            p.grupos.length
-                              ? setDetalle(p)
-                              : añadir({ productoId: p.id, cantidad: 1, opciones: [], nota: "" })
-                          }
-                          className="flex h-10 items-center gap-1 rounded-full bg-cobalto px-4 text-sm font-semibold text-white active:scale-95"
-                          aria-label={`Añadir ${p.nombre}`}
-                        >
-                          <Plus aria-hidden className="size-4" /> Añadir
-                        </button>
-                      ) : null}
-                    </div>
-                  </li>
-                ))}
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-lg leading-tight font-semibold">{nombre}</h3>
+                        {descripcion && <p className="text-sm text-tinta-suave">{descripcion}</p>}
+                        {p.alergenos.length > 0 && (
+                          <p className="mt-1 text-xs text-tinta-suave">
+                            {t.contiene}
+                            {p.alergenos.map(nombreAlergeno).join(", ")}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-1.5">
+                        <span className="font-rotulo text-xl font-bold">{euros(p.precio)}</span>
+                        {!p.disponible ? (
+                          <span className="text-sm font-semibold">{t.agotado}</span>
+                        ) : pedir ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              p.grupos.length
+                                ? setDetalle(p)
+                                : añadir({ productoId: p.id, cantidad: 1, opciones: [], nota: "" })
+                            }
+                            className="flex h-10 items-center gap-1 rounded-full bg-cobalto px-4 text-sm font-semibold text-white active:scale-95"
+                            aria-label={t.añadirA(nombre)}
+                          >
+                            <Plus aria-hidden className="size-4" /> {t.añadir}
+                          </button>
+                        ) : null}
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             </section>
           );
         })}
-        <p className="py-8 text-center text-xs text-tinta-suave">Precios con IVA incluido.</p>
+        <p className="py-8 text-center text-xs text-tinta-suave">{t.preciosIva}</p>
       </main>
 
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-zinc bg-white/95 p-3 backdrop-blur">
@@ -273,7 +294,7 @@ export function CartaCliente({
           <Boton
             disabled={llamado || enviando}
             onClick={async () => {
-              if (await mandar({ tipo: "llamar_camarero" })) avisar("Avisado. Viene enseguida.");
+              if (await mandar({ tipo: "llamar_camarero" })) avisar(t.avisado);
             }}
           >
             {llamado ? (
@@ -281,11 +302,11 @@ export function CartaCliente({
             ) : (
               <Bell aria-hidden className="size-4" />
             )}
-            {llamado ? "Ya viene" : "Llamar camarero"}
+            {llamado ? t.yaViene : t.llamar}
           </Boton>
           <Boton disabled={!vista.cuenta} onClick={() => setVerCuenta(true)}>
             <Receipt aria-hidden className="size-4" />{" "}
-            {vista.cuenta ? `Mi cuenta · ${euros(vista.cuenta.total)}` : "Mi cuenta"}
+            {vista.cuenta ? `${t.miCuenta} · ${euros(vista.cuenta.total)}` : t.miCuenta}
           </Boton>
           {pedir && unidadesCesta > 0 && (
             <Boton
@@ -294,7 +315,7 @@ export function CartaCliente({
               className="col-span-2"
               onClick={() => setVerCesta(true)}
             >
-              <ShoppingBag aria-hidden className="size-5" /> Ver pedido ({unidadesCesta}) ·{" "}
+              <ShoppingBag aria-hidden className="size-5" /> {t.verPedido(unidadesCesta)} ·{" "}
               {euros(totalCesta)}
             </Boton>
           )}
@@ -304,6 +325,7 @@ export function CartaCliente({
       {detalle && (
         <Opciones
           producto={detalle}
+          idioma={idioma}
           alCerrar={() => setDetalle(null)}
           alAñadir={(l) => {
             añadir(l);
@@ -312,21 +334,22 @@ export function CartaCliente({
         />
       )}
 
-      <Dialogo abierto={verCesta} alCerrar={() => setVerCesta(false)} titulo="Tu pedido">
+      <Dialogo abierto={verCesta} alCerrar={() => setVerCesta(false)} titulo={t.tuPedido}>
         <ul className="mb-4 divide-y divide-zinc">
           {cesta.map((l) => {
             const p = porId.get(l.productoId);
             if (!p) return null;
+            const nombre = en(idioma, p.nombre, p.nombreEn);
             const opciones = p.grupos
               .flatMap((g) => g.opciones)
               .filter((o) => l.opciones.includes(o.id));
             return (
               <li key={l.clave} className="flex items-center gap-2 py-2">
                 <div className="min-w-0 flex-1">
-                  <p className="font-semibold">{p.nombre}</p>
+                  <p className="font-semibold">{nombre}</p>
                   {opciones.length > 0 && (
                     <p className="text-sm text-tinta-suave">
-                      {opciones.map((o) => o.nombre).join(", ")}
+                      {opciones.map((o) => en(idioma, o.nombre, o.nombreEn)).join(", ")}
                     </p>
                   )}
                   {l.nota && <p className="text-sm text-tinta-suave">«{l.nota}»</p>}
@@ -335,7 +358,7 @@ export function CartaCliente({
                   <button
                     type="button"
                     className="rounded-full p-2 ring-1 ring-zinc-oscuro"
-                    aria-label={`Quitar una de ${p.nombre}`}
+                    aria-label={t.quitarUna(nombre)}
                     onClick={() =>
                       setCesta((c) =>
                         c.flatMap((x) =>
@@ -354,7 +377,7 @@ export function CartaCliente({
                   <button
                     type="button"
                     className="rounded-full p-2 ring-1 ring-zinc-oscuro"
-                    aria-label={`Una más de ${p.nombre}`}
+                    aria-label={t.unaMas(nombre)}
                     onClick={() =>
                       setCesta((c) =>
                         c.map((x) =>
@@ -376,7 +399,7 @@ export function CartaCliente({
           })}
         </ul>
         <p className="mb-4 flex justify-between text-lg font-semibold">
-          <span>Total</span>
+          <span>{t.total}</span>
           <span>{euros(totalCesta)}</span>
         </p>
         <Boton
@@ -386,22 +409,25 @@ export function CartaCliente({
           disabled={!cesta.length || enviando}
           onClick={enviarPedido}
         >
-          Enviar pedido
+          {t.enviarPedido}
         </Boton>
         <p className="mt-2 text-center text-xs text-tinta-suave">
-          {vista.local.confirmarPedidos
-            ? "El camarero lo confirma y lo pasa a cocina."
-            : "Va directo a cocina y barra."}{" "}
-          Se paga al final.
+          {t.comoVa(vista.local.confirmarPedidos)}
         </p>
       </Dialogo>
 
-      <Dialogo abierto={verCuenta} alCerrar={() => setVerCuenta(false)} titulo="Tu cuenta">
+      <Dialogo abierto={verCuenta} alCerrar={() => setVerCuenta(false)} titulo={t.tuCuenta}>
         {vista.cuenta && (
           <>
             <ul className="mb-3 divide-y divide-zinc">
               {vista.cuenta.lineas.map((l) => (
-                <li key={l.id} className="flex items-start justify-between gap-2 py-2">
+                <li
+                  key={l.id}
+                  className={clsx(
+                    "flex items-start justify-between gap-2 py-2",
+                    l.pagada && "opacity-60",
+                  )}
+                >
                   <div>
                     <p className="font-semibold">
                       {l.cantidad} × {l.nombre}
@@ -412,12 +438,13 @@ export function CartaCliente({
                         l.estado === "lista" ? "font-semibold text-cuenta" : "text-tinta-suave",
                       )}
                     >
-                      {ESTADO_CLIENTE[l.estado]}
+                      {t.estado[l.estado]}
+                      {l.pagada && ` · ${t.pagado}`}
                     </p>
                   </div>
                   <span className="tabular-nums">
                     {l.invitacion
-                      ? "Invita la casa"
+                      ? t.invitaLaCasa
                       : l.estado === "por_confirmar"
                         ? "—"
                         : euros(
@@ -428,17 +455,23 @@ export function CartaCliente({
                 </li>
               ))}
             </ul>
+            {vista.cuenta.pagado > 0 && (
+              <p className="flex justify-between text-sm text-cuenta">
+                <span>{t.yaPagado}</span>
+                <span>{euros(vista.cuenta.pagado)}</span>
+              </p>
+            )}
             <p className="mb-4 flex justify-between text-xl font-semibold">
-              <span>Total</span>
+              <span>{vista.cuenta.pagado > 0 ? t.pendiente : t.total}</span>
               <span>{euros(vista.cuenta.total)}</span>
             </p>
             {cuentaPedida ? (
               <p className="rounded-lg bg-cuenta-claro p-3 text-center font-semibold">
-                Ya hemos avisado: te traen la cuenta.
+                {t.cuentaPedida}
               </p>
             ) : (
               <>
-                <p className="mb-2 font-semibold">Pedir la cuenta</p>
+                <p className="mb-2 font-semibold">{t.pedirCuenta}</p>
                 <div className="grid grid-cols-3 gap-2">
                   {(["tarjeta", "efectivo", "bizum"] as const).map((m) => (
                     <Boton
@@ -446,10 +479,10 @@ export function CartaCliente({
                       disabled={enviando}
                       onClick={async () => {
                         if (await mandar({ tipo: "pedir_cuenta", metodo: m }))
-                          avisar("Avisado. Te traen la cuenta.");
+                          avisar(t.traenCuenta);
                       }}
                     >
-                      {m === "tarjeta" ? "Con tarjeta" : m === "efectivo" ? "En efectivo" : "Bizum"}
+                      {t.metodo[m]}
                     </Boton>
                   ))}
                 </div>
@@ -464,29 +497,41 @@ export function CartaCliente({
 
 function Opciones({
   producto,
+  idioma,
   alCerrar,
   alAñadir,
 }: {
   producto: Producto;
+  idioma: Idioma;
   alCerrar: () => void;
   alAñadir: (l: LineaPedida) => void;
 }) {
+  const t = TEXTOS[idioma];
   const [elegidas, setElegidas] = useState<string[]>([]);
   const [cantidad, setCantidad] = useState(1);
   const [nota, setNota] = useState("");
   const faltan = producto.grupos.filter(
     (g) => g.obligatorio && !g.opciones.some((o) => elegidas.includes(o.id)),
   );
+  const descripcion = en(idioma, producto.descripcion, producto.descripcionEn);
 
   return (
-    <Dialogo abierto alCerrar={alCerrar} titulo={producto.nombre}>
-      {producto.descripcion && <p className="mb-3 text-tinta-suave">{producto.descripcion}</p>}
+    <Dialogo abierto alCerrar={alCerrar} titulo={en(idioma, producto.nombre, producto.nombreEn)}>
+      {producto.foto && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={producto.foto}
+          alt=""
+          className="mb-3 aspect-[4/3] w-full rounded-xl object-cover"
+        />
+      )}
+      {descripcion && <p className="mb-3 text-tinta-suave">{descripcion}</p>}
       {producto.grupos.map((g) => (
         <fieldset key={g.id} className="mb-4">
           <legend className="mb-2 font-semibold">
-            {g.nombre}{" "}
+            {en(idioma, g.nombre, g.nombreEn)}{" "}
             <span className="text-sm font-normal text-tinta-suave">
-              {g.obligatorio ? "· elige una" : "· opcional"}
+              {g.obligatorio ? t.eligeUna : t.opcional}
             </span>
           </legend>
           <div className="flex flex-wrap gap-2">
@@ -509,7 +554,7 @@ function Opciones({
                     activa ? "bg-cobalto text-white ring-cobalto" : "bg-white ring-zinc-oscuro",
                   )}
                 >
-                  {o.nombre}
+                  {en(idioma, o.nombre, o.nombreEn)}
                   {o.suplemento > 0 && ` +${euros(o.suplemento)}`}
                 </button>
               );
@@ -517,13 +562,13 @@ function Opciones({
           </div>
         </fieldset>
       ))}
-      <Campo etiqueta="¿Algo que debamos saber?" className="mb-4">
+      <Campo etiqueta={t.algoQueSaber} className="mb-4">
         <input
           className={claseEntrada}
           value={nota}
           maxLength={140}
           onChange={(e) => setNota(e.target.value)}
-          placeholder="Sin cebolla, poco hecho…"
+          placeholder={t.notaEjemplo}
         />
       </Campo>
       <div className="flex items-center justify-between gap-2">
@@ -531,7 +576,7 @@ function Opciones({
           <button
             type="button"
             className="rounded-full p-2.5 ring-1 ring-zinc-oscuro"
-            aria-label="Una menos"
+            aria-label={t.unaMenos}
             onClick={() => setCantidad((c) => Math.max(1, c - 1))}
           >
             <Minus aria-hidden className="size-4" />
@@ -542,7 +587,7 @@ function Opciones({
           <button
             type="button"
             className="rounded-full p-2.5 ring-1 ring-zinc-oscuro"
-            aria-label="Una más"
+            aria-label={t.otraMas}
             onClick={() => setCantidad((c) => Math.min(99, c + 1))}
           >
             <Plus aria-hidden className="size-4" />
@@ -556,7 +601,7 @@ function Opciones({
             alAñadir({ productoId: producto.id, cantidad, opciones: elegidas, nota: nota.trim() })
           }
         >
-          Añadir · {euros(precioDe(producto, elegidas) * cantidad)}
+          {t.añadir} · {euros(precioDe(producto, elegidas) * cantidad)}
         </Boton>
       </div>
     </Dialogo>

@@ -1,14 +1,27 @@
 "use client";
 
 import clsx from "clsx";
-import { ArrowDown, ArrowUp, Eye, EyeOff, Pencil, Plus, Trash2 } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  Clock,
+  Eye,
+  EyeOff,
+  ImagePlus,
+  Pencil,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { useState } from "react";
 import { useDatos } from "@/components/datos-personal";
 import { Boton, Campo, claseEntrada, Dialogo, Interruptor, Vacio } from "@/components/ui";
+import { subirFoto } from "@/lib/cliente/subir-foto";
+import { describirHorario, NOMBRE_DIA } from "@/lib/dominio/horario";
 import { euros, leerEuros } from "@/lib/dominio/importes";
 import {
   ALERGENOS,
   type Categoria,
+  type Destino,
   type GrupoOpciones,
   NOMBRE_ALERGENO,
   type Producto,
@@ -22,12 +35,76 @@ type BorradorProducto = Omit<Producto, "id" | "precio" | "coste" | "grupos"> & {
   precio: string;
   coste: string;
   grupos: (Omit<GrupoOpciones, "opciones"> & {
-    opciones: { id: string; nombre: string; suplemento: string }[];
+    opciones: {
+      id: string;
+      nombre: string;
+      nombreEn?: string;
+      suplemento: string;
+      destino?: Destino;
+    }[];
   })[];
 };
 
-export function EditorCarta() {
-  const { estado, hacer } = useDatos();
+/** Menú del día de partida: el encargado solo cambia los platos y el precio. */
+function menuDelDia(categoriaId: string, orden: number): BorradorProducto {
+  const opciones = (nombres: string[], destino?: Destino) =>
+    nombres.map((nombre) => ({
+      id: nuevoId(),
+      nombre,
+      suplemento: "",
+      ...(destino ? { destino } : {}),
+    }));
+  return {
+    categoriaId,
+    nombre: "Menú del día",
+    nombreEn: "Set menu of the day",
+    descripcion: "Primero, segundo, postre o café, pan y bebida.",
+    precio: "14,00",
+    iva: 10,
+    alergenos: [],
+    disponible: true,
+    orden,
+    coste: "",
+    grupos: [
+      {
+        id: nuevoId(),
+        nombre: "Primero",
+        nombreEn: "Starter",
+        obligatorio: true,
+        multiple: false,
+        opciones: opciones(["Ensalada", "Lentejas", "Gazpacho"]),
+      },
+      {
+        id: nuevoId(),
+        nombre: "Segundo",
+        nombreEn: "Main",
+        obligatorio: true,
+        multiple: false,
+        opciones: opciones(["Pollo asado", "Merluza a la plancha", "Albóndigas"]),
+      },
+      {
+        id: nuevoId(),
+        nombre: "Postre o café",
+        nombreEn: "Dessert or coffee",
+        obligatorio: true,
+        multiple: false,
+        opciones: opciones(["Flan", "Fruta", "Café"]),
+      },
+      {
+        id: nuevoId(),
+        nombre: "Bebida",
+        nombreEn: "Drink",
+        obligatorio: true,
+        multiple: false,
+        opciones: opciones(["Agua", "Caña", "Copa de vino", "Refresco"], "barra"),
+      },
+    ],
+  };
+}
+
+export function EditorCarta({ clavePublica }: { clavePublica: string }) {
+  const { estado, hacer, avisar } = useDatos();
+  const [subiendo, setSubiendo] = useState(false);
   const categorias = [...estado.categorias].sort((a, b) => a.orden - b.orden);
   const [categoriaId, setCategoriaId] = useState(categorias[0]?.id ?? "");
   const [cat, setCat] = useState<(Omit<Categoria, "id"> & { id?: string }) | null>(null);
@@ -77,6 +154,7 @@ export function EditorCarta() {
         tipo: "guardar_producto",
         producto: {
           ...prod,
+          foto: prod.foto || undefined,
           precio,
           coste,
           grupos: prod.grupos.map((g) => ({
@@ -139,6 +217,12 @@ export function EditorCarta() {
                 >
                   <span>{c.nombre}</span>
                   <span className="text-xs font-normal opacity-75">
+                    {c.horario && (
+                      <Clock
+                        aria-label={describirHorario(c.horario)}
+                        className="mr-1 inline size-3.5"
+                      />
+                    )}
                     {c.destino === "barra" ? "Barra" : "Cocina"}
                     {!c.visibleEnQR && " · oculta en QR"}
                   </span>
@@ -162,9 +246,18 @@ export function EditorCarta() {
               {actual?.nombre ?? "Productos"}
             </h2>
             {actual && (
-              <Boton variante="primario" onClick={nuevoProducto}>
-                <Plus aria-hidden className="size-4" /> Añadir producto
-              </Boton>
+              <div className="flex flex-wrap gap-2">
+                <Boton
+                  onClick={() =>
+                    setProd(menuDelDia(categoriaId, (productos.at(-1)?.orden ?? -1) + 1))
+                  }
+                >
+                  Menú del día
+                </Boton>
+                <Boton variante="primario" onClick={nuevoProducto}>
+                  <Plus aria-hidden className="size-4" /> Añadir producto
+                </Boton>
+              </div>
             )}
           </div>
           {productos.length === 0 ? (
@@ -274,6 +367,91 @@ export function EditorCarta() {
                 Decide a qué pantalla e impresora va la comanda.
               </p>
             </fieldset>
+            <Campo
+              etiqueta="Nombre en inglés (opcional)"
+              ayuda="Para la carta QR cuando el cliente la pone en inglés."
+            >
+              <input
+                className={claseEntrada}
+                value={cat.nombreEn ?? ""}
+                onChange={(e) => setCat({ ...cat, nombreEn: e.target.value })}
+                placeholder="Tapas"
+              />
+            </Campo>
+            <Interruptor
+              activo={Boolean(cat.horario)}
+              alCambiar={(v) =>
+                setCat({
+                  ...cat,
+                  horario: v ? { desde: "08:00", hasta: "12:00", dias: [] } : undefined,
+                })
+              }
+              etiqueta="Solo a ciertas horas"
+              ayuda="Desayunos, menú del día… Fuera de su horario no sale en la carta QR."
+            />
+            {cat.horario && (
+              <div className="space-y-2 rounded-xl bg-zinc-claro p-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <Campo etiqueta="Desde">
+                    <input
+                      type="time"
+                      className={claseEntrada}
+                      value={cat.horario.desde}
+                      onChange={(e) =>
+                        setCat({ ...cat, horario: { ...cat.horario!, desde: e.target.value } })
+                      }
+                    />
+                  </Campo>
+                  <Campo etiqueta="Hasta">
+                    <input
+                      type="time"
+                      className={claseEntrada}
+                      value={cat.horario.hasta}
+                      onChange={(e) =>
+                        setCat({ ...cat, horario: { ...cat.horario!, hasta: e.target.value } })
+                      }
+                    />
+                  </Campo>
+                </div>
+                <fieldset>
+                  <legend className="mb-1 text-sm font-semibold">
+                    Días (ninguno marcado = todos)
+                  </legend>
+                  <div className="flex flex-wrap gap-1">
+                    {[1, 2, 3, 4, 5, 6, 0].map((d) => {
+                      const activo = cat.horario!.dias.includes(d);
+                      return (
+                        <button
+                          key={d}
+                          type="button"
+                          aria-pressed={activo}
+                          onClick={() =>
+                            setCat({
+                              ...cat,
+                              horario: {
+                                ...cat.horario!,
+                                dias: activo
+                                  ? cat.horario!.dias.filter((x) => x !== d)
+                                  : [...cat.horario!.dias, d],
+                              },
+                            })
+                          }
+                          className={clsx(
+                            "h-9 w-11 rounded-lg text-sm font-semibold ring-1",
+                            activo
+                              ? "bg-cobalto text-white ring-cobalto"
+                              : "bg-white ring-zinc-oscuro",
+                          )}
+                        >
+                          {NOMBRE_DIA[d]!.slice(0, 2)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </fieldset>
+                <p className="text-sm text-tinta-suave">{describirHorario(cat.horario)}</p>
+              </div>
+            )}
             <Interruptor
               activo={cat.visibleEnQR}
               alCambiar={(v) => setCat({ ...cat, visibleEnQR: v })}
@@ -340,6 +518,74 @@ export function EditorCarta() {
                 onChange={(e) => setProd({ ...prod, descripcion: e.target.value })}
               />
             </Campo>
+            <div className="flex items-center gap-3 sm:col-span-2">
+              {prod.foto ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={prod.foto}
+                  alt=""
+                  className="size-20 rounded-xl object-cover ring-1 ring-zinc"
+                />
+              ) : (
+                <div className="grid size-20 place-items-center rounded-xl bg-zinc-claro text-xs text-tinta-suave ring-1 ring-zinc">
+                  Sin foto
+                </div>
+              )}
+              <label className="inline-flex h-11 cursor-pointer items-center gap-2 rounded-lg bg-white px-4 font-semibold ring-1 ring-zinc-oscuro hover:bg-zinc">
+                <ImagePlus aria-hidden className="size-4" />
+                {subiendo ? "Subiendo…" : prod.foto ? "Cambiar foto" : "Poner foto"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  disabled={subiendo}
+                  onChange={async (e) => {
+                    const archivo = e.target.files?.[0];
+                    e.target.value = "";
+                    if (!archivo) return;
+                    setSubiendo(true);
+                    try {
+                      const foto = await subirFoto(archivo, clavePublica);
+                      setProd((p) => (p ? { ...p, foto } : p));
+                    } catch (error) {
+                      avisar(
+                        error instanceof Error ? error.message : "No se ha podido subir la foto.",
+                        "error",
+                      );
+                    } finally {
+                      setSubiendo(false);
+                    }
+                  }}
+                />
+              </label>
+              {prod.foto && (
+                <Boton variante="fantasma" onClick={() => setProd({ ...prod, foto: undefined })}>
+                  Quitar
+                </Boton>
+              )}
+            </div>
+            <details className="rounded-xl bg-zinc-claro p-3 sm:col-span-2">
+              <summary className="cursor-pointer text-sm font-semibold">
+                En inglés para la carta QR (opcional)
+              </summary>
+              <div className="mt-3 grid gap-3">
+                <Campo etiqueta="Nombre en inglés">
+                  <input
+                    className={claseEntrada}
+                    value={prod.nombreEn ?? ""}
+                    onChange={(e) => setProd({ ...prod, nombreEn: e.target.value })}
+                  />
+                </Campo>
+                <Campo etiqueta="Descripción en inglés">
+                  <textarea
+                    className={clsx(claseEntrada, "h-16 py-2")}
+                    maxLength={400}
+                    value={prod.descripcionEn ?? ""}
+                    onChange={(e) => setProd({ ...prod, descripcionEn: e.target.value })}
+                  />
+                </Campo>
+              </div>
+            </details>
             <Campo etiqueta="Precio (IVA incluido)">
               <input
                 className={claseEntrada}
@@ -419,6 +665,10 @@ export function EditorCarta() {
 
             <fieldset className="sm:col-span-2">
               <legend className="mb-2 text-sm font-semibold">Opciones y extras</legend>
+              <p className="mb-2 text-xs text-tinta-suave">
+                «Quién la prepara»: por ejemplo, la bebida de un menú va a barra aunque el menú sea
+                de cocina.
+              </p>
               {prod.grupos.map((g, gi) => {
                 const cambiarGrupo = (cambios: Partial<BorradorProducto["grupos"][number]>) =>
                   setProd({
@@ -491,6 +741,27 @@ export function EditorCarta() {
                             })
                           }
                         />
+                        <select
+                          className={clsx(claseEntrada, "w-32")}
+                          aria-label="Quién la prepara"
+                          value={o.destino ?? ""}
+                          onChange={(e) =>
+                            cambiarGrupo({
+                              opciones: g.opciones.map((x, i) =>
+                                i === oi
+                                  ? {
+                                      ...x,
+                                      destino: (e.target.value || undefined) as Destino | undefined,
+                                    }
+                                  : x,
+                              ),
+                            })
+                          }
+                        >
+                          <option value="">Como el plato</option>
+                          <option value="cocina">Cocina</option>
+                          <option value="barra">Barra</option>
+                        </select>
                         <Boton
                           tamano="pequeno"
                           variante="fantasma"

@@ -1,6 +1,8 @@
 import { DIAS_EN_PANTALLA } from "../constantes";
 import { cuentaDeMesa } from "../dominio/reducir";
-import { totalCuenta } from "../dominio/importes";
+import { cuentaEnJuego } from "../dominio/selectores";
+import { pagadoCuenta, totalCuenta } from "../dominio/importes";
+import { dentroDeHorario } from "../dominio/horario";
 import type { Estado, LineaCuenta } from "../dominio/tipos";
 
 /**
@@ -14,7 +16,7 @@ export function vistaPersonal(estado: Estado, local: string, ahora = Date.now())
     /** Identificador del bar (va en la dirección de los QR). */
     local,
     empleados: estado.empleados.map((e) => ({ ...e, pin: "" })),
-    cuentas: estado.cuentas.filter((c) => c.estado === "abierta"),
+    cuentas: estado.cuentas.filter((c) => cuentaEnJuego(c, ahora)),
     tickets: estado.tickets.filter((t) => t.fecha >= desde),
     turnos: estado.turnos.filter((t) => !t.cerradoEn || t.cerradoEn >= desde),
   };
@@ -24,29 +26,42 @@ export type VistaPersonal = ReturnType<typeof vistaPersonal>;
 export type LineaCliente = Pick<
   LineaCuenta,
   "id" | "nombre" | "cantidad" | "precioUnitario" | "opciones" | "nota" | "estado" | "invitacion"
->;
+> & { pagada: boolean };
 
 /** Lo que ve un cliente desde el QR: la carta y su mesa. Nada de otras mesas ni del local. */
-export function vistaCliente(estado: Estado, token: string) {
+export function vistaCliente(estado: Estado, token: string, ahora = new Date().toISOString()) {
   const mesa = estado.mesas.find((m) => m.token === token);
   if (!mesa) return null;
   const categorias = estado.categorias
-    .filter((c) => c.visibleEnQR)
+    .filter((c) => c.visibleEnQR && dentroDeHorario(c.horario, ahora))
     .sort((a, b) => a.orden - b.orden);
   const ids = new Set(categorias.map((c) => c.id));
   const cuenta = cuentaDeMesa(estado, mesa.id);
   const lineas: LineaCliente[] = (cuenta?.lineas ?? [])
     .filter((l) => l.estado !== "anulada")
-    .map(({ id, nombre, cantidad, precioUnitario, opciones, nota, estado: e, invitacion }) => ({
-      id,
-      nombre,
-      cantidad,
-      precioUnitario,
-      opciones,
-      nota,
-      estado: e,
-      invitacion,
-    }));
+    .map(
+      ({
+        id,
+        nombre,
+        cantidad,
+        precioUnitario,
+        opciones,
+        nota,
+        estado: e,
+        invitacion,
+        ticketId,
+      }) => ({
+        id,
+        nombre,
+        cantidad,
+        precioUnitario,
+        opciones,
+        nota,
+        estado: e,
+        invitacion,
+        pagada: Boolean(ticketId),
+      }),
+    );
   const avisos = estado.avisos
     .filter((a) => a.mesaId === mesa.id && !a.atendido)
     .map((a) => a.tipo);
@@ -57,21 +72,38 @@ export function vistaCliente(estado: Estado, token: string) {
       confirmarPedidos: estado.ajustes.confirmarPedidosQR,
     },
     mesa: { nombre: mesa.nombre },
-    categorias: categorias.map(({ id, nombre }) => ({ id, nombre })),
+    categorias: categorias.map(({ id, nombre, nombreEn }) => ({ id, nombre, nombreEn })),
     productos: estado.productos
       .filter((p) => ids.has(p.categoriaId))
       .sort((a, b) => a.orden - b.orden)
-      .map(({ id, categoriaId, nombre, descripcion, precio, alergenos, disponible, grupos }) => ({
-        id,
-        categoriaId,
-        nombre,
-        descripcion,
-        precio,
-        alergenos,
-        disponible,
-        grupos,
-      })),
-    cuenta: cuenta ? { lineas, total: totalCuenta(cuenta) } : null,
+      .map(
+        ({
+          id,
+          categoriaId,
+          nombre,
+          descripcion,
+          nombreEn,
+          descripcionEn,
+          foto,
+          precio,
+          alergenos,
+          disponible,
+          grupos,
+        }) => ({
+          id,
+          categoriaId,
+          nombre,
+          descripcion,
+          nombreEn,
+          descripcionEn,
+          foto,
+          precio,
+          alergenos,
+          disponible,
+          grupos,
+        }),
+      ),
+    cuenta: cuenta ? { lineas, total: totalCuenta(cuenta), pagado: pagadoCuenta(cuenta) } : null,
     avisos,
   };
 }

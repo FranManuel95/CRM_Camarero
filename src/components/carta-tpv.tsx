@@ -1,0 +1,247 @@
+"use client";
+
+import clsx from "clsx";
+import { Minus, MoreHorizontal, Plus, Search } from "lucide-react";
+import { useMemo, useState } from "react";
+import { useDatos } from "@/components/datos-personal";
+import { Boton, Campo, claseEntrada, Dialogo, Interruptor, Vacio } from "@/components/ui";
+import type { LineaPedida } from "@/lib/dominio/acciones";
+import { euros } from "@/lib/dominio/importes";
+import type { Producto } from "@/lib/dominio/tipos";
+
+export type Anotar = (linea: LineaPedida) => Promise<boolean>;
+
+/**
+ * La carta para el camarero: categorías, buscador y botones grandes. Tocar un plato lo anota; los
+ * que tienen opciones (o el botón «…») abren el detalle con cantidad, nota y «para después».
+ */
+export function CartaTpv({
+  alAnotar,
+  permitirDespues = false,
+}: {
+  alAnotar: Anotar;
+  permitirDespues?: boolean;
+}) {
+  const { estado } = useDatos();
+  const categorias = useMemo(
+    () => [...estado.categorias].sort((a, b) => a.orden - b.orden),
+    [estado.categorias],
+  );
+  const [categoriaId, setCategoriaId] = useState(categorias[0]?.id ?? "");
+  const [busqueda, setBusqueda] = useState("");
+  const [detalle, setDetalle] = useState<Producto | null>(null);
+
+  const termino = busqueda.trim().toLowerCase();
+  const productos = estado.productos
+    .filter((p) =>
+      termino ? p.nombre.toLowerCase().includes(termino) : p.categoriaId === categoriaId,
+    )
+    .sort((a, b) => a.orden - b.orden);
+
+  function tocar(p: Producto) {
+    if (p.grupos.length) setDetalle(p);
+    else void alAnotar({ productoId: p.id, cantidad: 1, opciones: [], nota: "" });
+  }
+
+  return (
+    <>
+      <div className="relative mb-3">
+        <Search
+          aria-hidden
+          className="pointer-events-none absolute top-3 left-3 size-5 text-tinta-suave"
+        />
+        <input
+          type="search"
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          placeholder="Buscar en la carta…"
+          aria-label="Buscar en la carta"
+          className={clsx(claseEntrada, "pl-10")}
+        />
+      </div>
+      {!termino && (
+        <div className="mb-3 flex flex-wrap gap-1.5" role="tablist" aria-label="Categorías">
+          {categorias.map((c) => (
+            <button
+              key={c.id}
+              role="tab"
+              type="button"
+              aria-selected={c.id === categoriaId}
+              onClick={() => setCategoriaId(c.id)}
+              className={clsx(
+                "h-10 rounded-full px-4 text-sm font-semibold",
+                c.id === categoriaId ? "bg-tinta text-white" : "bg-white ring-1 ring-zinc-oscuro",
+              )}
+            >
+              {c.nombre}
+            </button>
+          ))}
+        </div>
+      )}
+      <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
+        {productos.map((p) => (
+          <li key={p.id} className="relative">
+            <button
+              type="button"
+              disabled={!p.disponible}
+              onClick={() => tocar(p)}
+              className="flex h-24 w-full flex-col justify-between rounded-xl bg-white p-3 text-left ring-1 ring-zinc-oscuro transition hover:ring-cobalto active:scale-[0.97] disabled:opacity-45"
+            >
+              <span className="line-clamp-2 leading-tight font-semibold">{p.nombre}</span>
+              <span className="text-sm text-tinta-suave">
+                {p.disponible ? euros(p.precio) : "Agotado"}
+                {p.grupos.length > 0 && " · elegir"}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setDetalle(p)}
+              disabled={!p.disponible}
+              className="absolute top-1 right-1 rounded-lg p-1.5 text-tinta-suave hover:bg-zinc disabled:hidden"
+              aria-label={`Más opciones de ${p.nombre}: cantidad y nota`}
+            >
+              <MoreHorizontal aria-hidden className="size-4" />
+            </button>
+          </li>
+        ))}
+      </ul>
+      {productos.length === 0 && (
+        <Vacio titulo="Nada por aquí">
+          {termino ? "Prueba con otra palabra." : "Esta categoría está vacía."}
+        </Vacio>
+      )}
+      {detalle && (
+        <DetalleProducto
+          producto={detalle}
+          alAnotar={alAnotar}
+          permitirDespues={permitirDespues}
+          alCerrar={() => setDetalle(null)}
+        />
+      )}
+    </>
+  );
+}
+
+/** Elegir opciones, cantidad y nota de un producto antes de anotarlo. */
+function DetalleProducto({
+  producto,
+  alCerrar,
+  alAnotar,
+  permitirDespues,
+}: {
+  producto: Producto;
+  alCerrar: () => void;
+  alAnotar: Anotar;
+  permitirDespues: boolean;
+}) {
+  const [despues, setDespues] = useState(false);
+  const [elegidas, setElegidas] = useState<string[]>([]);
+  const [cantidad, setCantidad] = useState(1);
+  const [nota, setNota] = useState("");
+  const faltan = producto.grupos.filter(
+    (g) => g.obligatorio && !g.opciones.some((o) => elegidas.includes(o.id)),
+  );
+  const suplemento = producto.grupos
+    .flatMap((g) => g.opciones)
+    .filter((o) => elegidas.includes(o.id))
+    .reduce((s, o) => s + o.suplemento, 0);
+
+  function elegir(grupoId: string, opcionId: string) {
+    const grupo = producto.grupos.find((g) => g.id === grupoId)!;
+    setElegidas((actuales) => {
+      if (grupo.multiple)
+        return actuales.includes(opcionId)
+          ? actuales.filter((i) => i !== opcionId)
+          : [...actuales, opcionId];
+      const sinGrupo = actuales.filter((i) => !grupo.opciones.some((o) => o.id === i));
+      return actuales.includes(opcionId) ? sinGrupo : [...sinGrupo, opcionId];
+    });
+  }
+
+  async function anotar() {
+    const ok = await alAnotar({
+      productoId: producto.id,
+      cantidad,
+      opciones: elegidas,
+      nota: nota.trim(),
+      ...(despues ? { despues: true } : {}),
+    });
+    if (ok) alCerrar();
+  }
+
+  return (
+    <Dialogo abierto alCerrar={alCerrar} titulo={producto.nombre}>
+      {producto.grupos.map((g) => (
+        <fieldset key={g.id} className="mb-4">
+          <legend className="mb-2 font-semibold">
+            {g.nombre}
+            <span className="ml-2 text-sm font-normal text-tinta-suave">
+              {g.obligatorio ? "Obligatorio" : "Opcional"}
+              {g.multiple ? " · varias" : ""}
+            </span>
+          </legend>
+          <div className="flex flex-wrap gap-2">
+            {g.opciones.map((o) => {
+              const activa = elegidas.includes(o.id);
+              return (
+                <button
+                  key={o.id}
+                  type="button"
+                  aria-pressed={activa}
+                  onClick={() => elegir(g.id, o.id)}
+                  className={clsx(
+                    "h-11 rounded-lg px-3 font-medium ring-1",
+                    activa ? "bg-cobalto text-white ring-cobalto" : "bg-white ring-zinc-oscuro",
+                  )}
+                >
+                  {o.nombre}
+                  {o.suplemento > 0 && ` +${euros(o.suplemento)}`}
+                </button>
+              );
+            })}
+          </div>
+        </fieldset>
+      ))}
+      <Campo etiqueta="Nota para cocina o barra" className="mb-4">
+        <input
+          className={claseEntrada}
+          value={nota}
+          maxLength={140}
+          onChange={(e) => setNota(e.target.value)}
+          placeholder="Sin cebolla, para compartir…"
+        />
+      </Campo>
+      {permitirDespues && (
+        <div className="mb-4">
+          <Interruptor
+            activo={despues}
+            alCambiar={setDespues}
+            etiqueta="Para después"
+            ayuda="Cocina lo ve, pero no lo prepara hasta que pulses «Marcha»."
+          />
+        </div>
+      )}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2" role="group" aria-label="Cantidad">
+          <Boton aria-label="Una menos" onClick={() => setCantidad((c) => Math.max(1, c - 1))}>
+            <Minus aria-hidden className="size-4" />
+          </Boton>
+          <span className="w-8 text-center font-rotulo text-2xl font-bold" aria-live="polite">
+            {cantidad}
+          </span>
+          <Boton aria-label="Una más" onClick={() => setCantidad((c) => Math.min(99, c + 1))}>
+            <Plus aria-hidden className="size-4" />
+          </Boton>
+        </div>
+        <Boton variante="primario" tamano="grande" disabled={faltan.length > 0} onClick={anotar}>
+          Anotar · {euros((producto.precio + suplemento) * cantidad)}
+        </Boton>
+      </div>
+      {faltan.length > 0 && (
+        <p className="mt-2 text-right text-sm text-tinta-suave">
+          Falta elegir: {faltan.map((g) => g.nombre.toLowerCase()).join(", ")}
+        </p>
+      )}
+    </Dialogo>
+  );
+}

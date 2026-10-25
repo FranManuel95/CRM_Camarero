@@ -97,12 +97,20 @@ Los clientes solo ven su mesa y la carta (`vistaCliente`); el personal no recibe
 
 - **VERI\*FACTU** sin terminar (ver `docs/INVESTIGACION.md`): XML del registro, envío a la AEAT, QR
   de cotejo y declaración responsable. Es lo primero antes de usarlo como TPV fiscal.
-- **Un solo local y un solo proceso**: el archivo JSON va bien para un bar. Para varios locales o
-  para tenerlo en la nube, pasar el almacén a Supabase (Postgres con RLS y Realtime) manteniendo
-  la misma interfaz de `src/lib/servidor/almacen.ts`.
 - **Historial en pantalla**: se mandan los últimos 62 días de tickets a las pantallas. Con años
   de historia, los informes largos deberían calcularse en el servidor.
 - **Datáfono**: el cobro con tarjeta se apunta a mano. Integrar un datáfono (Redsys, Adyen, SumUp,
   Stripe Terminal) para que el importe vaya solo.
-- **Ideas**: stock e inventario con escandallos, reservas, dividir la cuenta por platos, propinas,
-  pago desde el QR, ticket por correo, modo sin conexión en la PDA (PWA), varias cartas por horario.
+- **Ideas**: ver `docs/PLAN.md` (stock con escandallos, fichaje, reservas, pago desde el QR, ticket
+  por correo, modo sin conexión en la PDA…).
+
+## El servicio (fase 2)
+
+- **Cobrar por partes**: se eligen platos y unidades; cada línea cobrada guarda el ticket que la
+  pagó. La cuenta se cierra cuando ya no queda nada por cobrar.
+- **Venta rápida**: `/sala/rapida` cobra en barra sin abrir mesa.
+- **Para después y marcha**: lo marcado «después» espera en cocina hasta que el camarero da la
+  marcha, que saca una comanda nueva.
+- **Propinas**: se apuntan al cobrar y salen aparte en el ticket, en el cierre Z y en los informes.
+- **Carta**: menú del día con opciones que van a otra pantalla, categorías con horario, textos en
+  inglés para la carta QR y fotos (Supabase Storage con permiso de subida de un solo uso).

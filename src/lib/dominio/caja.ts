@@ -13,6 +13,7 @@ export function ticketsDelTurno(estado: Pick<Estado, "tickets">, turno: TurnoCaj
 export type ResumenTurno = {
   tickets: number;
   ventas: Centimos;
+  propinas: Centimos;
   porMetodo: Record<MetodoPago, Centimos>;
   entradas: Centimos;
   salidas: Centimos;
@@ -28,8 +29,10 @@ export function resumenTurno(estado: Pick<Estado, "tickets">, turno: TurnoCaja):
   const porMetodo: Record<MetodoPago, Centimos> = { efectivo: 0, tarjeta: 0, bizum: 0, otro: 0 };
   const iva = new Map<number, { base: Centimos; cuota: Centimos; total: Centimos }>();
   let ventas = 0;
+  let propinas = 0;
   for (const t of tickets) {
     ventas += t.total;
+    propinas += t.propina ?? 0;
     // Al efectivo entregado se le quita el cambio devuelto: lo que de verdad se queda en caja.
     const cambio = t.cambio ?? calcularCambio(t.total, t.pagos);
     for (const p of t.pagos) porMetodo[p.metodo] += p.importe;
@@ -53,6 +56,8 @@ export function resumenTurno(estado: Pick<Estado, "tickets">, turno: TurnoCaja):
   return {
     tickets: tickets.length,
     ventas,
+    /** Propinas cobradas (van en los pagos y en la caja, pero no son ventas). */
+    propinas,
     porMetodo,
     entradas,
     salidas,

@@ -19,16 +19,27 @@ export const lineaPedida = z.object({
   /** Ids de las opciones elegidas, de cualquier grupo del producto. */
   opciones: z.array(id).max(30).default([]),
   nota: texto(140).default(""),
+  /** «Para después»: se manda en espera y se prepara con la marcha. */
+  despues: z.boolean().optional(),
 });
 export type LineaPedida = z.infer<typeof lineaPedida>;
 
 const grupoOpciones = z.object({
   id,
   nombre: texto(60).min(1),
+  nombreEn: texto(60).optional(),
   obligatorio: z.boolean(),
   multiple: z.boolean(),
   opciones: z
-    .array(z.object({ id, nombre: texto(60).min(1), suplemento: centimos }))
+    .array(
+      z.object({
+        id,
+        nombre: texto(60).min(1),
+        nombreEn: texto(60).optional(),
+        suplemento: centimos,
+        destino: z.enum(["cocina", "barra"]).optional(),
+      }),
+    )
     .min(1)
     .max(30),
 });
@@ -64,6 +75,9 @@ export const accionCamarero = z.discriminatedUnion("tipo", [
     invitacion: z.boolean(),
   }),
   z.object({ tipo: z.literal("enviar_comanda"), cuentaId: id }),
+  /** «Marcha»: lo que estaba en espera pasa a prepararse. */
+  z.object({ tipo: z.literal("marchar"), cuentaId: id }),
+  z.object({ tipo: z.literal("cambiar_despues"), cuentaId: id, lineaId: id, despues: z.boolean() }),
   z.object({ tipo: z.literal("aceptar_pedido_qr"), cuentaId: id }),
   z.object({ tipo: z.literal("rechazar_pedido_qr"), cuentaId: id }),
   z.object({ tipo: z.literal("marcar_lista"), cuentaId: id, lineaIds: z.array(id).min(1) }),
@@ -88,6 +102,22 @@ export const accionCamarero = z.discriminatedUnion("tipo", [
       .array(z.object({ metodo, importe: centimos }))
       .min(1)
       .max(10),
+    /** Cobrar solo estas líneas (y cuántas de cada una). Sin esto, se cobra todo lo pendiente. */
+    partes: z
+      .array(z.object({ lineaId: id, cantidad: z.number().int().min(1).max(99) }))
+      .max(100)
+      .optional(),
+    propina: centimos.optional(),
+  }),
+  /** Cobrar sin abrir mesa (barra, para llevar): anota, manda y cobra de una vez. */
+  z.object({
+    tipo: z.literal("venta_rapida"),
+    lineas: z.array(lineaPedida).min(1).max(50),
+    pagos: z
+      .array(z.object({ metodo, importe: centimos }))
+      .min(1)
+      .max(10),
+    propina: centimos.optional(),
   }),
   z.object({ tipo: z.literal("anular_cuenta"), cuentaId: id }),
   z.object({ tipo: z.literal("reimprimir_ticket"), ticketId: id }),
@@ -138,9 +168,17 @@ export const accionEncargado = z.discriminatedUnion("tipo", [
     categoria: z.object({
       id: id.optional(),
       nombre: texto(60).min(1),
+      nombreEn: texto(60).optional(),
       orden: z.number().int(),
       destino: z.enum(["cocina", "barra"]),
       visibleEnQR: z.boolean(),
+      horario: z
+        .object({
+          desde: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Hora no válida"),
+          hasta: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Hora no válida"),
+          dias: z.array(z.number().int().min(0).max(6)).max(7),
+        })
+        .optional(),
     }),
   }),
   z.object({ tipo: z.literal("borrar_categoria"), categoriaId: id }),
@@ -151,6 +189,13 @@ export const accionEncargado = z.discriminatedUnion("tipo", [
       categoriaId: id,
       nombre: texto(80).min(1),
       descripcion: texto(400),
+      nombreEn: texto(80).optional(),
+      descripcionEn: texto(400).optional(),
+      foto: z
+        .string()
+        .max(500)
+        .regex(/^(https:\/\/|\/api\/fotos\/)/, "Foto no válida")
+        .optional(),
       precio: centimos,
       iva,
       alergenos: z.array(z.enum(ALERGENOS)),

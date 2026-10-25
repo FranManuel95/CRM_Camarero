@@ -159,7 +159,11 @@ export function Informes() {
           valor={euros(r.ventas)}
           nota={`${r.tickets} tickets · medio ${euros(r.ticketMedio)}`}
         />
-        <Cifra titulo="Gastos (IVA incl.)" valor={euros(r.gastos)} />
+        <Cifra
+          titulo="Gastos (IVA incl.)"
+          valor={euros(r.gastos)}
+          nota={r.propinas ? `Propinas del periodo: ${euros(r.propinas)} (aparte de las ventas)` : undefined}
+        />
         <Cifra
           titulo="Resultado sin IVA"
           valor={euros(r.resultado)}
@@ -257,7 +261,10 @@ export function Informes() {
               Por camarero
             </h2>
             <Lista
-              filas={r.porEmpleado.map((e) => [`${e.nombre} · ${e.tickets} tickets`, e.ventas])}
+              filas={r.porEmpleado.map((e) => [
+                `${e.nombre} · ${e.tickets} tickets${e.propinas ? ` · ${euros(e.propinas)} de propinas` : ""}`,
+                e.ventas,
+              ])}
             />
           </section>
           <section className="rounded-2xl bg-white p-4 ring-1 ring-zinc" aria-labelledby="t-gas">

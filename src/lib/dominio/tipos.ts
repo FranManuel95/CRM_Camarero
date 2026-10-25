@@ -64,9 +64,23 @@ export type Mesa = {
 /** A qué pantalla e impresora va un plato. */
 export type Destino = "cocina" | "barra";
 
+/** Franja en la que se sirve una categoría (hora de Madrid). */
+export type Horario = {
+  /** «08:00». */
+  desde: string;
+  /** «12:30». Si es menor que `desde`, la franja cruza la medianoche. */
+  hasta: string;
+  /** Días de la semana: 0 domingo … 6 sábado. Vacío = todos. */
+  dias: number[];
+};
+
 export type Categoria = {
   id: Id;
   nombre: string;
+  /** Nombre en inglés para la carta QR (opcional). */
+  nombreEn?: string;
+  /** Si tiene horario, en la carta QR solo sale (y solo se puede pedir) dentro de él. */
+  horario?: Horario;
   orden: number;
   destino: Destino;
   /** Si es false, no se enseña en la carta QR (pero sí en la app del camarero). */
@@ -109,12 +123,23 @@ export const NOMBRE_ALERGENO: Record<Alergeno, string> = {
   moluscos: "Moluscos",
 };
 
-export type OpcionProducto = { id: Id; nombre: string; suplemento: Centimos };
+export type OpcionProducto = {
+  id: Id;
+  nombre: string;
+  nombreEn?: string;
+  suplemento: Centimos;
+  /**
+   * Si esta opción la prepara otro sitio que el plato (la bebida de un menú del día va a barra
+   * aunque el menú sea de cocina).
+   */
+  destino?: Destino;
+};
 
 export type GrupoOpciones = {
   id: Id;
   /** Por ejemplo «Punto de la carne» o «Extras». */
   nombre: string;
+  nombreEn?: string;
   /** Hay que elegir al menos una. */
   obligatorio: boolean;
   /** Se puede elegir más de una. */
@@ -127,6 +152,10 @@ export type Producto = {
   categoriaId: Id;
   nombre: string;
   descripcion: string;
+  nombreEn?: string;
+  descripcionEn?: string;
+  /** Dirección pública de la foto del plato. */
+  foto?: string;
   precio: Centimos;
   /** IVA en %, incluido en el precio. */
   iva: number;
@@ -144,6 +173,8 @@ export type EstadoLinea =
   | "por_confirmar"
   /** En la comanda, aún sin mandar a cocina o barra. */
   | "anotada"
+  /** Mandada como «para después»: cocina la ve, pero no la prepara hasta que el camarero diga «marcha». */
+  | "en_espera"
   /** Mandada a cocina o barra. */
   | "enviada"
   | "lista"
@@ -152,7 +183,13 @@ export type EstadoLinea =
 
 export type OrigenLinea = "qr" | "camarero";
 
-export type OpcionElegida = { grupo: string; nombre: string; suplemento: Centimos };
+export type OpcionElegida = {
+  grupo: string;
+  nombre: string;
+  suplemento: Centimos;
+  /** Si la prepara otro sitio que el plato (ver OpcionProducto.destino). */
+  destino?: Destino;
+};
 
 export type LineaCuenta = {
   id: Id;
@@ -176,6 +213,10 @@ export type LineaCuenta = {
   ronda: number;
   /** Si es una invitación de la casa, no se cobra. */
   invitacion: boolean;
+  /** Anotada como «para después»: al mandar, queda en espera hasta la marcha. */
+  despues?: boolean;
+  /** Ticket con el que se pagó (cuando se cobra la cuenta por partes). */
+  ticketId?: Id;
   motivoAnulacion?: string;
 };
 
@@ -235,6 +276,8 @@ export type Ticket = {
   pagos: Pago[];
   /** Cambio devuelto en efectivo. */
   cambio: Centimos;
+  /** Propina que deja el cliente. No forma parte de la factura (ni lleva IVA). */
+  propina?: Centimos;
   /** Huella encadenada con la del ticket anterior (ver huella.ts). */
   huella: string;
   huellaAnterior: string;
