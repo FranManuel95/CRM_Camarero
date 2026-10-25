@@ -73,7 +73,10 @@ export function Resumen() {
           <h2 id="t-14" className="font-rotulo text-2xl font-bold">
             Ventas de los últimos 14 días
           </h2>
-          <Link href="/gestion/informes" className="text-sm font-semibold text-cobalto underline">
+          <Link
+            href="/gestion/informes"
+            className="inline-flex min-h-10 items-center text-sm font-semibold text-cobalto underline"
+          >
             Ver informes
           </Link>
         </div>
@@ -128,7 +131,7 @@ export function Resumen() {
           </ul>
           <Link
             href="/gestion/gastos"
-            className="mt-3 inline-block text-sm font-semibold text-cobalto underline"
+            className="mt-2 inline-flex min-h-10 items-center text-sm font-semibold text-cobalto underline"
           >
             Apuntar un gasto
           </Link>

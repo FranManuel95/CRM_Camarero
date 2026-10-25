@@ -90,6 +90,19 @@
 - Arreglado: los textos `sr-only` dentro de una tabla con scroll ensanchaban la página en el
   móvil (el contenedor necesita `relative`).
 
+## Móvil al 100 % (25/10/2026)
+
+- Revisadas todas las pantallas a 360 px (y 768 px). Nada se sale por los lados y no quedan
+  botones de menos de 24 px; lo comprueba `tests/e2e/movil.spec.ts`.
+- Barra de arriba: en el móvil, icono con el nombre debajo y todas las secciones a la vista.
+  Menú de Gestión: en el móvil, un botón con la sección actual que despliega las demás.
+- Sala con las zonas a todo lo ancho; carta de gestión, fichajes, impresoras y recibir pedido
+  reordenados para pantallas estrechas; cuadrante como lista por días en el móvil.
+- Ojo con `capitalize` de CSS: pone en mayúscula cada palabra («19 De Octubre»). Usar
+  `conMayuscula` (`src/lib/fechas.ts`).
+- Ojo con `pgrep -f next-server`: se encuentra a sí mismo. Usar `pgrep -f "^next-server"`.
+- Datos de ejemplo: los fichajes siguen el cuadrante (que ahora cubre también el historial).
+
 ## Pendiente (por orden)
 
 1. **VERI\*FACTU** antes de usarlo como TPV fiscal real (ver `docs/INVESTIGACION.md`).

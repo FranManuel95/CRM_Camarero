@@ -47,3 +47,6 @@ export const horaLocal = (iso: string) => Number(horaNum.format(new Date(iso)));
 export function minutosEntre(desde: string, hasta: string): number {
   return Math.max(0, Math.floor((Date.parse(hasta) - Date.parse(desde)) / 60_000));
 }
+
+/** «lunes, 19 de octubre» → «Lunes, 19 de octubre» (solo la primera letra, no cada palabra). */
+export const conMayuscula = (texto: string) => texto.charAt(0).toUpperCase() + texto.slice(1);

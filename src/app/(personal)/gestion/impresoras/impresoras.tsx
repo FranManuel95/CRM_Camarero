@@ -65,7 +65,7 @@ export function Impresoras({ puente }: { puente: { clave: string } | null }) {
           {estado.impresoras.map((i) => (
             <li key={i.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
               <Printer aria-hidden className="size-5 shrink-0" />
-              <span className="min-w-0 flex-1">
+              <span className="min-w-0 flex-1 basis-48">
                 <span className="block font-semibold">
                   {i.nombre}{" "}
                   {!i.activa && (

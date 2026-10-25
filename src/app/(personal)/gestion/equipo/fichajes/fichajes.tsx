@@ -137,19 +137,19 @@ export function Fichajes({ nube }: { nube: boolean }) {
           <caption className="sr-only">Horas de cada persona en el mes</caption>
           <thead>
             <tr className="border-b border-zinc text-left">
-              <th scope="col" className="p-3">
+              <th scope="col" className="px-2 py-2.5 sm:p-3">
                 Persona
               </th>
-              <th scope="col" className="p-3 text-right">
+              <th scope="col" className="px-2 py-2.5 text-right sm:p-3">
                 Días
               </th>
-              <th scope="col" className="p-3 text-right">
+              <th scope="col" className="px-2 py-2.5 text-right sm:p-3">
                 Fichadas
               </th>
-              <th scope="col" className="p-3 text-right">
-                En el cuadrante (hasta hoy)
+              <th scope="col" className="px-2 py-2.5 text-right sm:p-3">
+                Previstas
               </th>
-              <th scope="col" className="p-3 text-right">
+              <th scope="col" className="px-2 py-2.5 text-right sm:p-3">
                 Diferencia
               </th>
             </tr>
@@ -159,22 +159,26 @@ export function Fichajes({ nube }: { nube: boolean }) {
               const dif = r.trabajados - r.previstos;
               return (
                 <tr key={r.empleado.id} className="border-b border-zinc last:border-0">
-                  <th scope="row" className="p-3 text-left font-semibold">
+                  <th scope="row" className="px-2 py-2.5 text-left font-semibold sm:p-3">
                     {r.empleado.nombre}
                     {r.abiertos > 0 && (
-                      <span className="ml-2 text-xs font-normal text-tinta-suave">
+                      <span className="block text-xs font-normal text-tinta-suave sm:ml-2 sm:inline">
                         ({r.abiertos} sin cerrar)
                       </span>
                     )}
                   </th>
-                  <td className="p-3 text-right tabular-nums">{r.dias}</td>
-                  <td className="p-3 text-right tabular-nums">{formatearMinutos(r.trabajados)}</td>
-                  <td className="p-3 text-right tabular-nums">
+                  <td className="px-2 py-2.5 text-right whitespace-nowrap tabular-nums sm:p-3">
+                    {r.dias}
+                  </td>
+                  <td className="px-2 py-2.5 text-right whitespace-nowrap tabular-nums sm:p-3">
+                    {formatearMinutos(r.trabajados)}
+                  </td>
+                  <td className="px-2 py-2.5 text-right whitespace-nowrap tabular-nums sm:p-3">
                     {r.previstos ? formatearMinutos(r.previstos) : "—"}
                   </td>
                   <td
                     className={clsx(
-                      "p-3 text-right font-semibold tabular-nums",
+                      "px-2 py-2.5 text-right font-semibold whitespace-nowrap tabular-nums sm:p-3",
                       r.previstos && dif > 0 && "text-aviso",
                     )}
                   >
@@ -187,6 +191,9 @@ export function Fichajes({ nube }: { nube: boolean }) {
         </table>
       </div>
 
+      <p className="-mt-4 mb-6 text-xs text-tinta-suave">
+        Previstas: las horas del cuadrante hasta hoy. Solo cuentan las jornadas ya cerradas.
+      </p>
       {lista.length === 0 ? (
         <Vacio titulo="Nadie ha fichado este mes">
           Cada persona ficha con su PIN en <b>Fichar</b> (arriba, o desde la pantalla del PIN).
@@ -196,18 +203,18 @@ export function Fichajes({ nube }: { nube: boolean }) {
           {lista.map((f) => {
             const pausa = minutosDePausa(f, f.salida ?? ahora);
             return (
-              <li key={f.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5">
-                <span className="w-28 shrink-0 text-sm text-tinta-suave capitalize">
-                  {diaDe(f.entrada)}
-                </span>
-                <span className="min-w-0 flex-1 basis-40">
-                  <span className="block font-semibold">{nombre(f.empleadoId)}</span>
+              <li key={f.id} className="flex items-center gap-x-3 px-3 py-2.5">
+                <span className="min-w-0 flex-1">
+                  <span className="block font-semibold">
+                    {nombre(f.empleadoId)}{" "}
+                    <span className="font-normal text-tinta-suave">· {diaDe(f.entrada)}</span>
+                  </span>
                   <span className="block text-sm text-tinta-suave">
                     {horaDe(f.entrada)} – {f.salida ? horaDe(f.salida) : "sin salida"}
                     {pausa > 0 && ` · descanso ${formatearMinutos(pausa)}`}
                     {f.cambios?.length ? (
                       <span
-                        className="ml-1 rounded bg-ocupada-claro px-1.5 text-xs text-tinta"
+                        className="mt-1 block w-fit rounded bg-ocupada-claro px-1.5 text-xs text-tinta"
                         title={f.cambios
                           .map((c) => `${nombre(c.por)} (${diaDe(c.en)}): ${c.motivo}`)
                           .join("\n")}
@@ -217,7 +224,7 @@ export function Fichajes({ nube }: { nube: boolean }) {
                     ) : null}
                   </span>
                 </span>
-                <span className="font-semibold tabular-nums">
+                <span className="shrink-0 text-right font-semibold whitespace-nowrap tabular-nums">
                   {f.salida ? formatearMinutos(minutosTrabajados(f, ahora)) : "—"}
                 </span>
                 <Boton

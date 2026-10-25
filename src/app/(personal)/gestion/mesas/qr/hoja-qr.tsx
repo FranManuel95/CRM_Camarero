@@ -60,7 +60,7 @@ export function HojaQR({ urlPublica }: { urlPublica: string }) {
                   <p className="text-sm">Escanea para ver la carta y pedir</p>
                   <a
                     href={url}
-                    className="no-imprimir mt-1 block truncate text-xs text-cobalto underline"
+                    className="no-imprimir mt-1 inline-flex min-h-10 items-center px-2 text-sm text-cobalto underline"
                     target="_blank"
                     rel="noreferrer"
                   >

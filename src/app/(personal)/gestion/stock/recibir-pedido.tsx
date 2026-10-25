@@ -208,10 +208,13 @@ function Formulario({
         <legend className="mb-1 text-sm font-semibold">Lo que ha llegado</legend>
         <ul className="grid gap-2">
           {leidas.map((l, i) => (
-            <li key={l.clave} className="grid grid-cols-[1fr_6rem_6rem_auto] items-center gap-2">
+            <li
+              key={l.clave}
+              className="grid grid-cols-[1fr_1fr_auto] items-center gap-2 border-b border-zinc pb-2 last:border-0 sm:grid-cols-[1fr_6rem_6rem_auto] sm:border-0 sm:pb-0"
+            >
               <select
                 aria-label={`Ingrediente de la línea ${i + 1}`}
-                className={claseEntrada}
+                className={`${claseEntrada} col-span-3 sm:col-span-1`}
                 value={l.ingredienteId}
                 onChange={(e) => cambiar(l.clave, { ingredienteId: e.target.value })}
               >

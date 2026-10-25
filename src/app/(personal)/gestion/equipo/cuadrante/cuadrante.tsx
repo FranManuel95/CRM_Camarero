@@ -15,7 +15,7 @@ import {
 } from "@/lib/dominio/equipo";
 import { sumarDias } from "@/lib/dominio/informes";
 import type { TurnoCuadrante } from "@/lib/dominio/tipos";
-import { diaLocal } from "@/lib/fechas";
+import { conMayuscula, diaLocal } from "@/lib/fechas";
 
 type Borrador = Omit<TurnoCuadrante, "id"> & { id?: string };
 
@@ -84,7 +84,7 @@ export function Cuadrante() {
         </div>
       </div>
 
-      <div className="relative overflow-x-auto rounded-2xl bg-white ring-1 ring-zinc">
+      <div className="relative hidden overflow-x-auto rounded-2xl bg-white ring-1 ring-zinc md:block print:block">
         <table className="w-full min-w-[56rem] table-fixed border-collapse text-sm">
           <caption className="sr-only">
             Turnos de la semana: una fila por persona y una columna por día
@@ -173,6 +173,72 @@ export function Cuadrante() {
           </tbody>
         </table>
       </div>
+
+      {/* En el móvil, un día debajo de otro: la tabla de siete columnas no cabe. */}
+      <ol className="grid gap-2 md:hidden print:hidden">
+        {dias.map((d) => {
+          const delDia = deLaSemana
+            .filter((t) => t.dia === d)
+            .sort((a, b) => a.desde.localeCompare(b.desde));
+          return (
+            <li
+              key={d}
+              className={clsx(
+                "rounded-2xl bg-white p-3 ring-1 ring-zinc",
+                d === hoy && "ring-2 ring-cobalto",
+              )}
+            >
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <h3 className="font-semibold">
+                  {conMayuscula(largo.format(fecha(d)))}
+                  {d === hoy && <span className="ml-2 text-sm text-cobalto">Hoy</span>}
+                </h3>
+                <Boton
+                  tamano="pequeno"
+                  aria-label={`Añadir un turno el ${largo.format(fecha(d))}`}
+                  onClick={() =>
+                    setBorrador({
+                      empleadoId: personas[0]?.id ?? "",
+                      dia: d,
+                      desde: "12:00",
+                      hasta: "17:00",
+                      puesto: "",
+                    })
+                  }
+                >
+                  <Plus aria-hidden className="size-4" /> Turno
+                </Boton>
+              </div>
+              {delDia.length === 0 ? (
+                <p className="text-sm text-tinta-suave">Nadie trabaja este día.</p>
+              ) : (
+                <ul className="grid gap-1">
+                  {delDia.map((t) => (
+                    <li key={t.id}>
+                      <button
+                        type="button"
+                        onClick={() => setBorrador(t)}
+                        className="flex w-full items-center gap-3 rounded-lg bg-cuenta-claro px-3 py-2 text-left"
+                      >
+                        <span className="sr-only">Editar el turno: </span>
+                        <span className="font-semibold">
+                          {estado.empleados.find((e) => e.id === t.empleadoId)?.nombre ?? "—"}
+                        </span>
+                        <span className="tabular-nums">
+                          {t.desde}–{t.hasta}
+                        </span>
+                        {t.puesto && (
+                          <span className="ml-auto text-sm text-tinta-suave">{t.puesto}</span>
+                        )}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </li>
+          );
+        })}
+      </ol>
       <p className="mt-2 text-sm text-tinta-suave">
         En total, {formatearMinutos(totalSemana)} de trabajo previstas esta semana.
       </p>
@@ -212,8 +278,8 @@ export function Cuadrante() {
               >
                 {(dias.includes(borrador.dia) ? dias : diasDeSemana(lunesDe(borrador.dia))).map(
                   (d) => (
-                    <option key={d} value={d} className="capitalize">
-                      {largo.format(fecha(d))}
+                    <option key={d} value={d}>
+                      {conMayuscula(largo.format(fecha(d)))}
                     </option>
                   ),
                 )}

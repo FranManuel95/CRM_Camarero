@@ -163,6 +163,23 @@ describe("corregir fichajes", () => {
     ).toThrow(/dentro de la jornada/);
   });
 
+  it("acepta un descanso de cero minutos (empezado y acabado en el mismo minuto)", () => {
+    const t = preparar();
+    t.hacer(
+      {
+        tipo: "corregir_fichaje",
+        empleadoId: t.luis.id,
+        entrada: a("09:00"),
+        salida: a("17:00"),
+        pausas: [{ inicio: a("13:00"), fin: a("13:00") }],
+        motivo: "Descanso fichado sin querer",
+      },
+      t.ana,
+      a("18:00"),
+    );
+    expect(t.estado.fichajes).toHaveLength(1);
+  });
+
   it("solo el encargado corrige", () => {
     const t = preparar();
     expect(() =>
@@ -212,7 +229,7 @@ describe("cuadrante", () => {
     expect(minutosTurno({ desde: "20:00", hasta: "01:00" })).toBe(300);
   });
 
-  it("el ejemplo trae turnos de esta semana y la que viene, sin lunes", () => {
+  it("el ejemplo trae turnos del historial, de esta semana y de la que viene, sin lunes", () => {
     const { cuadrante } = estadoDeEjemplo(ctx);
     expect(cuadrante.length).toBeGreaterThan(20);
     expect(cuadrante.some((x) => new Date(`${x.dia}T12:00:00Z`).getUTCDay() === 1)).toBe(false);

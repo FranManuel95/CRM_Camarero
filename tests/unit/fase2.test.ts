@@ -293,7 +293,11 @@ describe("anotar", () => {
     const t = preparar();
     t.hacer({ tipo: "anotar", cuentaId: t.cuentaId, lineas: [linea("prod-1-1")] });
     t.hacer({ tipo: "anotar", cuentaId: t.cuentaId, lineas: [linea("prod-1-1")] });
-    t.hacer({ tipo: "anotar", cuentaId: t.cuentaId, lineas: [linea("prod-1-1", 1, { nota: "Sin espuma" })] });
+    t.hacer({
+      tipo: "anotar",
+      cuentaId: t.cuentaId,
+      lineas: [linea("prod-1-1", 1, { nota: "Sin espuma" })],
+    });
     expect(t.cuenta().lineas.map((l) => [l.cantidad, l.nota])).toEqual([
       [2, ""],
       [1, "Sin espuma"],

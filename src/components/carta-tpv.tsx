@@ -87,7 +87,7 @@ export function CartaTpv({
               onClick={() => tocar(p)}
               className="flex h-24 w-full flex-col justify-between rounded-xl bg-white p-3 text-left ring-1 ring-zinc-oscuro transition hover:ring-cobalto active:scale-[0.97] disabled:opacity-45"
             >
-              <span className="line-clamp-2 leading-tight font-semibold">{p.nombre}</span>
+              <span className="line-clamp-2 pr-7 leading-tight font-semibold">{p.nombre}</span>
               <span className="text-sm text-tinta-suave">
                 {p.disponible ? euros(p.precio) : "Agotado"}
                 {p.grupos.length > 0 && " · elegir"}
@@ -97,7 +97,7 @@ export function CartaTpv({
               type="button"
               onClick={() => setDetalle(p)}
               disabled={!p.disponible}
-              className="absolute top-1 right-1 rounded-lg p-1.5 text-tinta-suave hover:bg-zinc disabled:hidden"
+              className="absolute top-1 right-1 rounded-lg p-2 text-tinta-suave hover:bg-zinc disabled:hidden"
               aria-label={`Más opciones de ${p.nombre}: cantidad y nota`}
             >
               <MoreHorizontal aria-hidden className="size-4" />

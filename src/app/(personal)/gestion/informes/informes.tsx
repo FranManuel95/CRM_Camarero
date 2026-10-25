@@ -211,20 +211,25 @@ export function Informes() {
           <h2 id="t-prod" className="mb-2 font-rotulo text-2xl font-bold">
             Productos
           </h2>
-          <div className="overflow-x-auto">
+          <div
+            className="overflow-x-auto"
+            tabIndex={0}
+            role="region"
+            aria-label="Ventas por producto"
+          >
             <table className="w-full text-sm">
               <thead className="text-left text-tinta-suave">
                 <tr>
                   <th className="py-1 font-semibold">Producto</th>
-                  <th className="py-1 text-right font-semibold">Uds.</th>
-                  <th className="py-1 text-right font-semibold">Ventas</th>
+                  <th className="py-1 pl-2 text-right font-semibold">Uds.</th>
+                  <th className="py-1 pl-2 text-right font-semibold">Ventas</th>
                   <th
-                    className="py-1 text-right font-semibold"
+                    className="py-1 pl-2 text-right font-semibold"
                     title="Ventas sin IVA menos el coste de las raciones"
                   >
                     Margen
                   </th>
-                  <th className="w-1/4 py-1">
+                  <th className="hidden w-1/4 py-1 sm:table-cell">
                     <span className="sr-only">Proporción</span>
                   </th>
                 </tr>
@@ -233,12 +238,14 @@ export function Informes() {
                 {r.productos.map((p) => (
                   <tr key={p.nombre}>
                     <td className="py-1.5">{p.nombre}</td>
-                    <td className="py-1.5 text-right tabular-nums">{p.unidades}</td>
-                    <td className="py-1.5 text-right tabular-nums">{euros(p.ventas)}</td>
-                    <td className="py-1.5 text-right tabular-nums">
+                    <td className="py-1.5 pl-2 text-right tabular-nums">{p.unidades}</td>
+                    <td className="py-1.5 pl-2 text-right whitespace-nowrap tabular-nums">
+                      {euros(p.ventas)}
+                    </td>
+                    <td className="py-1.5 pl-2 text-right whitespace-nowrap tabular-nums">
                       {p.coste === null ? "—" : euros(Math.round(p.ventas / 1.1) - p.coste)}
                     </td>
-                    <td className="py-1.5 pl-3">
+                    <td className="hidden py-1.5 pl-3 sm:table-cell">
                       <div
                         className="h-2 rounded-r-[4px] bg-cobalto"
                         style={{ width: `${(p.ventas / maxProducto) * 100}%` }}

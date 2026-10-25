@@ -80,12 +80,12 @@ export function VentaRapida() {
 
   return (
     <main className="mx-auto flex max-w-screen-2xl flex-col lg:h-[calc(100dvh-3.5rem)]">
-      <header className="flex items-center gap-2 border-b border-zinc-oscuro/50 bg-white px-3 py-2">
+      <header className="flex flex-wrap items-center gap-x-2 border-b border-zinc-oscuro/50 bg-white px-3 py-2">
         <Link href="/sala" className="rounded-lg p-2 hover:bg-zinc" aria-label="Volver a la sala">
           <ArrowLeft aria-hidden className="size-5" />
         </Link>
         <h1 className="font-rotulo text-3xl font-bold">Venta rápida</h1>
-        <p className="text-sm text-tinta-suave">
+        <p className="basis-full pb-1 text-sm text-tinta-suave sm:basis-auto sm:pb-0">
           Barra o para llevar: se cobra al momento, sin abrir mesa.
         </p>
       </header>

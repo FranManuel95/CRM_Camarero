@@ -83,7 +83,11 @@ export function Sala() {
           <h1 id="titulo-sala" className="sr-only">
             Sala
           </h1>
-          <div role="tablist" aria-label="Zonas" className="flex flex-1 gap-1 overflow-x-auto">
+          <div
+            role="tablist"
+            aria-label="Zonas"
+            className="flex basis-full gap-1 overflow-x-auto sm:flex-1 sm:basis-0"
+          >
             {zonas.map((z) => {
               const conAviso = estado.mesas.some(
                 (m) =>
@@ -98,7 +102,7 @@ export function Sala() {
                   aria-selected={z.id === zonaId}
                   onClick={() => setZonaId(z.id)}
                   className={clsx(
-                    "relative h-11 shrink-0 rounded-lg px-4 font-rotulo text-xl font-semibold",
+                    "relative h-11 min-w-0 flex-1 shrink-0 rounded-lg px-4 font-rotulo text-xl font-semibold sm:flex-none",
                     z.id === zonaId
                       ? "bg-cobalto text-white"
                       : "bg-white text-tinta ring-1 ring-zinc-oscuro",
@@ -120,7 +124,7 @@ export function Sala() {
           >
             <Zap aria-hidden className="size-4" /> Venta rápida
           </Link>
-          <p className="text-sm text-tinta-suave">
+          <p className="mr-auto text-sm text-tinta-suave sm:mr-0">
             {ocupadas} {ocupadas === 1 ? "mesa ocupada" : "mesas ocupadas"}
           </p>
           <div

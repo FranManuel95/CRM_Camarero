@@ -1,17 +1,28 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import { entrar, listo } from "./ayuda";
+
+async function teclearPin(page: Page, pin: string) {
+  for (const cifra of pin) await page.getByRole("button", { name: cifra, exact: true }).click();
+  await page.getByRole("button", { name: "Seguir" }).click();
+  await expect(page.getByRole("heading", { name: /^Hola, / })).toBeVisible();
+}
 
 test("fichar un descanso con el PIN y volver", async ({ page }) => {
   await page.goto("/fichar");
-  for (const cifra of "2222") await page.getByRole("button", { name: cifra, exact: true }).click();
-  await page.getByRole("button", { name: "Seguir" }).click();
-  await expect(page.getByRole("heading", { name: "Hola, Marta" })).toBeVisible();
+  await teclearPin(page, "2222");
+  // Según la hora, Marta puede no haber empezado su turno todavía.
+  const entrada = page.getByRole("button", { name: "Fichar la entrada" });
+  if (await entrada.isVisible()) {
+    await entrada.click();
+    await expect(page.getByText(/Entrada apuntada a las/)).toBeVisible();
+    await page.getByRole("button", { name: "Listo" }).click();
+    await teclearPin(page, "2222");
+  }
   await page.getByRole("button", { name: "Empezar un descanso" }).click();
   await expect(page.getByText(/Descanso empezado a las/)).toBeVisible();
   await page.getByRole("button", { name: "Listo" }).click();
 
-  for (const cifra of "2222") await page.getByRole("button", { name: cifra, exact: true }).click();
-  await page.getByRole("button", { name: "Seguir" }).click();
+  await teclearPin(page, "2222");
   await expect(page.getByText(/En el descanso desde las/)).toBeVisible();
   await page.getByRole("button", { name: "Volver del descanso" }).click();
   await expect(page.getByText(/Vuelta del descanso apuntada/)).toBeVisible();
@@ -22,7 +33,7 @@ test("el encargado pone un turno y corrige un fichaje", async ({ page }) => {
   await page.goto("/gestion/equipo/cuadrante");
   await listo(page);
   await page
-    .getByRole("button", { name: /^Añadir un turno a Luis/ })
+    .getByRole("button", { name: /^Añadir un turno/ })
     .first()
     .click();
   await page.getByRole("button", { name: "Guardar turno" }).click();
@@ -31,7 +42,7 @@ test("el encargado pone un turno y corrige un fichaje", async ({ page }) => {
   await page.getByRole("link", { name: /Fichajes/ }).click();
   await listo(page);
   await page
-    .getByRole("button", { name: /^Corregir el fichaje de Luis/ })
+    .getByRole("button", { name: /^Corregir el fichaje de/ })
     .first()
     .click();
   await page.getByLabel("Motivo").fill("Prueba de corrección");

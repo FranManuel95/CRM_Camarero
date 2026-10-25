@@ -250,7 +250,7 @@ export function EditorCarta({ clavePublica }: { clavePublica: string }) {
         </section>
 
         <section aria-labelledby="t-prods">
-          <div className="mb-2 flex items-center justify-between">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <h2 id="t-prods" className="font-rotulo text-2xl font-bold">
               {actual?.nombre ?? "Productos"}
             </h2>
@@ -274,13 +274,13 @@ export function EditorCarta({ clavePublica }: { clavePublica: string }) {
           ) : (
             <ul className="divide-y divide-zinc rounded-2xl bg-white ring-1 ring-zinc">
               {productos.map((p, i) => (
-                <li key={p.id} className="flex items-center gap-2 px-3 py-2">
+                <li key={p.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2">
                   <div className="flex flex-col">
                     <button
                       type="button"
                       disabled={i === 0}
                       onClick={() => mover(p, -1)}
-                      className="rounded p-0.5 hover:bg-zinc disabled:opacity-20"
+                      className="rounded-md p-2 hover:bg-zinc disabled:opacity-20"
                       aria-label={`Subir ${p.nombre}`}
                     >
                       <ArrowUp aria-hidden className="size-4" />
@@ -289,13 +289,13 @@ export function EditorCarta({ clavePublica }: { clavePublica: string }) {
                       type="button"
                       disabled={i === productos.length - 1}
                       onClick={() => mover(p, 1)}
-                      className="rounded p-0.5 hover:bg-zinc disabled:opacity-20"
+                      className="rounded-md p-2 hover:bg-zinc disabled:opacity-20"
                       aria-label={`Bajar ${p.nombre}`}
                     >
                       <ArrowDown aria-hidden className="size-4" />
                     </button>
                   </div>
-                  <div className="min-w-0 flex-1">
+                  <div className="min-w-0 flex-1 basis-40">
                     <p
                       className={clsx(
                         "font-semibold",
@@ -311,32 +311,38 @@ export function EditorCarta({ clavePublica }: { clavePublica: string }) {
                       {p.grupos.length > 0 && ` · ${p.grupos.map((g) => g.nombre).join(", ")}`}
                     </p>
                   </div>
-                  <span className="font-semibold tabular-nums">{euros(p.precio)}</span>
-                  <Boton
-                    tamano="pequeno"
-                    variante={p.disponible ? "fantasma" : "secundario"}
-                    onClick={() =>
-                      hacer(
-                        { tipo: "cambiar_disponible", productoId: p.id, disponible: !p.disponible },
-                        p.disponible ? `${p.nombre}: agotado` : `${p.nombre}: disponible`,
-                      )
-                    }
-                  >
-                    {p.disponible ? (
-                      <Eye aria-hidden className="size-4" />
-                    ) : (
-                      <EyeOff aria-hidden className="size-4" />
-                    )}
-                    {p.disponible ? "Disponible" : "Agotado"}
-                  </Boton>
-                  <Boton
-                    tamano="pequeno"
-                    variante="fantasma"
-                    aria-label={`Editar ${p.nombre}`}
-                    onClick={() => editarProducto(p)}
-                  >
-                    <Pencil aria-hidden className="size-4" />
-                  </Boton>
+                  <div className="ml-auto flex items-center gap-1">
+                    <span className="mr-1 font-semibold tabular-nums">{euros(p.precio)}</span>
+                    <Boton
+                      tamano="pequeno"
+                      variante={p.disponible ? "fantasma" : "secundario"}
+                      onClick={() =>
+                        hacer(
+                          {
+                            tipo: "cambiar_disponible",
+                            productoId: p.id,
+                            disponible: !p.disponible,
+                          },
+                          p.disponible ? `${p.nombre}: agotado` : `${p.nombre}: disponible`,
+                        )
+                      }
+                    >
+                      {p.disponible ? (
+                        <Eye aria-hidden className="size-4" />
+                      ) : (
+                        <EyeOff aria-hidden className="size-4" />
+                      )}
+                      {p.disponible ? "Disponible" : "Agotado"}
+                    </Boton>
+                    <Boton
+                      tamano="pequeno"
+                      variante="fantasma"
+                      aria-label={`Editar ${p.nombre}`}
+                      onClick={() => editarProducto(p)}
+                    >
+                      <Pencil aria-hidden className="size-4" />
+                    </Boton>
+                  </div>
                 </li>
               ))}
             </ul>

@@ -1132,7 +1132,7 @@ function reducirEncargado(
       for (const p of datos.pausas) {
         if (p.inicio < datos.entrada || (datos.salida && (p.fin ?? p.inicio) > datos.salida))
           falla("Los descansos tienen que caer dentro de la jornada.");
-        if (p.fin && p.fin <= p.inicio) falla("Un descanso acaba antes de empezar.");
+        if (p.fin && p.fin < p.inicio) falla("Un descanso acaba antes de empezar.");
       }
       if (datos.entrada > ctx.ahora || (datos.salida && datos.salida > ctx.ahora))
         falla("No se pueden fichar horas que aún no han pasado.");

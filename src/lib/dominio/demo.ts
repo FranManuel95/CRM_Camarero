@@ -2,7 +2,7 @@ import type { AccionPersonal } from "./acciones";
 import { VERSION_ESTADO } from "./migraciones";
 import { resumenPin } from "./pin";
 import { type Contexto, cuentaDeMesa, reducirPersonal } from "./reducir";
-import { diasDeSemana, lunesDe } from "./equipo";
+import { diasDeSemana, instante, lunesDe } from "./equipo";
 import { totalCuenta } from "./importes";
 import { sumarDias } from "./informes";
 import type {
@@ -357,25 +357,34 @@ export function estadoDeEjemplo(ctx: Contexto, opciones: { conHistorial?: boolea
 }
 
 /**
- * Turnos de esta semana y la siguiente: Ana de mañana, Luis de mañana a tarde y Marta de tarde a
- * noche; los lunes se cierra y cada uno libra un día más.
+ * Turnos de cada persona del ejemplo (por orden: Ana, Luis, Marta): Ana de mañana, Luis de mañana
+ * a tarde y Marta de tarde a noche. Los lunes se cierra y cada uno libra otro día (0 = lunes).
  */
-function cuadranteDeEjemplo(ahora: string, [ana, luis, marta]: string[]): TurnoCuadrante[] {
-  const plan: [string | undefined, string, string, string, number][] = [
-    [ana, "10:00", "18:00", "Barra", 0],
-    [luis, "11:00", "17:00", "Sala", 3],
-    [marta, "17:00", "00:00", "Sala", 2],
-  ];
+const PLAN_EQUIPO: [desde: string, hasta: string, puesto: string, libra: number][] = [
+  ["10:00", "18:00", "Barra", 6],
+  ["11:00", "17:00", "Sala", 3],
+  ["17:00", "00:00", "Sala", 2],
+];
+
+/** El turno del plan de una persona un día («2026-10-27»), o nada si ese día no trabaja. */
+function turnoDelPlan(indice: number, dia: string) {
+  const plan = PLAN_EQUIPO[indice];
+  const semana = (new Date(`${dia}T12:00:00Z`).getUTCDay() + 6) % 7;
+  if (!plan || semana === 0 || semana === plan[3]) return null;
+  return { desde: plan[0], hasta: plan[1], puesto: plan[2] };
+}
+
+/** Turnos de las tres semanas del historial, esta y la siguiente, según el plan. */
+function cuadranteDeEjemplo(ahora: string, empleados: string[]): TurnoCuadrante[] {
   const lunes = lunesDe(ahora.slice(0, 10));
-  const turnos: TurnoCuadrante[] = [];
-  for (const semana of [0, 7])
-    for (const [i, dia] of diasDeSemana(sumarDias(lunes, semana)).entries()) {
-      if (i === 0) continue;
-      for (const [empleadoId, desde, hasta, puesto, libra] of plan)
-        if (empleadoId && i !== libra)
-          turnos.push({ id: `tc-${dia}-${empleadoId}`, empleadoId, dia, desde, hasta, puesto });
-    }
-  return turnos;
+  return [-21, -14, -7, 0, 7].flatMap((semana) =>
+    diasDeSemana(sumarDias(lunes, semana)).flatMap((dia) =>
+      empleados.flatMap((empleadoId, i) => {
+        const t = turnoDelPlan(i, dia);
+        return t ? [{ id: `tc-${dia}-${empleadoId}`, empleadoId, dia, ...t }] : [];
+      }),
+    ),
+  );
 }
 
 type IngredienteEjemplo = [
@@ -533,15 +542,31 @@ function conHistorial(inicial: Estado, ctx: Contexto): Estado {
     if (dia.getUTCDay() === 1 && diasAtras > 0) continue;
     const apertura = diasAtras === 0 ? new Date(hoy.getTime() - 3_600_000) : a(10);
     hacer({ tipo: "abrir_caja", fondoInicial: 15000 }, apertura);
-    // Todos fichan al llegar; hoy siguen trabajando.
-    for (const [i, quien] of estado.empleados.entries())
-      hacer(
-        { tipo: "fichar", que: "entrada" },
-        diasAtras === 0
-          ? new Date(apertura.getTime() - (i + 1) * 4 * 60_000)
-          : a(9, 30 + Math.floor(azar() * 25)),
-        quien,
+    // Fichajes según el cuadrante, con unos minutos arriba o abajo. Hoy, quien ya ha empezado
+    // su turno está trabajando.
+    const diaClave = dia.toISOString().slice(0, 10);
+    for (const [i, quien] of estado.empleados.entries()) {
+      const turno = turnoDelPlan(i, diaClave);
+      if (!turno) continue;
+      const minutos = (n: number) => n * 60_000;
+      const entrada = new Date(
+        Date.parse(instante(diaClave, turno.desde)) + minutos(Math.floor(azar() * 14) - 9),
       );
+      if (diasAtras === 0) {
+        if (entrada < hoy) hacer({ tipo: "fichar", que: "entrada" }, entrada, quien);
+        continue;
+      }
+      const fin = instante(
+        turno.hasta < turno.desde ? sumarDias(diaClave, 1) : diaClave,
+        turno.hasta,
+      );
+      const salida = new Date(Date.parse(fin) + minutos(Math.floor(azar() * 16)));
+      const pausa = new Date((entrada.getTime() + salida.getTime()) / 2);
+      hacer({ tipo: "fichar", que: "entrada" }, entrada, quien);
+      hacer({ tipo: "fichar", que: "pausa" }, pausa, quien);
+      hacer({ tipo: "fichar", que: "vuelta" }, new Date(pausa.getTime() + minutos(30)), quien);
+      hacer({ tipo: "fichar", que: "salida" }, salida, quien);
+    }
     if (diasAtras === 0) break;
 
     const finDeSemana = [0, 5, 6].includes(dia.getUTCDay());
@@ -607,12 +632,6 @@ function conHistorial(inicial: Estado, ctx: Contexto): Estado {
     }
     const descuadre = azar() < 0.2 ? -Math.round(azar() * 500) : 0;
     hacer({ tipo: "cerrar_caja", efectivoContado: efectivo + descuadre }, a(23, 30));
-    for (const quien of estado.empleados) {
-      const pausa = a(15, Math.floor(azar() * 40));
-      hacer({ tipo: "fichar", que: "pausa" }, pausa, quien);
-      hacer({ tipo: "fichar", que: "vuelta" }, new Date(pausa.getTime() + 30 * 60_000), quien);
-      hacer({ tipo: "fichar", que: "salida" }, a(23, 35 + Math.floor(azar() * 20)), quien);
-    }
   }
 
   const gastos: [number, string, AccionGasto["categoria"], string, number, number][] = [
