@@ -6,23 +6,28 @@ import { vistaCliente } from "@/lib/servidor/vistas";
 
 export const dynamic = "force-dynamic";
 
-type Params = { params: Promise<{ token: string }> };
+type Params = { params: Promise<{ local: string; token: string }> };
 
 // Para que nadie llene la cocina de pedidos de broma: 12 acciones por minuto y mesa.
 const porMesa = crearLimite(12, 60_000);
 const porIp = crearLimite(30, 60_000);
 
 export async function GET(_request: Request, { params }: Params) {
-  const vista = vistaCliente(await leerEstado(), (await params).token);
-  return vista ? json(vista) : json({ error: "Este QR ya no es válido." }, 404);
+  const { local, token } = await params;
+  try {
+    const vista = vistaCliente(await leerEstado(local), token);
+    return vista ? json(vista) : json({ error: "Este QR ya no es válido." }, 404);
+  } catch {
+    return json({ error: "Este QR ya no es válido." }, 404);
+  }
 }
 
 export async function POST(request: Request, { params }: Params) {
-  const { token } = await params;
-  if (!porMesa(token) || !porIp(ipDe(request)))
+  const { local, token } = await params;
+  if (!porMesa(`${local}/${token}`) || !porIp(ipDe(request)))
     return json({ error: "Vas muy rápido. Espera un momento y vuelve a probar." }, 429);
   try {
-    await ejecutarCliente(token, accionCliente.parse(await request.json()));
+    await ejecutarCliente(local, token, accionCliente.parse(await request.json()));
     return json({ ok: true });
   } catch (e) {
     return respuestaDeError(e);

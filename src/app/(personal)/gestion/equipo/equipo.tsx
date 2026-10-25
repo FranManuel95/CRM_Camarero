@@ -2,13 +2,15 @@
 
 import { Pencil, Plus } from "lucide-react";
 import { useState } from "react";
+import { useAhora } from "@/lib/cliente/use-ahora";
+import { formatearHora } from "@/lib/fechas";
 import { useDatos } from "@/components/datos-personal";
 import { Boton, Campo, claseEntrada, Dialogo, Interruptor } from "@/components/ui";
 import type { Rol } from "@/lib/dominio/tipos";
 
 type Borrador = { id?: string; nombre: string; pin: string; rol: Rol; activo: boolean };
 
-export function Equipo() {
+export function Equipo({ nube }: { nube: boolean }) {
   const { estado, hacer } = useDatos();
   const [borrador, setBorrador] = useState<Borrador | null>(null);
   const empleados = [...estado.empleados].sort(
@@ -59,6 +61,8 @@ export function Equipo() {
         Cada persona entra con su PIN: así queda apuntado quién anota, anula o cobra cada cosa. Para
         dar de baja a alguien, desactívalo (su historial se conserva).
       </p>
+
+      {nube && <VincularAparato />}
 
       <Dialogo
         abierto={borrador !== null}
@@ -122,5 +126,49 @@ export function Equipo() {
         )}
       </Dialogo>
     </main>
+  );
+}
+
+/** Código de 6 cifras para vincular el móvil de un camarero a este bar. */
+function VincularAparato() {
+  const { estado, hacer } = useDatos();
+  const ahora = useAhora(15_000);
+  const vigente = (estado.vinculos ?? []).filter((v) => v.caduca > ahora).at(-1);
+  return (
+    <section
+      aria-labelledby="t-vincular"
+      className="mt-8 rounded-2xl bg-white p-4 ring-1 ring-zinc"
+    >
+      <h2 id="t-vincular" className="mb-1 font-rotulo text-2xl font-bold">
+        Vincular un aparato
+      </h2>
+      <p className="mb-3 text-sm text-tinta-suave">
+        Para usar el móvil de un camarero o una tablet: en ese aparato abre esta web, pulsa «Entrar»
+        y escribe el identificador del bar y el código. Después cada uno entra con su PIN.
+      </p>
+      {vigente ? (
+        <div className="mb-3 flex flex-wrap items-center gap-6 rounded-xl bg-zinc-claro p-4">
+          <p>
+            <span className="block text-sm text-tinta-suave">Identificador del bar</span>
+            <span className="font-rotulo text-3xl font-bold">{estado.local}</span>
+          </p>
+          <p>
+            <span className="block text-sm text-tinta-suave">Código</span>
+            <span className="font-rotulo text-4xl font-bold tracking-[0.2em]">
+              {vigente.codigo}
+            </span>
+          </p>
+          <p className="text-sm text-tinta-suave" suppressHydrationWarning>
+            Vale hasta las {formatearHora(vigente.caduca)} y solo una vez.
+          </p>
+        </div>
+      ) : null}
+      <Boton
+        variante={vigente ? "secundario" : "primario"}
+        onClick={() => hacer({ tipo: "crear_codigo_vinculo" })}
+      >
+        {vigente ? "Otro código" : "Sacar un código"}
+      </Boton>
+    </section>
   );
 }

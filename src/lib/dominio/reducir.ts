@@ -42,6 +42,8 @@ export type Contexto = {
   nuevoId: () => string;
   /** Un código largo y difícil de adivinar, para los QR de las mesas. */
   nuevoToken: () => string;
+  /** Seis cifras al azar, para vincular aparatos. */
+  nuevoCodigo: () => string;
 };
 
 export type Resultado = { estado: Estado; trabajos: TrabajoImpresion[] };
@@ -796,6 +798,12 @@ function reducirEncargado(
     case "borrar_impresora":
       estado.impresoras = estado.impresoras.filter((i) => i.id !== accion.impresoraId);
       break;
+    case "crear_codigo_vinculo": {
+      const vigentes = (estado.vinculos ?? []).filter((v) => v.caduca > ctx.ahora);
+      const caduca = new Date(Date.parse(ctx.ahora) + 15 * 60_000).toISOString();
+      estado.vinculos = [...vigentes, { codigo: ctx.nuevoCodigo(), caduca }].slice(-5);
+      break;
+    }
     case "imprimir_prueba": {
       const imp = buscar(estado.impresoras, accion.impresoraId, "esa impresora");
       encolar(
@@ -886,4 +894,12 @@ export function reducirCliente(
     }
   }
   return { estado, trabajos };
+}
+
+/** Gasta un código de vinculación. Devuelve el estado sin ese código, o falla si no vale. */
+export function usarCodigoVinculo(anterior: Estado, codigo: string, ahora: string): Estado {
+  const vinculos = anterior.vinculos ?? [];
+  if (!vinculos.some((v) => v.codigo === codigo && v.caduca > ahora))
+    falla("Ese código no vale o ha caducado. Pide uno nuevo al encargado.");
+  return { ...anterior, vinculos: vinculos.filter((v) => v.codigo !== codigo && v.caduca > ahora) };
 }

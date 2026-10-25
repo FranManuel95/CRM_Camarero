@@ -5,6 +5,7 @@ import { useDatos } from "@/components/datos-personal";
 import { Barras } from "@/components/barras";
 import { euros } from "@/lib/dominio/importes";
 import { informe, rangoDeDias, sumarDias } from "@/lib/dominio/informes";
+import { primerosPasos } from "@/lib/dominio/primeros-pasos";
 import { NOMBRE_CATEGORIA_GASTO } from "@/lib/dominio/tipos";
 import { diaLocal } from "@/lib/fechas";
 import { useAhora } from "@/lib/cliente/use-ahora";
@@ -36,6 +37,7 @@ export function Resumen() {
   return (
     <main>
       <h1 className="mb-4 font-rotulo text-4xl font-bold">Resumen</h1>
+      <PrimerosPasos />
       <dl className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Tarjeta
           titulo="Ventas de hoy"
@@ -144,5 +146,42 @@ function Tarjeta({ titulo, valor, nota }: { titulo: string; valor: string; nota?
       <dd className="font-rotulo text-3xl font-bold">{valor}</dd>
       {nota && <dd className="text-xs text-tinta-suave">{nota}</dd>}
     </div>
+  );
+}
+
+/** Lo que le falta al bar para estar listo. Desaparece cuando está todo hecho. */
+function PrimerosPasos() {
+  const { estado } = useDatos();
+  const pasos = primerosPasos(estado);
+  const hechos = pasos.filter((p) => p.hecho).length;
+  if (hechos === pasos.length) return null;
+  return (
+    <section aria-labelledby="t-pasos" className="mb-6 rounded-2xl bg-cobalto-claro p-4">
+      <h2 id="t-pasos" className="mb-1 font-rotulo text-2xl font-bold">
+        Primeros pasos
+      </h2>
+      <p className="mb-3 text-sm text-tinta-suave">
+        {hechos} de {pasos.length} hechos. Cuando acabes, esta lista desaparece.
+      </p>
+      <ol className="grid gap-2 sm:grid-cols-2">
+        {pasos.map((p) => (
+          <li key={p.clave}>
+            <Link
+              href={p.enlace}
+              className={`flex items-center gap-2 rounded-lg bg-white px-3 py-2 ring-1 ring-zinc hover:ring-cobalto ${p.hecho ? "text-tinta-suave line-through" : "font-semibold"}`}
+            >
+              <span
+                aria-hidden
+                className={`grid size-5 shrink-0 place-items-center rounded-full text-xs text-white ${p.hecho ? "bg-cuenta" : "bg-zinc-oscuro"}`}
+              >
+                {p.hecho ? "✓" : ""}
+              </span>
+              {p.texto}
+              <span className="sr-only">{p.hecho ? " (hecho)" : " (pendiente)"}</span>
+            </Link>
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }

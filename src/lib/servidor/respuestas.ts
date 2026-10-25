@@ -24,7 +24,11 @@ export function respuestaDeError(e: unknown) {
  * Flujo de eventos del servidor (SSE): cada vez que cambia algo, manda la vista nueva. El
  * navegador se reconecta solo si se corta (por ejemplo, si el móvil pierde el wifi).
  */
-export function flujoDeCambios(request: Request, vista: () => Promise<unknown | null>) {
+export function flujoDeCambios(
+  request: Request,
+  local: string,
+  vista: () => Promise<unknown | null>,
+) {
   const codificador = new TextEncoder();
   let cancelar = () => {};
   const flujo = new ReadableStream({
@@ -38,7 +42,7 @@ export function flujoDeCambios(request: Request, vista: () => Promise<unknown | 
         controlador.enqueue(codificador.encode(`data: ${JSON.stringify(datos)}\n\n`));
       };
       void mandar();
-      const quitar = almacen().suscribirse?.(() => void mandar()) ?? (() => {});
+      const quitar = almacen(local).suscribirse?.(() => void mandar()) ?? (() => {});
       const latido = setInterval(
         () => controlador.enqueue(codificador.encode(`: latido\n\n`)),
         20_000,

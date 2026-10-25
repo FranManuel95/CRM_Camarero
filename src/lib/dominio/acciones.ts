@@ -226,6 +226,7 @@ export const accionEncargado = z.discriminatedUnion("tipo", [
   }),
   z.object({ tipo: z.literal("borrar_impresora"), impresoraId: id }),
   z.object({ tipo: z.literal("imprimir_prueba"), impresoraId: id }),
+  z.object({ tipo: z.literal("crear_codigo_vinculo") }),
 ]);
 
 export const accionPersonal = z.union([accionCamarero, accionEncargado]);

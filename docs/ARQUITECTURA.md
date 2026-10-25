@@ -25,6 +25,21 @@ necesita la wifi del local. Las impresoras de red reciben las comandas directame
 | Impresoras de red  | Las atiende el servidor       | Las atiende el **puente de impresión** (`public/puente-impresion.mjs`) en un ordenador del bar |
 | Sin internet       | Sigue funcionando             | No funciona                                                                                    |
 
+### Varios bares (fase 1)
+
+- Cada bar es una fila de `public.locales` (identificador tipo `bar-paco`, dueño de
+  `auth.users`). Su estado y sus tickets van aparte, y su canal de Realtime es `tpv:<bar>`.
+- La app tiene una sola **clave de servidor** (`TPV_CLAVE`); en la base de datos está su SHA-256
+  en `privado.servidor`. Quién puede tocar cada bar lo decide la app:
+  - **Dueño**: cuenta de Supabase Auth (correo y contraseña). Al entrar, la app guarda una cookie
+    firmada con su id; con ella da de alta bares y vincula aparatos.
+  - **Aparato**: cookie firmada con el bar al que está vinculado (un año). Se vincula desde la
+    cuenta del dueño o con un código de 6 cifras de un solo uso que saca el encargado (15 min).
+  - **Empleado**: PIN dentro del bar del aparato; la sesión lleva el bar y el empleado.
+  - **Cliente**: la dirección del QR lleva el bar y el token de la mesa: `/m/<bar>/<token>`.
+- El puente de impresión usa una clave `«bar».«firma»` que sale del secreto del servidor.
+- `ADMIN_EMAILS`: correos que ven el Panel de Comanda (`/admin`).
+
 ### En la nube, por dentro
 
 - Tablas `locales`, `estados` (un documento con lo vivo del local y un número de revisión) y

@@ -35,10 +35,12 @@ function precioDe(p: Producto, opciones: string[]) {
 }
 
 export function CartaCliente({
+  local,
   token,
   inicial,
   directo,
 }: {
+  local: string;
   token: string;
   inicial: VistaCliente;
   directo: ConfigDirecto;
@@ -54,7 +56,7 @@ export function CartaCliente({
 
   const { refrescar } = useEnDirecto<VistaCliente>(
     directo,
-    { eventos: `/api/mesa/${token}/eventos`, datos: `/api/mesa/${token}` },
+    { eventos: `/api/mesa/${local}/${token}/eventos`, datos: `/api/mesa/${local}/${token}` },
     setVista,
     // El QR ha dejado de valer (lo han regenerado): al recargar sale el aviso.
     () => window.location.reload(),
@@ -76,7 +78,7 @@ export function CartaCliente({
   async function mandar(accion: object) {
     setEnviando(true);
     try {
-      const r = await fetch(`/api/mesa/${token}`, {
+      const r = await fetch(`/api/mesa/${local}/${token}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(accion),

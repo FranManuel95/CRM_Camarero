@@ -1,6 +1,7 @@
 import { ChefHat, LayoutGrid, QrCode, Settings, Wallet } from "lucide-react";
 import Link from "next/link";
-import { leerEstado } from "@/lib/servidor/almacen";
+import { enLaNube, leerEstado, localDemo } from "@/lib/servidor/almacen";
+import { BotonDemo } from "./boton-demo";
 
 export const dynamic = "force-dynamic";
 
@@ -32,8 +33,10 @@ const PUERTAS = [
 ];
 
 export default async function Portada() {
-  const estado = await leerEstado();
+  const demo = localDemo();
+  const estado = await leerEstado(demo);
   const mesa = estado.mesas.find((m) => m.nombre === "Mesa 1") ?? estado.mesas[0];
+  const nube = enLaNube();
   return (
     <main>
       <header className="azulejo">
@@ -41,10 +44,26 @@ export default async function Portada() {
           <div className="max-w-xl">
             <h1 className="font-rotulo text-7xl leading-none font-bold sm:text-8xl">Comanda</h1>
             <p className="mt-4 text-lg">
-              El TPV de {estado.ajustes.nombreLocal}: los clientes piden desde el QR de su mesa, la
-              comanda sale en cocina y barra, y tú cobras, imprimes el ticket y llevas los números
-              del bar.
+              {nube ? "El TPV para tu bar" : `El TPV de ${estado.ajustes.nombreLocal}`}: los
+              clientes piden desde el QR de su mesa, la comanda sale en cocina y barra, y tú cobras,
+              imprimes el ticket y llevas los números del bar.
             </p>
+            {nube && (
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Link
+                  href="/registro"
+                  className="inline-flex h-12 items-center rounded-lg bg-white px-5 font-semibold text-cobalto-oscuro hover:bg-zinc"
+                >
+                  Dar de alta mi bar
+                </Link>
+                <Link
+                  href="/acceder"
+                  className="inline-flex h-12 items-center rounded-lg px-5 font-semibold text-white ring-2 ring-white/70 hover:bg-white/10"
+                >
+                  Ya tengo cuenta
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -52,7 +71,7 @@ export default async function Portada() {
       <div className="mx-auto grid max-w-5xl gap-8 px-4 py-10 md:grid-cols-[1fr_18rem]">
         <section aria-labelledby="t-entrar">
           <h2 id="t-entrar" className="mb-3 font-rotulo text-3xl font-bold">
-            ¿Qué pantalla abres?
+            {nube ? "En un aparato ya vinculado a tu bar" : "¿Qué pantalla abres?"}
           </h2>
           <ul className="divide-y divide-zinc-oscuro/50 border-y border-zinc-oscuro/50">
             {PUERTAS.map(({ href, icono: Icono, titulo, texto }) => (
@@ -69,7 +88,7 @@ export default async function Portada() {
               </li>
             ))}
           </ul>
-          {process.env.DEMO !== "false" && (
+          {!nube && process.env.DEMO !== "false" && (
             <p className="mt-4 text-sm text-tinta-suave">
               Cada persona entra con su PIN. En la demostración: Ana 1234 (encargada), Luis 1111,
               Marta 2222.
@@ -91,11 +110,20 @@ export default async function Portada() {
               sala y a la cocina.
             </p>
             <Link
-              href={`/m/${mesa.token}`}
+              href={`/m/${demo}/${mesa.token}`}
               className="inline-flex h-11 items-center rounded-lg bg-cobalto px-4 font-semibold text-white hover:bg-cobalto-oscuro"
             >
               Abrir la carta de {mesa.nombre}
             </Link>
+            {nube && (
+              <>
+                <h2 className="mt-6 font-rotulo text-2xl font-bold">Prueba como camarero</h2>
+                <p className="mb-4 text-sm text-tinta-suave">
+                  Entra en el bar de demostración. PIN: Ana 1234 (encargada), Luis 1111, Marta 2222.
+                </p>
+                <BotonDemo />
+              </>
+            )}
           </aside>
         )}
       </div>

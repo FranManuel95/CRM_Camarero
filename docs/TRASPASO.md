@@ -21,6 +21,17 @@
   también en `.env.local` del usuario (nunca en el repositorio).
 - En la nube los tickets son definitivos: «Volver a los datos de ejemplo» no funciona allí.
 
+## Fase 1: varios bares (25/10/2026)
+
+- Hoja de ruta completa en `docs/PLAN.md`.
+- Migración `20261025090000_varios_locales.sql` aplicada (sin borrar `privado.claves`, que queda
+  sin uso: borrarla pide confirmación del usuario en el MCP de Supabase).
+- Datos de prueba que se quedan: cuenta `perejonfcomanuel+prueba@gmail.com` (confirmada a mano
+  por SQL, con permiso del usuario; contraseña de prueba solo en la sesión de trabajo) y el bar
+  `bar-de-prueba-automatica`.
+- Supabase rechaza correos de dominios inventados (example.com…): para probar altas hace falta un
+  correo real.
+
 ## Pendiente (por orden)
 
 1. **VERI\*FACTU** antes de usarlo como TPV fiscal real (ver `docs/INVESTIGACION.md`).

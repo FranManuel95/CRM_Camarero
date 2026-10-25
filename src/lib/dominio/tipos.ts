@@ -358,4 +358,9 @@ export type Estado = {
   avisos: Aviso[];
   impresoras: Impresora[];
   trabajos: TrabajoImpresion[];
+  /**
+   * Códigos de 6 cifras para vincular un móvil o una tablet a este bar sin la cuenta del dueño.
+   * Caducan a los 15 minutos y se usan una sola vez.
+   */
+  vinculos?: { codigo: string; caduca: FechaISO }[];
 };

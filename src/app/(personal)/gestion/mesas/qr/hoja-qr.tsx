@@ -45,7 +45,7 @@ export function HojaQR({ urlPublica }: { urlPublica: string }) {
           estado.mesas
             .filter((m) => m.zonaId === z.id)
             .map((m) => {
-              const url = `${base}/m/${m.token}`;
+              const url = `${base}/m/${estado.local}/${m.token}`;
               return (
                 <li
                   key={m.id}

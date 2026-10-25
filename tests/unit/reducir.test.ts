@@ -275,8 +275,55 @@ describe("PIN y versiones", () => {
     const { resumenPin } = await import("@/lib/dominio/pin");
     const estado = estadoDeEjemplo(contexto());
     expect(estado.empleados[0]!.pin).toBe(resumenPin("1234"));
-    const antiguo = { ...estado, version: 1, empleados: [{ ...estado.empleados[0]!, pin: "1234" }] };
+    const antiguo = {
+      ...estado,
+      version: 1,
+      empleados: [{ ...estado.empleados[0]!, pin: "1234" }],
+    };
     expect(migrar(antiguo).empleados[0]!.pin).toBe(resumenPin("1234"));
     expect(() => migrar({ ...estado, version: 99 })).toThrow("versión desconocida");
+  });
+});
+
+describe("bares nuevos y vinculación", () => {
+  it("crea un bar con su encargado y la carta que se pida", async () => {
+    const { estadoNuevo } = await import("@/lib/dominio/nuevo");
+    const { primerosPasos } = await import("@/lib/dominio/primeros-pasos");
+    const { resumenPin } = await import("@/lib/dominio/pin");
+    const vacio = estadoNuevo(contexto(), {
+      nombre: "Bar Paco",
+      encargado: "Paco",
+      pin: "4321",
+      conCartaDeEjemplo: false,
+    });
+    expect(vacio.ajustes.nombreLocal).toBe("Bar Paco");
+    expect(vacio.empleados).toEqual([
+      expect.objectContaining({ nombre: "Paco", rol: "encargado", pin: resumenPin("4321") }),
+    ]);
+    expect(vacio.productos).toHaveLength(0);
+    expect(vacio.tickets).toHaveLength(0);
+    const conCarta = estadoNuevo(contexto(), {
+      nombre: "Bar Paco",
+      encargado: "Paco",
+      pin: "4321",
+      conCartaDeEjemplo: true,
+    });
+    expect(conCarta.productos.length).toBeGreaterThan(20);
+    const pasos = primerosPasos(vacio);
+    expect(pasos.find((p) => p.clave === "carta")?.hecho).toBe(false);
+    expect(pasos.find((p) => p.clave === "mesas")?.hecho).toBe(true);
+  });
+
+  it("los códigos de vinculación caducan y valen una sola vez", async () => {
+    const { usarCodigoVinculo } = await import("@/lib/dominio/reducir");
+    const t = preparar();
+    t.hacer({ tipo: "crear_codigo_vinculo" }, t.ana);
+    const { codigo, caduca } = t.estado.vinculos![0]!;
+    expect(codigo).toMatch(/^\d{6}$/);
+    expect(() => t.hacer({ tipo: "crear_codigo_vinculo" })).toThrow("encargado");
+    expect(() => usarCodigoVinculo(t.estado, "000000", ctx.ahora)).toThrow("no vale");
+    expect(() => usarCodigoVinculo(t.estado, codigo, caduca)).toThrow("caducado");
+    const usado = usarCodigoVinculo(t.estado, codigo, ctx.ahora);
+    expect(() => usarCodigoVinculo(usado, codigo, ctx.ahora)).toThrow();
   });
 });

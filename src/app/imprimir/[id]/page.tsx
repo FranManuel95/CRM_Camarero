@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Papel } from "@/components/papel";
 import { leerEstado } from "@/lib/servidor/almacen";
-import { empleadoActual } from "@/lib/servidor/sesion";
+import { sesionActual } from "@/lib/servidor/sesion";
 
 export const metadata: Metadata = { title: "Imprimir" };
 export const dynamic = "force-dynamic";
@@ -15,9 +15,10 @@ export default async function Imprimir({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ columnas?: string }>;
 }) {
-  if (!(await empleadoActual())) redirect("/entrar");
+  const sesion = await sesionActual();
+  if (!sesion) redirect("/entrar");
   const [{ id }, { columnas }] = await Promise.all([params, searchParams]);
-  const trabajo = (await leerEstado()).trabajos.find((t) => t.id === id);
+  const trabajo = (await leerEstado(sesion.local)).trabajos.find((t) => t.id === id);
   if (!trabajo) return <p className="p-6">Este trabajo ya no está en la cola de impresión.</p>;
   return (
     <main className="bg-white">

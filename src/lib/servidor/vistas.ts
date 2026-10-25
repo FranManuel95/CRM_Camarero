@@ -7,10 +7,12 @@ import type { Estado, LineaCuenta } from "../dominio/tipos";
  * Lo que ve el personal: todo menos los PIN y el historial antiguo. Las cuentas cerradas no
  * hacen falta en las pantallas: lo cobrado está en los tickets.
  */
-export function vistaPersonal(estado: Estado, ahora = Date.now()) {
+export function vistaPersonal(estado: Estado, local: string, ahora = Date.now()) {
   const desde = new Date(ahora - DIAS_EN_PANTALLA * 86_400_000).toISOString();
   return {
     ...estado,
+    /** Identificador del bar (va en la dirección de los QR). */
+    local,
     empleados: estado.empleados.map((e) => ({ ...e, pin: "" })),
     cuentas: estado.cuentas.filter((c) => c.estado === "abierta"),
     tickets: estado.tickets.filter((t) => t.fecha >= desde),
