@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { sha256 } from "../sha256";
 
 /**
  * Huella encadenada de cada ticket: un SHA-256 que incluye la huella del ticket anterior. Si
@@ -30,7 +30,7 @@ export function calcularHuella(datos: {
     `Huella=${datos.huellaAnterior}`,
     `FechaHoraHusoGenRegistro=${datos.generadoEn}`,
   ].join("&");
-  return createHash("sha256").update(texto, "utf8").digest("hex").toUpperCase();
+  return sha256(texto).toUpperCase();
 }
 
 /** Devuelve el número del primer ticket cuya cadena no cuadra, o null si todo está bien. */

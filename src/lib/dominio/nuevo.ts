@@ -52,6 +52,7 @@ export function estadoNuevo(ctx: Contexto, datos: DatosBarNuevo): Estado {
     fichajes: [],
     cuadrante: [],
     incidencias: [],
+    historial: [],
     cuentas: [],
     tickets: [],
     gastos: [],

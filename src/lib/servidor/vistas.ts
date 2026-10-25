@@ -33,6 +33,7 @@ export function vistaPersonal(
     fichajes: estado.fichajes.filter(
       (f) => suyo(f.empleadoId) && (f.entrada >= desde || !f.salida),
     ),
+    historial: quien.rol === "encargado" ? estado.historial.filter((h) => h.fecha >= desde) : [],
     incidencias: estado.incidencias.filter(
       (i) => i.fecha >= desde && (suyo(i.empleadoId) || suyo(i.anotadaPor)),
     ),

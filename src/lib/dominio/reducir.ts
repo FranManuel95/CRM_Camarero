@@ -16,6 +16,7 @@ import { dentroDeHorario } from "./horario";
 import { lineasPara, MESA_VENTA_RAPIDA } from "./selectores";
 import { descontar, devolver, redondear, revisarAgotados } from "./stock";
 import { activa, type Funcion, FUNCIONES } from "./funciones";
+import { describir } from "./historial";
 import { diasDeSemana, jornadaAbierta, lunesDe } from "./equipo";
 import { sumarDias } from "./informes";
 import { formatearHora } from "../fechas";
@@ -68,6 +69,7 @@ const MAX_AVISOS_ATENDIDOS = 200;
 const MAX_MOVIMIENTOS_STOCK = 1000;
 const MAX_INCIDENCIAS = 3000;
 const DIAS_CUADRANTE = 120;
+const MAX_HISTORIAL = 1000;
 
 function falla(mensaje: string): never {
   throw new ErrorAccion(mensaje);
@@ -452,6 +454,31 @@ export function reducirPersonal(
   empleado: Empleado,
   ctx: Contexto,
 ): Resultado {
+  const r = aplicarPersonal(anterior, accion, empleado, ctx);
+  // Historial de cambios: lo importante, con quién y cuándo.
+  if (activa(r.estado.ajustes, "historial") || accion.tipo === "cambiar_funcion") {
+    const texto = describir(accion, anterior, r.estado);
+    if (texto) {
+      r.estado.historial.push({
+        id: ctx.nuevoId(),
+        fecha: ctx.ahora,
+        empleadoId: empleado.id,
+        tipo: accion.tipo,
+        texto,
+      });
+      if (r.estado.historial.length > MAX_HISTORIAL)
+        r.estado.historial.splice(0, r.estado.historial.length - MAX_HISTORIAL);
+    }
+  }
+  return r;
+}
+
+function aplicarPersonal(
+  anterior: Estado,
+  accion: AccionPersonal,
+  empleado: Empleado,
+  ctx: Contexto,
+): Resultado {
   const estado = copiaEditable(anterior);
   const trabajos: TrabajoImpresion[] = [];
 
@@ -459,8 +486,10 @@ export function reducirPersonal(
     case "abrir_cuenta": {
       buscar(estado.mesas, accion.mesaId, "la mesa");
       if (cuentaDeMesa(estado, accion.mesaId)) falla("Esta mesa ya tiene una cuenta abierta.");
+      if (accion.cuentaId && estado.cuentas.some((c) => c.id === accion.cuentaId))
+        falla("Esa cuenta ya existe.");
       estado.cuentas.push({
-        id: ctx.nuevoId(),
+        id: accion.cuentaId ?? ctx.nuevoId(),
         mesaId: accion.mesaId,
         estado: "abierta",
         comensales: accion.comensales,

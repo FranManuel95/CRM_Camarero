@@ -45,12 +45,17 @@ const TEXTO_ESTADO: Record<EstadoLinea, string> = {
   en_espera: "Para después",
 };
 
-export function Comanda({ mesaId }: { mesaId: string }) {
+/**
+ * La cuenta de una mesa. `alSalir`, si viene, sustituye a volver a /sala (sin red no se puede
+ * navegar: la sala abre la mesa dentro de sí misma).
+ */
+export function Comanda({ mesaId, alSalir }: { mesaId: string; alSalir?: () => void }) {
   const { estado, hacer } = useDatos();
   const paraDespues = useFuncion("paraDespues");
   const porPartes = useFuncion("cobrarPorPartes");
   const propinas = useFuncion("propinas");
   const router = useRouter();
+  const salir = () => (alSalir ? alSalir() : router.push("/sala"));
   const mesa = estado.mesas.find((m) => m.id === mesaId);
   const cuenta = estado.cuentas.find((c) => c.mesaId === mesaId && c.estado === "abierta");
   // Si hay un pedido del QR por aceptar, en el móvil se abre directamente la cuenta.
@@ -70,9 +75,9 @@ export function Comanda({ mesaId }: { mesaId: string }) {
       <main className="mx-auto max-w-md p-6">
         <Vacio titulo={`${mesa.nombre} está libre`}>
           <p className="mb-4">La cuenta se ha cobrado o cerrado desde otra pantalla.</p>
-          <Link href="/sala" className="font-semibold text-cobalto underline">
+          <button type="button" onClick={salir} className="font-semibold text-cobalto underline">
             Volver a la sala
-          </Link>
+          </button>
         </Vacio>
       </main>
     );
@@ -86,9 +91,20 @@ export function Comanda({ mesaId }: { mesaId: string }) {
   return (
     <main className="mx-auto flex max-w-screen-2xl flex-col lg:h-[calc(100dvh-3.5rem)]">
       <header className="flex flex-wrap items-center gap-2 border-b border-zinc-oscuro/50 bg-white px-3 py-2">
-        <Link href="/sala" className="rounded-lg p-2 hover:bg-zinc" aria-label="Volver a la sala">
-          <ArrowLeft aria-hidden className="size-5" />
-        </Link>
+        {alSalir ? (
+          <button
+            type="button"
+            onClick={alSalir}
+            className="rounded-lg p-2 hover:bg-zinc"
+            aria-label="Volver a la sala"
+          >
+            <ArrowLeft aria-hidden className="size-5" />
+          </button>
+        ) : (
+          <Link href="/sala" className="rounded-lg p-2 hover:bg-zinc" aria-label="Volver a la sala">
+            <ArrowLeft aria-hidden className="size-5" />
+          </Link>
+        )}
         <h1 className="font-rotulo text-3xl font-bold">{mesa.nombre}</h1>
         <div className="flex items-center gap-1 rounded-lg bg-zinc-claro px-1 ring-1 ring-zinc">
           <button
@@ -311,7 +327,7 @@ export function Comanda({ mesaId }: { mesaId: string }) {
             mensaje,
           );
           // Si queda algo por pagar, la mesa sigue abierta.
-          if (ok && !partes) router.push("/sala");
+          if (ok && !partes) salir();
           return ok;
         }}
       />
@@ -336,7 +352,7 @@ export function Comanda({ mesaId }: { mesaId: string }) {
             variante="peligro"
             onClick={async () => {
               if (await hacer({ tipo: "anular_cuenta", cuentaId: cuenta.id }, "Mesa anulada"))
-                router.push("/sala");
+                salir();
             }}
           >
             Anular la mesa

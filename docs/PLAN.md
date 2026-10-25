@@ -56,9 +56,9 @@ monta su bar sin ayuda.
 
 ## Fase 6 · A prueba de fallos
 
-- [ ] App instalable (PWA) a pantalla completa.
-- [ ] La PDA guarda lo anotado si se corta la wifi y lo manda al volver.
-- [ ] Historial de cambios (quién cambió qué) y copias de seguridad descargables.
+- [x] App instalable (PWA) a pantalla completa.
+- [x] La PDA guarda lo anotado si se corta la wifi y lo manda al volver.
+- [x] Historial de cambios (quién cambió qué) y copias de seguridad descargables.
 - [ ] Datáfono integrado.
 
 ## Cosas que dependen del usuario

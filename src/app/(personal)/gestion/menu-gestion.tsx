@@ -5,6 +5,7 @@ import {
   BarChart3,
   BookOpen,
   ChevronDown,
+  History,
   Home,
   LayoutGrid,
   Package,
@@ -19,15 +20,21 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useFuncion } from "@/components/datos-personal";
 
-const SECCIONES = [
+const SECCIONES: {
+  href: string;
+  texto: string;
+  icono: typeof Home;
+  funcion?: "stock" | "historial";
+}[] = [
   { href: "/gestion", texto: "Resumen", icono: Home },
   { href: "/gestion/informes", texto: "Informes", icono: BarChart3 },
   { href: "/gestion/gastos", texto: "Gastos", icono: Receipt },
   { href: "/gestion/carta", texto: "Carta", icono: BookOpen },
-  { href: "/gestion/stock", texto: "Stock", icono: Package, funcion: "stock" as const },
+  { href: "/gestion/stock", texto: "Stock", icono: Package, funcion: "stock" },
   { href: "/gestion/mesas", texto: "Mesas y QR", icono: LayoutGrid },
   { href: "/gestion/equipo", texto: "Equipo", icono: Users },
   { href: "/gestion/impresoras", texto: "Impresoras", icono: Printer },
+  { href: "/gestion/historial", texto: "Historial", icono: History, funcion: "historial" },
   { href: "/gestion/funciones", texto: "Funciones", icono: ToggleRight },
   { href: "/gestion/ajustes", texto: "Ajustes", icono: SlidersHorizontal },
 ];
@@ -39,8 +46,8 @@ const SECCIONES = [
 export function MenuGestion() {
   const ruta = usePathname();
   const [abierto, setAbierto] = useState(false);
-  const conStock = useFuncion("stock");
-  const secciones = SECCIONES.filter((s) => !("funcion" in s) || conStock);
+  const encendidas = { stock: useFuncion("stock"), historial: useFuncion("historial") };
+  const secciones = SECCIONES.filter((s) => !s.funcion || encendidas[s.funcion]);
   const activa = (href: string) => (href === "/gestion" ? ruta === href : ruta.startsWith(href));
   const actual = secciones.find((s) => activa(s.href)) ?? SECCIONES[0]!;
   const IconoActual = actual.icono;

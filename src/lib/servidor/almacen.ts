@@ -25,6 +25,10 @@ export type Almacen = {
   leer(): Promise<Estado>;
   /** Aplica un cambio de forma segura frente a otras pantallas; reintenta si hace falta. */
   cambiar(aplicar: (estado: Estado) => Resultado): Promise<Resultado>;
+  /** Todo el bar, con todos los tickets y fichajes (para la copia de seguridad). */
+  completo(): Promise<Estado>;
+  /** Solo en el ordenador del bar: sustituye todo por una copia. */
+  restaurar?(estado: Estado): Promise<void>;
   /** Los fichajes que empezaron entre dos instantes (el registro de jornada completo). */
   fichajesEntre(desde: string, hasta: string): Promise<Fichaje[]>;
   /** Solo en la nube: guarda el estado inicial de un bar recién creado. */

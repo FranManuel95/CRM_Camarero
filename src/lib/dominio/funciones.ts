@@ -62,6 +62,33 @@ export const FUNCIONES = {
     descripcion: "Turnos de la semana por persona, para imprimir y comparar con lo fichado.",
     defecto: true,
   },
+  sinConexion: {
+    grupo: "Aparatos",
+    nombre: "Seguir sin wifi",
+    descripcion:
+      "Si se corta la red, el móvil sigue abriendo mesas, anotando y mandando; lo envía todo al volver.",
+    defecto: true,
+  },
+  appInstalable: {
+    grupo: "Aparatos",
+    nombre: "App instalable",
+    descripcion:
+      "Instalar Comanda en el móvil o la tablet, a pantalla completa, y que abra aunque la red vaya mal.",
+    defecto: true,
+  },
+  copias: {
+    grupo: "Seguridad",
+    nombre: "Copias de seguridad",
+    descripcion:
+      "Descargar una copia completa (tickets, carta, equipo…). En el ordenador del bar, además, una copia diaria automática.",
+    defecto: true,
+  },
+  historial: {
+    grupo: "Seguridad",
+    nombre: "Historial de cambios",
+    descripcion: "Quién anuló, descontó, rectificó o cambió la carta o la caja, y cuándo.",
+    defecto: true,
+  },
 } as const satisfies Record<string, DefinicionFuncion>;
 
 /** Servicios del servidor que algunas funciones necesitan (una clave o un certificado). */

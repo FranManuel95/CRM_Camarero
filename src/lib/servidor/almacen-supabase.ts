@@ -8,6 +8,10 @@ import type { Estado, Fichaje, Ticket } from "../dominio/tipos";
 import { type Almacen, contexto } from "./almacen";
 import { rpc as llamar } from "./supabase-rpc";
 
+/** Para pedir «todo» a la base de datos. */
+const DESDE_SIEMPRE = "2000-01-01T00:00:00Z";
+const HASTA_SIEMPRE = "2100-01-01T00:00:00Z";
+
 /** Trabajos de impresión que se guardan en la nube (los más antiguos se olvidan). */
 const MAX_TRABAJOS = 120;
 
@@ -73,6 +77,14 @@ export function almacenSupabase(local: string, esDemo: boolean): Almacen {
     modo: "supabase",
     async leer() {
       return (await cargar()).estado;
+    },
+    async completo() {
+      const { estado } = await cargar();
+      const [tickets, fichajes] = await Promise.all([
+        rpc<Ticket[]>("tpv_tickets", { p_desde: DESDE_SIEMPRE, p_hasta: HASTA_SIEMPRE }),
+        rpc<Fichaje[]>("tpv_fichajes", { p_desde: DESDE_SIEMPRE, p_hasta: HASTA_SIEMPRE }),
+      ]);
+      return { ...estado, tickets, fichajes };
     },
     fichajesEntre: (desde, hasta) =>
       rpc<Fichaje[]>("tpv_fichajes", { p_desde: desde, p_hasta: hasta }),

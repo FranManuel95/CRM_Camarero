@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { AccionPersonal } from "@/lib/dominio/acciones";
 import { estadoDeEjemplo } from "@/lib/dominio/demo";
 import { informe, rangoDeDias } from "@/lib/dominio/informes";
-import { migrar } from "@/lib/dominio/migraciones";
+import { migrar, VERSION_ESTADO } from "@/lib/dominio/migraciones";
 import { estadoNuevo } from "@/lib/dominio/nuevo";
 import { cuentaDeMesa, reducirCliente, reducirPersonal } from "@/lib/dominio/reducir";
 import {
@@ -315,7 +315,8 @@ describe("datos guardados", () => {
     void _m;
     const e = migrar({ ...v2, version: 2 } as Estado);
     expect(e).toMatchObject({
-      version: 4,
+      version: VERSION_ESTADO,
+      historial: [],
       ingredientes: [],
       movimientosStock: [],
       fichajes: [],

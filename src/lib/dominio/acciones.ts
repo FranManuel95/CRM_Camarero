@@ -55,6 +55,11 @@ export const accionCamarero = z.discriminatedUnion("tipo", [
     tipo: z.literal("abrir_cuenta"),
     mesaId: id,
     comensales: z.number().int().min(1).max(99),
+    /** La pone el aparato cuando abre la mesa sin conexión, para anotar en ella después. */
+    cuentaId: z
+      .string()
+      .regex(/^sr-[a-z0-9-]{8,40}$/, "Identificador no válido")
+      .optional(),
   }),
   z.object({
     tipo: z.literal("anotar"),

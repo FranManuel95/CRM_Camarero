@@ -114,6 +114,27 @@
 - Para añadir una función nueva: entrada en `FUNCIONES`, comprobación en el reductor y en las
   pantallas. Las que necesitan una clave declaran `necesita` y `servicios()` dice si está.
 
+## Fase 6: a prueba de fallos (25/10/2026)
+
+- Estado en versión 5 (`historial`). Todo activable en Gestión → Funciones.
+- **Historial de cambios** (`src/lib/dominio/historial.ts`): `reducirPersonal` apunta una frase
+  por cada acción importante (anular, invitar, descuentos, caja, carta, equipo, funciones…). Lo
+  del día a día no. Solo lo ve el encargado. Como mucho 1000 entradas.
+- **Copias de seguridad** (`src/lib/dominio/copia.ts`, `/api/copia`): descargar todo (en la nube
+  con `tpv_tickets` y `tpv_fichajes`, migración `20261026120000_tickets_por_fechas.sql`
+  aplicada). Restaurar solo en modo archivo, comprobando la cadena de huellas. En modo archivo,
+  copia diaria automática en `datos/copias` (14 días).
+- **App instalable**: `src/app/manifest.ts`, iconos en `public/iconos`, `public/sw.js` (nunca
+  guarda `/api`; archivos estáticos primero de la caché, pantallas primero de la red).
+- **Sin wifi** (`src/lib/cliente/sin-red.ts` + `datos-personal.tsx`): si una acción de servicio
+  falla por red, se guarda en el aparato, se aplica en pantalla con el mismo reductor y se manda
+  en orden al volver. `abrir_cuenta` acepta `cuentaId` (`sr-…`) para poder anotar en una mesa
+  abierta sin red. Sin red, la sala abre la comanda dentro de sí misma (no puede navegar).
+- SHA-256 propio (`src/lib/sha256.ts`, probado contra `node:crypto`) para que el reductor
+  funcione en el navegador.
+- Ojo: en la demo de la nube los tickets del historial antiguo no van en orden de fecha (eso ya
+  está arreglado en `demo.ts`, pero el bar `la-esquina` se creó antes).
+
 ## Pendiente (por orden)
 
 1. **VERI\*FACTU** antes de usarlo como TPV fiscal real (ver `docs/INVESTIGACION.md`).

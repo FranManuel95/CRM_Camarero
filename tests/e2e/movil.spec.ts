@@ -22,6 +22,7 @@ const RUTAS = [
   "/gestion/impresoras",
   "/gestion/ajustes",
   "/gestion/funciones",
+  "/gestion/historial",
 ];
 
 test("a 360 px ninguna pantalla se sale por los lados", async ({ page }) => {

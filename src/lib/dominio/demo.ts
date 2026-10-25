@@ -345,6 +345,7 @@ export function estadoDeEjemplo(ctx: Contexto, opciones: { conHistorial?: boolea
     fichajes: [],
     cuadrante: [],
     incidencias: [],
+    historial: [],
   };
 
   estado.cuadrante = cuadranteDeEjemplo(
@@ -575,7 +576,11 @@ function conHistorial(inicial: Estado, ctx: Contexto): Estado {
     for (let s = 0; s < servicios; s++) {
       const mesa = elegir(estado.mesas.filter((m) => !cuentaDeMesa(estado, m.id)));
       const quien = elegir(camareros);
-      const hora = a(11 + Math.floor((s / servicios) * 11), Math.floor(azar() * 50));
+      // Repartidas de 11:00 a 22:00 y siempre en orden: los tickets salen en el orden de la
+      // cadena de huellas, como en un bar de verdad.
+      const hora = new Date(
+        a(11).getTime() + (s * 11 * 3_600_000) / servicios + Math.floor(azar() * 5) * 60_000,
+      );
       hacer(
         {
           tipo: "abrir_cuenta",

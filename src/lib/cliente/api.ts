@@ -3,6 +3,8 @@ import type { TrabajoImpresion } from "../dominio/tipos";
 
 export type RespuestaAccion = {
   error?: string;
+  /** No ha llegado al servidor (sin red): se puede guardar para mandarlo luego. */
+  sinRed?: boolean;
   trabajos?: Pick<
     TrabajoImpresion,
     "id" | "estado" | "titulo" | "impresoraId" | "destino" | "tipo"
@@ -24,6 +26,6 @@ export async function enviarAccion(accion: AccionPersonal): Promise<RespuestaAcc
     }
     return (await r.json()) as RespuestaAccion;
   } catch {
-    return { error: "No hay conexión con la caja. Revisa el wifi." };
+    return { error: "No hay conexión con la caja. Revisa el wifi.", sinRed: true };
   }
 }

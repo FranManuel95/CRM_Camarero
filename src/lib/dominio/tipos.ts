@@ -409,6 +409,16 @@ export type Incidencia = {
   motivo: string;
 };
 
+/** Una línea del historial de cambios (ver historial.ts). */
+export type EntradaHistorial = {
+  id: Id;
+  fecha: FechaISO;
+  empleadoId: Id;
+  /** Tipo de acción («anular_linea»…), para filtrar. */
+  tipo: string;
+  texto: string;
+};
+
 export type MovimientoCaja = {
   id: Id;
   fecha: FechaISO;
@@ -502,6 +512,7 @@ export type Estado = {
   fichajes: Fichaje[];
   cuadrante: TurnoCuadrante[];
   incidencias: Incidencia[];
+  historial: EntradaHistorial[];
   /**
    * Códigos de 6 cifras para vincular un móvil o una tablet a este bar sin la cuenta del dueño.
    * Caducan a los 15 minutos y se usan una sola vez.

@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { sha256 } from "../sha256";
 
 /**
  * Los PIN no se guardan tal cual, sino su resumen SHA-256: quien vea la base de datos no ve los
@@ -6,5 +6,5 @@ import { createHash } from "node:crypto";
  * límite de intentos al entrar.)
  */
 export function resumenPin(pin: string): string {
-  return createHash("sha256").update(`comanda-pin:${pin}`).digest("hex");
+  return sha256(`comanda-pin:${pin}`);
 }

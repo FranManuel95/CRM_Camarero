@@ -18,6 +18,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useDatos, useFuncion } from "@/components/datos-personal";
+import { Comanda } from "./[mesaId]/comanda";
 import { Boton, Dialogo } from "@/components/ui";
 import { euros } from "@/lib/dominio/importes";
 import { situacionMesa, type SituacionMesa, TEXTO_SITUACION } from "@/lib/dominio/selectores";
@@ -63,8 +64,12 @@ export function Sala() {
     .sort((a, b) => a.creadoEn.localeCompare(b.creadoEn));
   const ocupadas = estado.cuentas.filter((c) => c.estado === "abierta").length;
 
+  // Sin red no se puede ir a otra pantalla: la mesa se abre aquí mismo.
+  const [mesaAqui, setMesaAqui] = useState<string | null>(null);
+  const irAMesa = (id: string) => (navigator.onLine ? router.push(`/sala/${id}`) : setMesaAqui(id));
+
   function tocarMesa(mesa: Mesa) {
-    if (situacionMesa(estado, mesa).cuenta) router.push(`/sala/${mesa.id}`);
+    if (situacionMesa(estado, mesa).cuenta) irAMesa(mesa.id);
     else setAbrir(mesa);
   }
 
@@ -73,9 +78,11 @@ export function Sala() {
     const mesa = abrir;
     if (await hacer({ tipo: "abrir_cuenta", mesaId: mesa.id, comensales })) {
       setAbrir(null);
-      router.push(`/sala/${mesa.id}`);
+      irAMesa(mesa.id);
     }
   }
+
+  if (mesaAqui) return <Comanda mesaId={mesaAqui} alSalir={() => setMesaAqui(null)} />;
 
   return (
     <main className="mx-auto grid max-w-screen-2xl gap-4 p-3 sm:p-4 lg:grid-cols-[1fr_22rem]">
