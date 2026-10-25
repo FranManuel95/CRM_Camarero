@@ -9,7 +9,7 @@ import {
   reducirPersonal,
   usarCodigoVinculo,
 } from "../dominio/reducir";
-import type { Empleado, Estado, TrabajoImpresion } from "../dominio/tipos";
+import type { Empleado, Estado, Fichaje, TrabajoImpresion } from "../dominio/tipos";
 import { almacenArchivo } from "./almacen-archivo";
 import { almacenSupabase } from "./almacen-supabase";
 
@@ -25,6 +25,8 @@ export type Almacen = {
   leer(): Promise<Estado>;
   /** Aplica un cambio de forma segura frente a otras pantallas; reintenta si hace falta. */
   cambiar(aplicar: (estado: Estado) => Resultado): Promise<Resultado>;
+  /** Los fichajes que empezaron entre dos instantes (el registro de jornada completo). */
+  fichajesEntre(desde: string, hasta: string): Promise<Fichaje[]>;
   /** Solo en la nube: guarda el estado inicial de un bar recién creado. */
   iniciar?(estado: Estado): Promise<void>;
   /** Solo en modo archivo: avisos de cambios para el flujo SSE. */

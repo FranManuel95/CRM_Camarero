@@ -14,9 +14,9 @@ const iva = z.number().min(0).max(30);
 const metodo = z.enum(["efectivo", "tarjeta", "bizum", "otro"]);
 /** Cantidad de stock: kilos, litros o unidades, con hasta tres decimales. */
 const cantidad = z.number().min(0).max(1_000_000);
-const receta = z
-  .array(z.object({ ingredienteId: id, cantidad: cantidad.positive() }))
-  .max(30);
+const dia = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Día no válido");
+const hora = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Hora no válida");
+const receta = z.array(z.object({ ingredienteId: id, cantidad: cantidad.positive() })).max(30);
 
 export const lineaPedida = z.object({
   productoId: id,
@@ -150,6 +150,8 @@ export const accionCamarero = z.discriminatedUnion("tipo", [
     cantidad,
     nota: texto(140).default(""),
   }),
+  // Registro de jornada: cada uno ficha lo suyo.
+  z.object({ tipo: z.literal("fichar"), que: z.enum(["entrada", "pausa", "vuelta", "salida"]) }),
 ]);
 
 /** Solo el encargado: carta, plano, equipo, gastos, ajustes e impresoras. */
@@ -322,6 +324,32 @@ export const accionEncargado = z.discriminatedUnion("tipo", [
   z.object({ tipo: z.literal("borrar_impresora"), impresoraId: id }),
   z.object({ tipo: z.literal("imprimir_prueba"), impresoraId: id }),
   z.object({ tipo: z.literal("crear_codigo_vinculo") }),
+  /** Corregir (o apuntar a mano) un fichaje. Queda anotado quién, cuándo y por qué. */
+  z.object({
+    tipo: z.literal("corregir_fichaje"),
+    fichajeId: id.optional(),
+    empleadoId: id,
+    entrada: z.iso.datetime(),
+    salida: z.iso.datetime().nullable(),
+    pausas: z
+      .array(z.object({ inicio: z.iso.datetime(), fin: z.iso.datetime().nullable() }))
+      .max(10),
+    motivo: texto(200).min(3, "Explica por qué se corrige"),
+  }),
+  z.object({
+    tipo: z.literal("guardar_turno"),
+    turno: z.object({
+      id: id.optional(),
+      empleadoId: id,
+      dia,
+      desde: hora,
+      hasta: hora,
+      puesto: texto(30),
+    }),
+  }),
+  z.object({ tipo: z.literal("borrar_turno"), turnoId: id }),
+  /** Copia los turnos de una semana en otra (los lunes de cada una). */
+  z.object({ tipo: z.literal("copiar_semana"), desde: dia, hacia: dia }),
 ]);
 
 export const accionPersonal = z.union([accionCamarero, accionEncargado]);

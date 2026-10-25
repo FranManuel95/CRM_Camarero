@@ -104,10 +104,16 @@ test("las pantallas principales pasan la revisión de accesibilidad", async ({ p
     "/gestion/informes",
     "/gestion/carta",
     "/gestion/stock",
+    "/gestion/equipo",
+    "/gestion/equipo/cuadrante",
+    "/gestion/equipo/fichajes",
+    "/fichar",
     "/gestion/impresoras",
   ]) {
     await page.goto(ruta);
-    await listo(page);
+    // /fichar no recibe datos en directo: no hay que esperar a la conexión.
+    if (ruta === "/fichar") await page.getByRole("button", { name: "Seguir" }).waitFor();
+    else await listo(page);
     const r = await new AxeBuilder({ page }).analyze();
     expect(r.violations.map((v) => `${ruta}: ${v.id}`)).toEqual([]);
   }

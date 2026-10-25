@@ -14,7 +14,7 @@ export default async function LayoutPersonal({ children }: { children: React.Rea
   const { local, empleado } = sesion;
   return (
     <DatosPersonal
-      inicial={vistaPersonal(await leerEstado(local), local)}
+      inicial={vistaPersonal(await leerEstado(local), local, empleado)}
       directo={configDirecto(local)}
       empleado={{ id: empleado.id, nombre: empleado.nombre, rol: empleado.rol }}
     >

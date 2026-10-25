@@ -2,7 +2,19 @@ import type { AccionPersonal } from "./acciones";
 import { VERSION_ESTADO } from "./migraciones";
 import { resumenPin } from "./pin";
 import { type Contexto, cuentaDeMesa, reducirPersonal } from "./reducir";
-import type { Alergeno, Categoria, Estado, Ingrediente, Mesa, Producto, Zona } from "./tipos";
+import { diasDeSemana, lunesDe } from "./equipo";
+import { totalCuenta } from "./importes";
+import { sumarDias } from "./informes";
+import type {
+  Alergeno,
+  Categoria,
+  Estado,
+  Ingrediente,
+  Mesa,
+  Producto,
+  TurnoCuadrante,
+  Zona,
+} from "./tipos";
 
 /**
  * El bar de ejemplo con el que arranca la aplicación: «La Esquina», ficticio. Incluye dos
@@ -330,11 +342,40 @@ export function estadoDeEjemplo(ctx: Contexto, opciones: { conHistorial?: boolea
     trabajos: [],
     ingredientes: [],
     movimientosStock: [],
+    fichajes: [],
+    cuadrante: [],
+    incidencias: [],
   };
 
+  estado.cuadrante = cuadranteDeEjemplo(
+    ctx.ahora,
+    estado.empleados.map((e) => e.id),
+  );
   if (opciones.conHistorial) estado = conHistorial(estado, ctx);
   // El stock se pone al final: así el historial de ejemplo no lo gasta.
   return conStock(estado);
+}
+
+/**
+ * Turnos de esta semana y la siguiente: Ana de mañana, Luis de mañana a tarde y Marta de tarde a
+ * noche; los lunes se cierra y cada uno libra un día más.
+ */
+function cuadranteDeEjemplo(ahora: string, [ana, luis, marta]: string[]): TurnoCuadrante[] {
+  const plan: [string | undefined, string, string, string, number][] = [
+    [ana, "10:00", "18:00", "Barra", 0],
+    [luis, "11:00", "17:00", "Sala", 3],
+    [marta, "17:00", "00:00", "Sala", 2],
+  ];
+  const lunes = lunesDe(ahora.slice(0, 10));
+  const turnos: TurnoCuadrante[] = [];
+  for (const semana of [0, 7])
+    for (const [i, dia] of diasDeSemana(sumarDias(lunes, semana)).entries()) {
+      if (i === 0) continue;
+      for (const [empleadoId, desde, hasta, puesto, libra] of plan)
+        if (empleadoId && i !== libra)
+          turnos.push({ id: `tc-${dia}-${empleadoId}`, empleadoId, dia, desde, hasta, puesto });
+    }
+  return turnos;
 }
 
 type IngredienteEjemplo = [
@@ -492,6 +533,15 @@ function conHistorial(inicial: Estado, ctx: Contexto): Estado {
     if (dia.getUTCDay() === 1 && diasAtras > 0) continue;
     const apertura = diasAtras === 0 ? new Date(hoy.getTime() - 3_600_000) : a(10);
     hacer({ tipo: "abrir_caja", fondoInicial: 15000 }, apertura);
+    // Todos fichan al llegar; hoy siguen trabajando.
+    for (const [i, quien] of estado.empleados.entries())
+      hacer(
+        { tipo: "fichar", que: "entrada" },
+        diasAtras === 0
+          ? new Date(apertura.getTime() - (i + 1) * 4 * 60_000)
+          : a(9, 30 + Math.floor(azar() * 25)),
+        quien,
+      );
     if (diasAtras === 0) break;
 
     const finDeSemana = [0, 5, 6].includes(dia.getUTCDay());
@@ -524,10 +574,24 @@ function conHistorial(inicial: Estado, ctx: Contexto): Estado {
       });
       hacer({ tipo: "anotar", cuentaId: cuenta.id, lineas }, hora, quien);
       hacer({ tipo: "enviar_comanda", cuentaId: cuenta.id }, hora, quien);
+      // De vez en cuando se invita a algo o se cae un plato.
+      const lineasAhora = estado.cuentas.find((c) => c.id === cuenta.id)!.lineas;
+      const primera = lineasAhora[0]!;
+      const suerte = azar();
+      if (suerte < 0.06)
+        hacer(
+          { tipo: "invitar_linea", cuentaId: cuenta.id, lineaId: primera.id, invitacion: true },
+          hora,
+          quien,
+        );
+      else if (suerte < 0.09 && lineasAhora.length > 1)
+        hacer(
+          { tipo: "anular_linea", cuentaId: cuenta.id, lineaId: primera.id, motivo: "Se ha caído" },
+          hora,
+          quien,
+        );
       const conTarjeta = azar() < 0.62;
-      const total = estado.cuentas
-        .find((c) => c.id === cuenta.id)!
-        .lineas.reduce((t, l) => t + l.precioUnitario * l.cantidad, 0);
+      const total = totalCuenta(estado.cuentas.find((c) => c.id === cuenta.id)!);
       const entregado = conTarjeta ? total : Math.ceil(total / 500) * 500;
       if (!conTarjeta) efectivo += total;
       const cobro = new Date(hora.getTime() + 40 * 60_000);
@@ -543,6 +607,12 @@ function conHistorial(inicial: Estado, ctx: Contexto): Estado {
     }
     const descuadre = azar() < 0.2 ? -Math.round(azar() * 500) : 0;
     hacer({ tipo: "cerrar_caja", efectivoContado: efectivo + descuadre }, a(23, 30));
+    for (const quien of estado.empleados) {
+      const pausa = a(15, Math.floor(azar() * 40));
+      hacer({ tipo: "fichar", que: "pausa" }, pausa, quien);
+      hacer({ tipo: "fichar", que: "vuelta" }, new Date(pausa.getTime() + 30 * 60_000), quien);
+      hacer({ tipo: "fichar", que: "salida" }, a(23, 35 + Math.floor(azar() * 20)), quien);
+    }
   }
 
   const gastos: [number, string, AccionGasto["categoria"], string, number, number][] = [

@@ -359,6 +359,54 @@ export type MovimientoStock = {
   gastoId?: Id;
 };
 
+/** Lo que había en un fichaje antes de que el encargado lo corrigiera. */
+export type DatosFichaje = Pick<Fichaje, "entrada" | "salida" | "pausas">;
+
+/**
+ * Registro de jornada (art. 34.9 del Estatuto de los Trabajadores): hora de entrada y de salida
+ * de cada día, con los descansos. Se guarda cuatro años. No se borra: si hay que corregirlo, el
+ * encargado lo cambia y queda apuntado quién, cuándo, por qué y qué había antes.
+ */
+export type Fichaje = {
+  id: Id;
+  empleadoId: Id;
+  entrada: FechaISO;
+  /** null mientras la persona sigue trabajando (o si se le olvidó fichar la salida). */
+  salida: FechaISO | null;
+  pausas: { inicio: FechaISO; fin: FechaISO | null }[];
+  cambios?: { en: FechaISO; por: Id; motivo: string; antes: DatosFichaje | null }[];
+};
+
+/** Un turno previsto en el cuadrante de la semana (hora de Madrid). */
+export type TurnoCuadrante = {
+  id: Id;
+  empleadoId: Id;
+  /** «2026-10-27». */
+  dia: string;
+  /** «12:00». */
+  desde: string;
+  /** «16:30». Si es menor que `desde`, el turno acaba al día siguiente. */
+  hasta: string;
+  /** Sala, barra, cocina… (texto libre, opcional). */
+  puesto: string;
+};
+
+/** Anulaciones e invitaciones, para el informe por camarero (las cuentas cerradas se olvidan). */
+export type Incidencia = {
+  id: Id;
+  fecha: FechaISO;
+  tipo: "anulacion" | "invitacion";
+  lineaId: Id;
+  /** Quién la anuló o invitó. */
+  empleadoId: Id;
+  /** Quién la había anotado. */
+  anotadaPor: Id | null;
+  producto: string;
+  cantidad: number;
+  importe: Centimos;
+  motivo: string;
+};
+
 export type MovimientoCaja = {
   id: Id;
   fecha: FechaISO;
@@ -448,6 +496,10 @@ export type Estado = {
   trabajos: TrabajoImpresion[];
   ingredientes: Ingrediente[];
   movimientosStock: MovimientoStock[];
+  /** En la nube, solo los recientes y los abiertos: el resto está en su tabla (ver almacén). */
+  fichajes: Fichaje[];
+  cuadrante: TurnoCuadrante[];
+  incidencias: Incidencia[];
   /**
    * Códigos de 6 cifras para vincular un móvil o una tablet a este bar sin la cuenta del dueño.
    * Caducan a los 15 minutos y se usan una sola vez.

@@ -42,9 +42,9 @@ monta su bar sin ayuda.
 
 ## Fase 4 · Equipo
 
-- [ ] Fichaje de entrada y salida con el PIN (registro de jornada obligatorio).
-- [ ] Cuadrante semanal de turnos.
-- [ ] Informe por camarero: ventas, propinas, anulaciones e invitaciones.
+- [x] Fichaje de entrada y salida con el PIN (registro de jornada obligatorio).
+- [x] Cuadrante semanal de turnos.
+- [x] Informe por camarero: ventas, propinas, anulaciones e invitaciones.
 
 ## Fase 5 · Clientes y más ventas
 

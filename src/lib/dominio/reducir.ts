@@ -8,12 +8,16 @@ import {
   euros,
   lineasCobrables,
   lineasDeTicket,
+  precioConOpciones,
   totalCuenta,
   totalPagos,
 } from "./importes";
 import { dentroDeHorario } from "./horario";
 import { lineasPara, MESA_VENTA_RAPIDA } from "./selectores";
 import { descontar, devolver, redondear, revisarAgotados } from "./stock";
+import { diasDeSemana, jornadaAbierta, lunesDe } from "./equipo";
+import { sumarDias } from "./informes";
+import { formatearHora } from "../fechas";
 import type {
   Aviso,
   Centimos,
@@ -21,7 +25,9 @@ import type {
   Destino,
   Empleado,
   Estado,
+  Fichaje,
   Gasto,
+  Incidencia,
   LineaCuenta,
   Mesa,
   MovimientoStock,
@@ -59,6 +65,8 @@ export type Resultado = { estado: Estado; trabajos: TrabajoImpresion[] };
 const MAX_TRABAJOS = 300;
 const MAX_AVISOS_ATENDIDOS = 200;
 const MAX_MOVIMIENTOS_STOCK = 1000;
+const MAX_INCIDENCIAS = 3000;
+const DIAS_CUADRANTE = 120;
 
 function falla(mensaje: string): never {
   throw new ErrorAccion(mensaje);
@@ -513,6 +521,8 @@ export function reducirPersonal(
         "esa línea",
       );
       if (linea.estado === "anulada") falla("Esta línea ya estaba anulada.");
+      if (mandada(linea))
+        apuntarIncidencia(estado, ctx, "anulacion", linea, empleado, accion.motivo);
       linea.estado = "anulada";
       linea.motivoAnulacion = `${accion.motivo} (${empleado.nombre})`;
       devolver(estado, [linea]);
@@ -525,6 +535,10 @@ export function reducirPersonal(
         "esa línea",
       );
       linea.invitacion = accion.invitacion;
+      estado.incidencias = estado.incidencias.filter(
+        (i) => !(i.tipo === "invitacion" && i.lineaId === linea.id),
+      );
+      if (accion.invitacion) apuntarIncidencia(estado, ctx, "invitacion", linea, empleado, "");
       break;
     }
     case "enviar_comanda": {
@@ -733,6 +747,8 @@ export function reducirPersonal(
         falla("Esta mesa ya tiene cosas en cocina o barra. Solo un encargado puede anularla.");
       for (const l of cuenta.lineas) {
         if (l.estado !== "anulada") {
+          if (mandada(l))
+            apuntarIncidencia(estado, ctx, "anulacion", l, empleado, "Cuenta anulada");
           l.estado = "anulada";
           l.motivoAnulacion = `Cuenta anulada (${empleado.nombre})`;
         }
@@ -802,6 +818,33 @@ export function reducirPersonal(
       producto.disponible = accion.disponible;
       // A mano manda la persona; si no hay stock, la próxima venta lo vuelve a agotar.
       delete producto.agotadoPorStock;
+      break;
+    }
+    case "fichar": {
+      const abierta = jornadaAbierta(estado.fichajes, empleado.id, ctx.ahora);
+      const pausa = abierta?.pausas.find((p) => !p.fin);
+      if (accion.que === "entrada") {
+        if (abierta) falla(`Ya fichaste la entrada (${formatearHora(abierta.entrada)}).`);
+        estado.fichajes.push({
+          id: ctx.nuevoId(),
+          empleadoId: empleado.id,
+          entrada: ctx.ahora,
+          salida: null,
+          pausas: [],
+        });
+        break;
+      }
+      if (!abierta) falla("No has fichado la entrada.");
+      if (accion.que === "pausa") {
+        if (pausa) falla("Ya estás en el descanso.");
+        abierta.pausas.push({ inicio: ctx.ahora, fin: null });
+      } else if (accion.que === "vuelta") {
+        if (!pausa) falla("No estás en el descanso.");
+        pausa.fin = ctx.ahora;
+      } else {
+        if (pausa) pausa.fin = ctx.ahora;
+        abierta.salida = ctx.ahora;
+      }
       break;
     }
     case "ajustar_stock": {
@@ -1079,6 +1122,73 @@ function reducirEncargado(
     case "borrar_impresora":
       estado.impresoras = estado.impresoras.filter((i) => i.id !== accion.impresoraId);
       break;
+    case "corregir_fichaje": {
+      buscar(estado.empleados, accion.empleadoId, "esa persona");
+      const datos = { entrada: accion.entrada, salida: accion.salida, pausas: accion.pausas };
+      if (datos.salida && datos.salida <= datos.entrada)
+        falla("La salida tiene que ser después de la entrada.");
+      if (datos.salida && Date.parse(datos.salida) - Date.parse(datos.entrada) > 24 * 3_600_000)
+        falla("Una jornada no puede pasar de 24 horas.");
+      for (const p of datos.pausas) {
+        if (p.inicio < datos.entrada || (datos.salida && (p.fin ?? p.inicio) > datos.salida))
+          falla("Los descansos tienen que caer dentro de la jornada.");
+        if (p.fin && p.fin <= p.inicio) falla("Un descanso acaba antes de empezar.");
+      }
+      if (datos.entrada > ctx.ahora || (datos.salida && datos.salida > ctx.ahora))
+        falla("No se pueden fichar horas que aún no han pasado.");
+      const cambio = { en: ctx.ahora, por: empleado.id, motivo: accion.motivo };
+      if (accion.fichajeId) {
+        const f = buscar(estado.fichajes, accion.fichajeId, "ese fichaje");
+        if (f.empleadoId !== accion.empleadoId) falla("Ese fichaje es de otra persona.");
+        const antes = { entrada: f.entrada, salida: f.salida, pausas: f.pausas };
+        Object.assign(f, datos);
+        f.cambios = [...(f.cambios ?? []), { ...cambio, antes }];
+      } else {
+        const f: Fichaje = {
+          id: ctx.nuevoId(),
+          empleadoId: accion.empleadoId,
+          ...datos,
+          cambios: [{ ...cambio, antes: null }],
+        };
+        estado.fichajes.push(f);
+      }
+      break;
+    }
+    case "guardar_turno": {
+      const { id, ...datos } = accion.turno;
+      buscar(estado.empleados, datos.empleadoId, "esa persona");
+      if (datos.desde === datos.hasta) falla("El turno tiene que durar algo.");
+      if (id) Object.assign(buscar(estado.cuadrante, id, "ese turno"), datos);
+      else estado.cuadrante.push({ id: ctx.nuevoId(), ...datos });
+      podarCuadrante(estado, ctx);
+      break;
+    }
+    case "borrar_turno":
+      buscar(estado.cuadrante, accion.turnoId, "ese turno");
+      estado.cuadrante = estado.cuadrante.filter((t) => t.id !== accion.turnoId);
+      break;
+    case "copiar_semana": {
+      const origen = diasDeSemana(lunesDe(accion.desde));
+      const destino = diasDeSemana(lunesDe(accion.hacia));
+      if (origen[0] === destino[0]) falla("Elige otra semana.");
+      const copiados = estado.cuadrante
+        .filter((t) => origen.includes(t.dia))
+        .map((t) => ({ ...t, id: ctx.nuevoId(), dia: destino[origen.indexOf(t.dia)]! }))
+        .filter(
+          (n) =>
+            !estado.cuadrante.some(
+              (t) =>
+                t.empleadoId === n.empleadoId &&
+                t.dia === n.dia &&
+                t.desde === n.desde &&
+                t.hasta === n.hasta,
+            ),
+        );
+      if (!copiados.length) falla("No hay turnos nuevos que copiar.");
+      estado.cuadrante.push(...copiados);
+      podarCuadrante(estado, ctx);
+      break;
+    }
     case "crear_codigo_vinculo": {
       const vigentes = (estado.vinculos ?? []).filter((v) => v.caduca > ctx.ahora);
       const caduca = new Date(Date.parse(ctx.ahora) + 15 * 60_000).toISOString();
@@ -1102,6 +1212,42 @@ function reducirEncargado(
     }
   }
   return { estado, trabajos };
+}
+
+/** La línea ya había salido hacia cocina o barra (anularla es una anulación de verdad). */
+function mandada(linea: LineaCuenta) {
+  return !["anotada", "por_confirmar", "anulada"].includes(linea.estado);
+}
+
+function apuntarIncidencia(
+  estado: Estado,
+  ctx: Contexto,
+  tipo: Incidencia["tipo"],
+  linea: LineaCuenta,
+  empleado: Empleado,
+  motivo: string,
+) {
+  estado.incidencias.push({
+    id: ctx.nuevoId(),
+    fecha: ctx.ahora,
+    tipo,
+    lineaId: linea.id,
+    empleadoId: empleado.id,
+    anotadaPor: linea.empleadoId,
+    producto: linea.nombre,
+    cantidad: linea.cantidad,
+    importe:
+      linea.invitacion && tipo === "anulacion" ? 0 : precioConOpciones(linea) * linea.cantidad,
+    motivo,
+  });
+  if (estado.incidencias.length > MAX_INCIDENCIAS)
+    estado.incidencias.splice(0, estado.incidencias.length - MAX_INCIDENCIAS);
+}
+
+/** El cuadrante solo guarda los últimos meses y lo que viene. */
+function podarCuadrante(estado: Estado, ctx: Contexto) {
+  const desde = sumarDias(ctx.ahora.slice(0, 10), -DIAS_CUADRANTE);
+  estado.cuadrante = estado.cuadrante.filter((t) => t.dia >= desde);
 }
 
 /** Apunta un gasto nuevo; si se pagó con la caja abierta, sale como retirada en el arqueo. */

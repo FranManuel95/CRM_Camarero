@@ -25,7 +25,10 @@ test("cobrar solo lo de uno y dejar la mesa abierta", async ({ page }, info) => 
   await page.getByRole("tab", { name: "Cervezas" }).click();
   await page.getByRole("button", { name: /^Caña/ }).click();
   await page.getByRole("button", { name: /^Caña/ }).click();
-  await page.getByRole("button", { name: /Mandar \(2\)/ }).first().click();
+  await page
+    .getByRole("button", { name: /Mandar \(2\)/ })
+    .first()
+    .click();
   await expect(page.getByText("Comanda mandada")).toBeVisible();
   if (info.project.name === "movil") await page.getByRole("tab", { name: /Cuenta/ }).click();
   await page.getByRole("button", { name: "Cobrar", exact: true }).click();
@@ -45,10 +48,15 @@ test("para después y marcha", async ({ page, browser }, info) => {
   await page.getByRole("button", { name: new RegExp(`^${mesa} ?,`) }).click();
   await page.getByRole("button", { name: "2", exact: true }).click();
   await page.getByRole("tab", { name: "Raciones" }).click();
-  await page.getByRole("button", { name: "Más opciones de Calamares a la andaluza: cantidad y nota" }).click();
+  await page
+    .getByRole("button", { name: "Más opciones de Calamares a la andaluza: cantidad y nota" })
+    .click();
   await page.getByText("Para después", { exact: true }).click();
   await page.getByRole("button", { name: /Anotar/ }).click();
-  await page.getByRole("button", { name: /Mandar \(1\)/ }).first().click();
+  await page
+    .getByRole("button", { name: /Mandar \(1\)/ })
+    .first()
+    .click();
   await expect(page.getByText("Comanda mandada")).toBeVisible();
 
   const contexto = await browser.newContext();

@@ -125,3 +125,14 @@ Los clientes solo ven su mesa y la carta (`vistaCliente`); el personal no recibe
 - El coste de la ración sale del escandallo, y con él el margen de los informes.
 - Con `ANTHROPIC_API_KEY`, el pedido se puede rellenar con una **foto de la factura**: Claude lee
   las líneas y las casa con los ingredientes; el encargado las revisa antes de guardar.
+
+## Equipo (fase 4)
+
+- **Fichar** con el PIN en `/fichar` (en el aparato del bar, sin abrir sesión): entrada,
+  descansos y salida. Cada uno ve su turno de hoy, los próximos y sus horas de la semana.
+- **Registro de jornada** en Gestión → Equipo → Fichajes: horas fichadas frente a las del
+  cuadrante, jornadas sin salida y correcciones con motivo (no se borra nada). Se descarga en
+  CSV para la gestoría o la Inspección. En la nube va en su propia tabla, porque hay que
+  guardarlo cuatro años.
+- **Cuadrante** semanal por persona y día, para copiar a la semana siguiente e imprimir.
+- **Informe por camarero**: ventas, propinas, anulaciones, invitaciones y horas trabajadas.

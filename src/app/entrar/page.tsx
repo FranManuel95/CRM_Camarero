@@ -38,6 +38,12 @@ export default async function Entrar() {
             <Suspense>
               <TecladoPin />
             </Suspense>
+            <p className="mt-6 text-center text-sm text-zinc">
+              ¿Vienes a fichar?{" "}
+              <Link href="/fichar" className="font-semibold text-white underline">
+                Ficha la entrada o la salida
+              </Link>
+            </p>
             {esDemo && process.env.DEMO !== "false" && (
               <p className="mt-8 rounded-lg bg-white/10 p-3 text-center text-sm text-zinc">
                 Demostración: Ana (encargada) <b>1234</b> · Luis <b>1111</b> · Marta <b>2222</b>

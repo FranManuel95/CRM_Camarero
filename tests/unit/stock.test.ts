@@ -309,12 +309,19 @@ describe("costes y lista de la compra", () => {
 });
 
 describe("datos guardados", () => {
-  it("un estado de la versión 2 pasa a la 3 con el almacén vacío", () => {
+  it("un estado de la versión 2 se pone al día con el almacén y el equipo vacíos", () => {
     const { ingredientes: _i, movimientosStock: _m, ...v2 } = estadoDeEjemplo(ctx);
     void _i;
     void _m;
     const e = migrar({ ...v2, version: 2 } as Estado);
-    expect(e).toMatchObject({ version: 3, ingredientes: [], movimientosStock: [] });
+    expect(e).toMatchObject({
+      version: 4,
+      ingredientes: [],
+      movimientosStock: [],
+      fichajes: [],
+      cuadrante: [],
+      incidencias: [],
+    });
   });
 
   it("un bar nuevo con la carta de ejemplo empieza sin stock ni escandallos", () => {

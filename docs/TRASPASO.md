@@ -68,12 +68,34 @@
 - Arreglado: en el móvil, el menú de Gestión ensanchaba toda la página
   (`grid-cols-[minmax(0,1fr)]`).
 
+## Fase 4: equipo (26/10/2026)
+
+- Estado en versión 4: `fichajes`, `cuadrante` e `incidencias` (`src/lib/dominio/equipo.ts`).
+- **Registro de jornada** (art. 34.9 ET: entrada y salida diarias, cuatro años, a disposición de
+  la persona, sus representantes y la Inspección). Se ficha en `/fichar` con el PIN, sin abrir
+  sesión (`/api/fichar`); también hay un botón «Fichar» en la barra. Acción `fichar`
+  (entrada, pausa, vuelta, salida). Los fichajes no se borran: `corregir_fichaje` (encargado, con
+  motivo) guarda en `cambios` quién, cuándo, por qué y lo que había antes.
+- En la nube, los fichajes van en la tabla `fichajes` (migración `20261026090000_fichajes.sql`,
+  aplicada): `tpv_cargar` trae los recientes y los abiertos, `tpv_guardar_v2` guarda solo los que
+  cambian y `tpv_fichajes` da un periodo entero para el CSV (`/api/registro-jornada`). La
+  `tpv_guardar` antigua se queda sin uso; se puede borrar más adelante.
+- Una entrada sin salida de más de 16 h se da por olvidada: deja volver a entrar y sale avisada
+  en Equipo → Fichajes para corregirla.
+- **Cuadrante** semanal (`guardar_turno`, `borrar_turno`, `copiar_semana`), con impresión.
+  Guarda los últimos 120 días.
+- **Informe por camarero** (Informes): ventas, tickets, propinas, anulaciones e invitaciones
+  (de `incidencias`, que se apuntan al anular algo ya mandado o al invitar) y horas fichadas.
+- `vistaPersonal` recibe quién mira: un camarero solo recibe sus fichajes e incidencias.
+- Arreglado: los textos `sr-only` dentro de una tabla con scroll ensanchaban la página en el
+  móvil (el contenedor necesita `relative`).
+
 ## Pendiente (por orden)
 
 1. **VERI\*FACTU** antes de usarlo como TPV fiscal real (ver `docs/INVESTIGACION.md`).
 2. Probar con una **impresora térmica real** de red (solo se ha probado el formato de los bytes y
    la vista previa; aquí no hay impresora).
-3. Fases 4 a 6 de `docs/PLAN.md` (stock, equipo, clientes…), cuando el usuario lo pida.
+3. Fases 5 y 6 de `docs/PLAN.md` (stock, equipo, clientes…), cuando el usuario lo pida.
 
 ## Trucos del entorno
 

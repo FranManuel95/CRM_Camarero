@@ -14,7 +14,8 @@ const base = (importe: Centimos, iva: number) => Math.round(importe / (1 + iva /
  * impuestos sobre beneficios. Es orientativo, no sustituye a la contabilidad de la gestoría.
  */
 export function informe(
-  estado: Pick<Estado, "tickets" | "gastos" | "productos" | "empleados"> & Partial<Pick<Estado, "ingredientes">>,
+  estado: Pick<Estado, "tickets" | "gastos" | "productos" | "empleados"> &
+    Partial<Pick<Estado, "ingredientes">>,
   rango: Rango,
 ) {
   const tickets = estado.tickets.filter((t) => t.fecha >= rango.desde && t.fecha < rango.hasta);

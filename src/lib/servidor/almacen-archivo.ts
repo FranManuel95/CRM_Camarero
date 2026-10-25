@@ -71,6 +71,8 @@ export function almacenArchivo(): Almacen {
   return {
     modo: "archivo",
     leer: async () => estado,
+    fichajesEntre: async (desde, hasta) =>
+      estado.fichajes.filter((f) => f.entrada >= desde && f.entrada < hasta),
     async cambiar(aplicar) {
       const r = aplicar(estado);
       guardar(r.estado);

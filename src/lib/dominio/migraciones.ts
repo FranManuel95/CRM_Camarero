@@ -1,7 +1,7 @@
 import { resumenPin } from "./pin";
 import type { Estado } from "./tipos";
 
-export const VERSION_ESTADO = 3;
+export const VERSION_ESTADO = 4;
 
 /** Pone al día un estado guardado con una versión anterior del programa. */
 export function migrar(estado: Estado): Estado {
@@ -13,6 +13,10 @@ export function migrar(estado: Estado): Estado {
   if (e.version === 2) {
     // Versión 3: stock (ingredientes y movimientos del almacén).
     e = { ...e, version: 3, ingredientes: [], movimientosStock: [] };
+  }
+  if (e.version === 3) {
+    // Versión 4: equipo (fichajes, cuadrante de turnos y anulaciones e invitaciones).
+    e = { ...e, version: 4, fichajes: [], cuadrante: [], incidencias: [] };
   }
   if (e.version !== VERSION_ESTADO)
     throw new Error(`Datos de una versión desconocida (${e.version}).`);

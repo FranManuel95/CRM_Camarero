@@ -15,7 +15,7 @@ export async function GET(request: Request) {
     // Si a alguien le desactivan mientras tiene la pantalla abierta, deja de recibir datos.
     const estado = await leerEstado(local);
     return estado.empleados.some((e) => e.id === empleado.id && e.activo)
-      ? vistaPersonal(estado, local)
+      ? vistaPersonal(estado, local, empleado)
       : null;
   });
 }

@@ -12,6 +12,7 @@ import { aCsv, importeCsv } from "@/lib/csv";
 import { descargar } from "@/lib/cliente/descargar";
 import { diaLocal, formatearFechaHora } from "@/lib/fechas";
 import { DIAS_EN_PANTALLA } from "@/lib/constantes";
+import { PorCamarero } from "./por-camarero";
 
 const METODOS = { efectivo: "Efectivo", tarjeta: "Tarjeta", bizum: "Bizum", otro: "Otro" } as const;
 
@@ -162,7 +163,11 @@ export function Informes() {
         <Cifra
           titulo="Gastos (IVA incl.)"
           valor={euros(r.gastos)}
-          nota={r.propinas ? `Propinas del periodo: ${euros(r.propinas)} (aparte de las ventas)` : undefined}
+          nota={
+            r.propinas
+              ? `Propinas del periodo: ${euros(r.propinas)} (aparte de las ventas)`
+              : undefined
+          }
         />
         <Cifra
           titulo="Resultado sin IVA"
@@ -256,17 +261,6 @@ export function Informes() {
                 .map((m) => [METODOS[m], r.porMetodo[m]])}
             />
           </section>
-          <section className="rounded-2xl bg-white p-4 ring-1 ring-zinc" aria-labelledby="t-cam">
-            <h2 id="t-cam" className="mb-2 font-rotulo text-2xl font-bold">
-              Por camarero
-            </h2>
-            <Lista
-              filas={r.porEmpleado.map((e) => [
-                `${e.nombre} · ${e.tickets} tickets${e.propinas ? ` · ${euros(e.propinas)} de propinas` : ""}`,
-                e.ventas,
-              ])}
-            />
-          </section>
           <section className="rounded-2xl bg-white p-4 ring-1 ring-zinc" aria-labelledby="t-gas">
             <h2 id="t-gas" className="mb-2 font-rotulo text-2xl font-bold">
               Gastos por tipo
@@ -275,6 +269,7 @@ export function Informes() {
           </section>
         </div>
       </div>
+      <PorCamarero rango={rango} />
       <p className="mt-4 text-xs text-tinta-suave">
         Cifras orientativas para llevar el negocio al día. La declaración de IVA y la contabilidad
         las cierra tu gestoría con estos CSV.

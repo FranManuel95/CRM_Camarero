@@ -7,6 +7,7 @@ import { euros } from "@/lib/dominio/importes";
 import { informe, rangoDeDias, sumarDias } from "@/lib/dominio/informes";
 import { primerosPasos } from "@/lib/dominio/primeros-pasos";
 import { bajoMinimo } from "@/lib/dominio/stock";
+import { situacion } from "@/lib/dominio/equipo";
 import { NOMBRE_CATEGORIA_GASTO } from "@/lib/dominio/tipos";
 import { diaLocal } from "@/lib/fechas";
 import { useAhora } from "@/lib/cliente/use-ahora";
@@ -27,6 +28,9 @@ export function Resumen() {
   const mes = informe(estado, rangoDeDias(`${hoy.slice(0, 8)}01`, hoy));
   const abiertas = estado.cuentas.filter((c) => c.estado === "abierta");
   const bajos = estado.ingredientes.filter(bajoMinimo);
+  const trabajando = estado.empleados.filter(
+    (e) => situacion(estado.fichajes, e.id, ahora).situacion !== "fuera",
+  );
   const enMesas = abiertas.reduce(
     (s, c) =>
       s + c.lineas.filter((l) => l.estado !== "anulada" && l.estado !== "por_confirmar").length,
@@ -136,6 +140,14 @@ export function Resumen() {
               </Link>
             </p>
           )}
+          <p className="mt-4 rounded-lg bg-zinc-claro p-3 text-sm">
+            {trabajando.length
+              ? `Trabajando ahora: ${trabajando.map((e) => e.nombre).join(", ")}.`
+              : "Ahora mismo no hay nadie fichado."}{" "}
+            <Link href="/gestion/equipo/fichajes" className="font-semibold underline">
+              Ver los fichajes
+            </Link>
+          </p>
           {bajos.length > 0 && (
             <p className="mt-4 rounded-lg bg-aviso-claro p-3 text-sm">
               En el mínimo: {bajos.map((i) => i.nombre).join(", ")}.{" "}

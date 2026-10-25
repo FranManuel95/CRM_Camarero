@@ -18,9 +18,8 @@ export function Equipo({ nube }: { nube: boolean }) {
   );
 
   return (
-    <main>
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="font-rotulo text-4xl font-bold">Equipo</h1>
+    <>
+      <div className="mb-4 flex items-center justify-end">
         <Boton
           variante="primario"
           onClick={() => setBorrador({ nombre: "", pin: "", rol: "camarero", activo: true })}
@@ -125,7 +124,7 @@ export function Equipo({ nube }: { nube: boolean }) {
           </div>
         )}
       </Dialogo>
-    </main>
+    </>
   );
 }
 

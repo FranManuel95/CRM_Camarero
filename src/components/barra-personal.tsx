@@ -1,7 +1,7 @@
 "use client";
 
 import clsx from "clsx";
-import { Beer, ChefHat, LayoutGrid, LogOut, Settings, Wallet } from "lucide-react";
+import { Beer, ChefHat, Clock, LayoutGrid, LogOut, Settings, Wallet } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useDatos } from "./datos-personal";
@@ -84,6 +84,14 @@ export function BarraPersonal() {
           ))}
         </ul>
         <span className="hidden text-sm text-zinc-oscuro md:inline">{empleado.nombre}</span>
+        <Link
+          href="/fichar"
+          className="flex h-10 items-center gap-1.5 rounded-lg px-3 text-sm text-zinc hover:bg-white/10"
+        >
+          <Clock aria-hidden className="size-4" />
+          <span className="hidden sm:inline">Fichar</span>
+          <span className="sr-only sm:hidden">Fichar</span>
+        </Link>
         <button
           type="button"
           onClick={salir}

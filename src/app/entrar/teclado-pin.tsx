@@ -6,31 +6,54 @@ import { useEffect, useState } from "react";
 
 const TECLAS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "borrar", "0", "entrar"] as const;
 
+/** Teclado del PIN para entrar en la app. */
 export function TecladoPin() {
+  const router = useRouter();
+  const vuelta = useSearchParams().get("vuelta");
+  return (
+    <Teclado
+      etiqueta="Entrar"
+      alEnviar={async (pin) => {
+        const r = await fetch("/api/sesion", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pin }),
+        }).catch(() => null);
+        const datos = (await r?.json().catch(() => null)) as { error?: string } | null;
+        if (!r?.ok) return datos?.error ?? "No hay conexión con la caja.";
+        router.replace(vuelta?.startsWith("/") ? vuelta : "/sala");
+        router.refresh();
+        return null;
+      }}
+    />
+  );
+}
+
+/**
+ * Teclado numérico para el PIN. `alEnviar` hace lo que toque con él y devuelve el error que hay
+ * que enseñar (o null si fue bien).
+ */
+export function Teclado({
+  etiqueta,
+  alEnviar,
+}: {
+  etiqueta: string;
+  alEnviar: (pin: string) => Promise<string | null>;
+}) {
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
   const [enviando, setEnviando] = useState(false);
-  const router = useRouter();
-  const vuelta = useSearchParams().get("vuelta");
 
   async function entrar(valor = pin) {
     if (valor.length < 4 || enviando) return;
     setEnviando(true);
     setError("");
-    const r = await fetch("/api/sesion", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pin: valor }),
-    }).catch(() => null);
-    const datos = (await r?.json().catch(() => null)) as { error?: string } | null;
+    const fallo = await alEnviar(valor);
     setEnviando(false);
-    if (!r?.ok) {
-      setError(datos?.error ?? "No hay conexión con la caja.");
+    if (fallo) {
+      setError(fallo);
       setPin("");
-      return;
     }
-    router.replace(vuelta?.startsWith("/") ? vuelta : "/sala");
-    router.refresh();
   }
 
   function pulsar(tecla: (typeof TECLAS)[number]) {
@@ -81,14 +104,14 @@ export function TecladoPin() {
             type={t === "entrar" ? "submit" : "button"}
             onClick={t === "entrar" ? undefined : () => pulsar(t)}
             disabled={t === "entrar" && (pin.length < 4 || enviando)}
-            aria-label={t === "borrar" ? "Borrar" : t === "entrar" ? "Entrar" : t}
+            aria-label={t === "borrar" ? "Borrar" : t === "entrar" ? etiqueta : t}
             className={`grid h-16 place-items-center rounded-xl font-rotulo text-3xl font-semibold transition active:scale-95 disabled:opacity-40 ${
               t === "entrar"
                 ? "bg-cobalto text-xl text-white"
                 : "bg-white/10 text-white hover:bg-white/20"
             }`}
           >
-            {t === "borrar" ? <Delete aria-hidden /> : t === "entrar" ? "Entrar" : t}
+            {t === "borrar" ? <Delete aria-hidden /> : t === "entrar" ? etiqueta : t}
           </button>
         ))}
       </div>
