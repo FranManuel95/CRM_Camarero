@@ -45,7 +45,7 @@ export function Fichajes({ nube }: { nube: boolean }) {
   const hasta = finDeMes < hoy ? finDeMes : hoy;
   const nombre = (id: string) => estado.empleados.find((e) => e.id === id)?.nombre ?? "—";
   const olvidos = sinSalida(estado.fichajes, ahora);
-  const resumen = resumenJornada(estado, desde, finDeMes, ahora);
+  const resumen = resumenJornada(estado, desde, hasta, ahora);
   const lista = estado.fichajes
     .filter(
       (f) =>
@@ -147,7 +147,7 @@ export function Fichajes({ nube }: { nube: boolean }) {
                 Fichadas
               </th>
               <th scope="col" className="p-3 text-right">
-                En el cuadrante
+                En el cuadrante (hasta hoy)
               </th>
               <th scope="col" className="p-3 text-right">
                 Diferencia
