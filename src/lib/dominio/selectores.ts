@@ -1,5 +1,5 @@
 import { totalCuenta } from "./importes";
-import type { Aviso, Cuenta, Destino, Estado, LineaCuenta, Mesa } from "./tipos";
+import type { Aviso, Cuenta, DatosLlevar, Destino, Estado, LineaCuenta, Mesa } from "./tipos";
 
 export type SituacionMesa = "libre" | "ocupada" | "qr" | "cuenta" | "aviso";
 
@@ -36,8 +36,58 @@ export function situacionMesa(estado: Datos, mesa: Mesa) {
   };
 }
 
-/** Mesa ficticia de las ventas rápidas (barra, para llevar). */
+/** Mesa ficticia de las ventas rápidas (barra). */
 export const MESA_VENTA_RAPIDA = "venta-rapida";
+
+/** Los pedidos para llevar no tienen mesa: su `mesaId` es este prefijo y un código propio. */
+export const PREFIJO_LLEVAR = "llevar-";
+export const esParaLlevar = (mesaId: string) => mesaId.startsWith(PREFIJO_LLEVAR);
+
+/** «Para llevar · Lucía, 14:30». */
+export const nombreLlevar = (llevar: Pick<DatosLlevar, "nombre" | "recogida">) =>
+  `Para llevar · ${llevar.nombre}, ${llevar.recogida}`;
+
+/**
+ * La mesa de un `mesaId`, también las que no existen de verdad (venta rápida y pedidos para
+ * llevar), para enseñar su nombre en la cuenta, la cocina o el ticket.
+ */
+export function buscarMesa(
+  estado: Pick<Estado, "mesas" | "cuentas">,
+  mesaId: string,
+): Mesa | undefined {
+  const virtual = (nombre: string): Mesa => ({
+    id: mesaId,
+    nombre,
+    zonaId: "",
+    x: 0,
+    y: 0,
+    ancho: 0,
+    alto: 0,
+    forma: "cuadrada",
+    plazas: 1,
+    token: "",
+  });
+  if (mesaId === MESA_VENTA_RAPIDA) return virtual("Venta rápida");
+  if (esParaLlevar(mesaId)) {
+    const llevar = estado.cuentas.find((c) => c.mesaId === mesaId)?.llevar;
+    return llevar ? virtual(nombreLlevar(llevar)) : undefined;
+  }
+  return estado.mesas.find((m) => m.id === mesaId);
+}
+
+/**
+ * Los pedidos para llevar que faltan por entregar, por hora de recogida: los abiertos y los ya
+ * pagados desde el móvil que aún no se han recogido. Los online sin nada pedido no cuentan.
+ */
+export function pedidosParaLlevar(estado: Pick<Estado, "cuentas">): Cuenta[] {
+  return estado.cuentas
+    .filter((c) => {
+      if (!c.llevar) return false;
+      if (c.estado === "abierta") return c.lineas.length > 0 || !c.llevar.online;
+      return c.estado === "cobrada" && c.lineas.some((l) => EN_COCINA.has(l.estado));
+    })
+    .sort((a, b) => a.llevar!.recogida.localeCompare(b.llevar!.recogida));
+}
 
 /**
  * Lo que le toca a un sitio (cocina o barra) de unas líneas: las suyas, sin las opciones que van a
@@ -94,10 +144,9 @@ export function pedidosCocina(
     if (cuenta.estado === "anulada") continue;
     const vivas = cuenta.lineas.filter((l) => EN_COCINA.has(l.estado));
     if (!vivas.length) continue;
-    const nombre =
-      cuenta.mesaId === MESA_VENTA_RAPIDA
-        ? "Venta rápida"
-        : (estado.mesas.find((m) => m.id === cuenta.mesaId)?.nombre ?? "Mesa");
+    const nombre = cuenta.llevar
+      ? nombreLlevar(cuenta.llevar)
+      : (buscarMesa(estado, cuenta.mesaId)?.nombre ?? "Mesa");
     for (const d of destinos) {
       for (const l of lineasPara(d, vivas)) {
         const clave = `${cuenta.id}-${l.ronda}-${d}`;

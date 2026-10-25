@@ -1,6 +1,7 @@
 import type { AccionPersonal } from "./acciones";
 import { FUNCIONES } from "./funciones";
 import { euros, totalCuenta } from "./importes";
+import { buscarMesa } from "./selectores";
 import type { Cuenta, Estado } from "./tipos";
 
 /**
@@ -10,8 +11,7 @@ import type { Cuenta, Estado } from "./tipos";
  */
 
 const nombreMesa = (estado: Estado, mesaId: string) =>
-  estado.mesas.find((m) => m.id === mesaId)?.nombre ??
-  (mesaId === "venta-rapida" ? "Venta rápida" : "una mesa");
+  buscarMesa(estado, mesaId)?.nombre ?? "una mesa";
 
 const cuenta = (estado: Estado, id: string): Cuenta | undefined =>
   estado.cuentas.find((c) => c.id === id);
@@ -154,6 +154,24 @@ export function describir(accion: AccionPersonal, antes: Estado, despues: Estado
       const gasto = despues.gastos.length > antes.gastos.length ? despues.gastos.at(-1) : null;
       const quien = accion.proveedor || "un proveedor";
       return `Recibió un pedido de ${quien}${gasto ? ` (${euros(gasto.importe)})` : ""}`;
+    }
+    case "guardar_reserva": {
+      const r = accion.reserva;
+      const cuando = `el ${r.dia.slice(8)}/${r.dia.slice(5, 7)} a las ${r.hora}`;
+      return r.id
+        ? `Cambió la reserva de ${r.nombre} (${cuando})`
+        : `Apuntó una reserva de ${r.nombre} para ${r.personas} (${cuando})`;
+    }
+    case "cambiar_reserva": {
+      const r = antes.reservas.find((x) => x.id === accion.reservaId);
+      if (!r) return null;
+      const que = {
+        por_confirmar: "dejó por confirmar",
+        confirmada: "confirmó",
+        cancelada: "canceló",
+        no_vino: "marcó que no vino",
+      }[accion.estado];
+      return `${que.charAt(0).toUpperCase()}${que.slice(1)} la reserva de ${r.nombre}`;
     }
     case "copiar_semana":
       return "Copió los turnos de una semana a otra";

@@ -1,8 +1,21 @@
 "use client";
 
 import clsx from "clsx";
-import { Bell, Check, Languages, Minus, Plus, Receipt, ShoppingBag } from "lucide-react";
-import { useMemo, useState } from "react";
+import {
+  Bell,
+  Check,
+  Clock,
+  CreditCard,
+  Languages,
+  Mail,
+  Minus,
+  Plus,
+  Receipt,
+  ShoppingBag,
+  Star,
+  X,
+} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { Boton, Campo, claseEntrada, Dialogo } from "@/components/ui";
 import { useEnDirecto } from "@/lib/cliente/use-en-directo";
 import { useGuardado } from "@/lib/cliente/use-guardado";
@@ -70,7 +83,41 @@ export function CartaCliente({
     return p ? s + precioDe(p, l.opciones) * l.cantidad : s;
   }, 0);
   const unidadesCesta = cesta.reduce((s, l) => s + l.cantidad, 0);
-  const pedir = vista.local.pedidosActivos;
+  const llevar = vista.llevar;
+  // Un encargo ya pagado no admite más pedidos (se hace otro).
+  const pedir = vista.local.pedidosActivos && !(llevar && vista.ticket);
+  const [verGracias, setVerGracias] = useState(true);
+  const [pagando, setPagando] = useState(false);
+  const encargoListo = Boolean(
+    llevar &&
+    vista.cuenta?.lineas.some((l) => l.estado === "lista") &&
+    vista.cuenta.lineas.every((l) => ["lista", "servida", "anulada"].includes(l.estado)),
+  );
+
+  // Al volver de la página de pago: si se echó atrás, se le dice; la dirección queda limpia.
+  useEffect(() => {
+    const pago = new URLSearchParams(window.location.search).get("pago");
+    if (!pago) return;
+    window.history.replaceState(null, "", window.location.pathname);
+    if (pago === "cancelado") avisar(t.pagoCancelado);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al cargar la página
+  }, []);
+
+  async function pagarConTarjeta() {
+    setPagando(true);
+    try {
+      const r = await fetch(`/api/mesa/${local}/${token}/pago`, { method: "POST" });
+      const datos = (await r.json()) as { url?: string; error?: string };
+      if (datos.url) window.location.assign(datos.url);
+      else {
+        avisar(datos.error ?? t.sinConexion, true);
+        setPagando(false);
+      }
+    } catch {
+      avisar(t.sinConexion, true);
+      setPagando(false);
+    }
+  }
 
   function avisar(texto: string, error = false) {
     setMensaje({ texto, error });
@@ -154,8 +201,33 @@ export function CartaCliente({
             {vista.local.nombre}
           </h1>
           {!pedir && <p className="mt-2 text-sm">{t.pideAlCamarero}</p>}
+          {llevar && (
+            <p className="mt-2 flex items-center gap-1.5 font-semibold">
+              <Clock aria-hidden className="size-4" /> {t.recogeA(llevar.recogida)}
+            </p>
+          )}
         </div>
       </header>
+
+      {encargoListo && (
+        <p
+          role="status"
+          className="mx-4 mt-4 rounded-xl bg-cuenta p-3 text-center text-lg font-semibold text-white"
+        >
+          {t.encargoListo}
+        </p>
+      )}
+      {vista.ticket && verGracias && (!vista.cuenta || vista.cuenta.total === 0) && (
+        <Gracias
+          local={local}
+          token={token}
+          idioma={idioma}
+          ticket={vista.ticket}
+          correo={vista.local.ticketCorreo}
+          resena={vista.local.resena}
+          alCerrar={() => setVerGracias(false)}
+        />
+      )}
 
       <nav
         aria-label={t.secciones}
@@ -295,20 +367,26 @@ export function CartaCliente({
           </p>
         )}
         <div className="mx-auto grid max-w-md grid-cols-[1fr_1fr] gap-2">
+          {!llevar && (
+            <Boton
+              disabled={llamado || enviando}
+              onClick={async () => {
+                if (await mandar({ tipo: "llamar_camarero" })) avisar(t.avisado);
+              }}
+            >
+              {llamado ? (
+                <Check aria-hidden className="size-4" />
+              ) : (
+                <Bell aria-hidden className="size-4" />
+              )}
+              {llamado ? t.yaViene : t.llamar}
+            </Boton>
+          )}
           <Boton
-            disabled={llamado || enviando}
-            onClick={async () => {
-              if (await mandar({ tipo: "llamar_camarero" })) avisar(t.avisado);
-            }}
+            className={clsx(llevar && "col-span-2")}
+            disabled={!vista.cuenta}
+            onClick={() => setVerCuenta(true)}
           >
-            {llamado ? (
-              <Check aria-hidden className="size-4" />
-            ) : (
-              <Bell aria-hidden className="size-4" />
-            )}
-            {llamado ? t.yaViene : t.llamar}
-          </Boton>
-          <Boton disabled={!vista.cuenta} onClick={() => setVerCuenta(true)}>
             <Receipt aria-hidden className="size-4" />{" "}
             {vista.cuenta ? `${t.miCuenta} · ${euros(vista.cuenta.total)}` : t.miCuenta}
           </Boton>
@@ -416,7 +494,9 @@ export function CartaCliente({
           {t.enviarPedido}
         </Boton>
         <p className="mt-2 text-center text-xs text-tinta-suave">
-          {t.comoVa(vista.local.confirmarPedidos)}
+          {llevar
+            ? `${t.comoVaEncargo(vista.local.confirmarPedidos)} ${vista.local.pagoQR ? "" : t.pagasAlRecoger}`
+            : t.comoVa(vista.local.confirmarPedidos)}
         </p>
       </Dialogo>
 
@@ -469,7 +549,35 @@ export function CartaCliente({
               <span>{vista.cuenta.pagado > 0 ? t.pendiente : t.total}</span>
               <span>{euros(vista.cuenta.total)}</span>
             </p>
-            {cuentaPedida ? (
+            {vista.local.pagoQR && vista.cuenta.total > 0 && (
+              <div className="mb-4">
+                {vista.cuenta.aPagar > 0 ? (
+                  <>
+                    <Boton
+                      variante="exito"
+                      tamano="grande"
+                      className="w-full"
+                      disabled={pagando}
+                      onClick={pagarConTarjeta}
+                    >
+                      <CreditCard aria-hidden className="size-5" />
+                      {t.pagarAhora(euros(vista.cuenta.aPagar))}
+                    </Boton>
+                    <p className="mt-1 text-center text-xs text-tinta-suave">{t.pagoSeguro}</p>
+                  </>
+                ) : (
+                  <p className="text-center text-sm text-tinta-suave">{t.esperaAceptar}</p>
+                )}
+              </div>
+            )}
+            {llevar ? (
+              vista.cuenta.total > 0 &&
+              !vista.local.pagoQR && (
+                <p className="rounded-lg bg-zinc-claro p-3 text-center font-semibold">
+                  {t.pagasAlRecoger}
+                </p>
+              )
+            ) : cuentaPedida ? (
               <p className="rounded-lg bg-cuenta-claro p-3 text-center font-semibold">
                 {t.cuentaPedida}
               </p>
@@ -496,6 +604,108 @@ export function CartaCliente({
         )}
       </Dialogo>
     </div>
+  );
+}
+
+/** Después de pagar: el ticket por correo y la invitación a dejar una reseña. */
+function Gracias({
+  local,
+  token,
+  idioma,
+  ticket,
+  correo: conCorreo,
+  resena,
+  alCerrar,
+}: {
+  local: string;
+  token: string;
+  idioma: Idioma;
+  ticket: NonNullable<VistaCliente["ticket"]>;
+  correo: boolean;
+  resena: string | null;
+  alCerrar: () => void;
+}) {
+  const t = TEXTOS[idioma];
+  const [correo, setCorreo] = useState("");
+  const [estado, setEstado] = useState<"" | "mandando" | "hecho" | string>("");
+
+  async function mandar(e: React.FormEvent) {
+    e.preventDefault();
+    setEstado("mandando");
+    try {
+      const r = await fetch(`/api/mesa/${local}/${token}/correo`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ correo }),
+      });
+      const datos = (await r.json()) as { error?: string };
+      setEstado(datos.error ?? "hecho");
+    } catch {
+      setEstado(t.sinConexion);
+    }
+  }
+
+  return (
+    <section
+      aria-labelledby="titulo-gracias"
+      className="relative mx-4 mt-4 rounded-2xl bg-cuenta-claro p-4 ring-2 ring-cuenta"
+    >
+      <button
+        type="button"
+        onClick={alCerrar}
+        className="absolute top-2 right-2 rounded-lg p-2 hover:bg-white/60"
+        aria-label="Cerrar"
+      >
+        <X aria-hidden className="size-4" />
+      </button>
+      <h2 id="titulo-gracias" className="font-rotulo text-2xl font-bold">
+        {t.gracias}
+      </h2>
+      <p className="mb-3 text-sm">{t.pagadoTicket(ticket.numero, euros(ticket.total))}</p>
+      {conCorreo &&
+        (estado === "hecho" ? (
+          <p role="status" className="mb-3 font-semibold">
+            {t.mandado}
+          </p>
+        ) : (
+          <form onSubmit={mandar} className="mb-3">
+            <label className="mb-1 block text-sm font-semibold" htmlFor="correo-ticket">
+              {t.ticketPorCorreo}
+            </label>
+            <div className="flex gap-2">
+              <input
+                id="correo-ticket"
+                type="email"
+                required
+                autoComplete="email"
+                className={claseEntrada}
+                placeholder={t.tuCorreo}
+                value={correo}
+                onChange={(e) => setCorreo(e.target.value)}
+              />
+              <Boton type="submit" disabled={estado === "mandando"}>
+                <Mail aria-hidden className="size-4" /> {t.mandar}
+              </Boton>
+            </div>
+            <p className="mt-1 text-xs text-tinta-suave">{t.noGuardamos}</p>
+            {estado && estado !== "mandando" && (
+              <p role="alert" className="mt-1 text-sm font-semibold text-aviso">
+                {estado}
+              </p>
+            )}
+          </form>
+        ))}
+      {resena && (
+        <a
+          href={resena}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex h-11 items-center justify-center gap-2 rounded-lg bg-cobalto px-4 font-semibold text-white"
+        >
+          <Star aria-hidden className="size-4" /> {t.dejarResena}
+        </a>
+      )}
+    </section>
   );
 }
 

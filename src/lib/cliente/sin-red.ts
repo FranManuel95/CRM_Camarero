@@ -11,6 +11,7 @@ export type Pendiente = { id: string; en: string; accion: AccionPersonal };
 /** Lo único que se puede hacer sin red: el servicio de sala y cocina. Cobrar o anular, no. */
 export const SE_PUEDE_SIN_RED = new Set<AccionPersonal["tipo"]>([
   "abrir_cuenta",
+  "abrir_para_llevar",
   "anotar",
   "enviar_comanda",
   "marchar",

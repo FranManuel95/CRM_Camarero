@@ -3,7 +3,8 @@
 import clsx from "clsx";
 import { ArrowDownLeft, ArrowUpRight, Lock, Printer, Unlock } from "lucide-react";
 import { useState } from "react";
-import { useDatos } from "@/components/datos-personal";
+import { useDatos, useFuncion } from "@/components/datos-personal";
+import { TicketPorCorreo } from "@/components/ticket-correo";
 import { Boton, Campo, claseEntrada, Dialogo, Vacio } from "@/components/ui";
 import { resumenTurno, turnoAbierto, ticketsDelTurno } from "@/lib/dominio/caja";
 import { euros, leerEuros } from "@/lib/dominio/importes";
@@ -18,6 +19,7 @@ const VALORES = [5000, 2000, 1000, 500, 200, 100, 50, 20, 10, 5, 2, 1];
 export function Caja() {
   const { estado, hacer, empleado } = useDatos();
   const turno = turnoAbierto(estado);
+  const porCorreo = useFuncion("ticketCorreo");
   const [fondo, setFondo] = useState("150");
   const [movimiento, setMovimiento] = useState<null | "entrada" | "salida">(null);
   const [cerrando, setCerrando] = useState(false);
@@ -158,6 +160,7 @@ export function Caja() {
                 <Printer aria-hidden className="size-4" /> Reimprimir
               </Boton>
             </div>
+            {porCorreo && <TicketPorCorreo ticketId={ticket.id} />}
           </>
         )}
       </Dialogo>

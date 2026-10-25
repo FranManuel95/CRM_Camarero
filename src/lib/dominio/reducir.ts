@@ -1,4 +1,11 @@
-import type { AccionCliente, AccionEncargado, AccionPersonal, LineaPedida } from "./acciones";
+import type {
+  AccionCliente,
+  AccionEncargado,
+  AccionPersonal,
+  EncargoOnline,
+  LineaPedida,
+  ReservaOnline,
+} from "./acciones";
 import { turnoAbierto } from "./caja";
 import { calcularHuella } from "./huella";
 import { resumenPin } from "./pin";
@@ -13,13 +20,13 @@ import {
   totalPagos,
 } from "./importes";
 import { dentroDeHorario } from "./horario";
-import { lineasPara, MESA_VENTA_RAPIDA } from "./selectores";
+import { buscarMesa, lineasPara, MESA_VENTA_RAPIDA, PREFIJO_LLEVAR } from "./selectores";
 import { descontar, devolver, redondear, revisarAgotados } from "./stock";
 import { activa, type Funcion, FUNCIONES } from "./funciones";
 import { describir } from "./historial";
-import { diasDeSemana, jornadaAbierta, lunesDe } from "./equipo";
+import { diasDeSemana, instante, jornadaAbierta, lunesDe } from "./equipo";
 import { sumarDias } from "./informes";
-import { formatearHora } from "../fechas";
+import { diaLocal, formatearHora } from "../fechas";
 import type {
   Aviso,
   Centimos,
@@ -36,6 +43,7 @@ import type {
   OpcionElegida,
   Pago,
   Producto,
+  Reserva,
   Ticket,
   TipoAviso,
   TipoTrabajo,
@@ -70,6 +78,9 @@ const MAX_MOVIMIENTOS_STOCK = 1000;
 const MAX_INCIDENCIAS = 3000;
 const DIAS_CUADRANTE = 120;
 const MAX_HISTORIAL = 1000;
+const MAX_PAGOS_ONLINE = 500;
+/** Las reservas se guardan unos meses (para ver quién no vino) y luego se olvidan. */
+const DIAS_RESERVAS = 90;
 
 function falla(mensaje: string): never {
   throw new ErrorAccion(mensaje);
@@ -293,22 +304,10 @@ function mandarRonda(
 
 /** La mesa de una cuenta (las ventas rápidas no tienen mesa de verdad). */
 function mesaDeCuenta(estado: Estado, cuenta: Cuenta): Mesa {
-  if (cuenta.mesaId === MESA_VENTA_RAPIDA) return MESA_RAPIDA;
-  return buscar(estado.mesas, cuenta.mesaId, "la mesa");
+  return (
+    buscarMesa(estado, cuenta.mesaId) ?? falla("No encuentro la mesa. Puede que ya no exista.")
+  );
 }
-
-const MESA_RAPIDA: Mesa = {
-  id: MESA_VENTA_RAPIDA,
-  nombre: "Venta rápida",
-  zonaId: "",
-  x: 0,
-  y: 0,
-  ancho: 0,
-  alto: 0,
-  forma: "cuadrada",
-  plazas: 1,
-  token: "",
-};
 
 /**
  * Cobra unas líneas de una cuenta: hace el ticket, lo imprime y apunta en cada línea con qué
@@ -415,6 +414,7 @@ function imprimirTicket(
       ticket,
       camarero: estado.empleados.find((e) => e.id === ticket.empleadoId),
       abrirCajon: conCajon,
+      resena: enlaceResena(estado),
     }),
     "tickets",
   );
@@ -636,6 +636,7 @@ function aplicarPersonal(
       break;
     case "mover_cuenta": {
       const cuenta = cuentaAbierta(estado, accion.cuentaId);
+      if (cuenta.llevar) falla("Un pedido para llevar no se puede pasar a una mesa.");
       const destino = buscar(estado.mesas, accion.mesaId, "la mesa de destino");
       if (destino.id === cuenta.mesaId) falla("La cuenta ya está en esa mesa.");
       const yaAbierta = cuentaDeMesa(estado, destino.id);
@@ -656,7 +657,7 @@ function aplicarPersonal(
     }
     case "imprimir_precuenta": {
       const cuenta = cuentaAbierta(estado, accion.cuentaId);
-      const mesa = buscar(estado.mesas, cuenta.mesaId, "la mesa");
+      const mesa = mesaDeCuenta(estado, cuenta);
       encolar(
         estado,
         ctx,
@@ -852,6 +853,73 @@ function aplicarPersonal(
       producto.disponible = accion.disponible;
       // A mano manda la persona; si no hay stock, la próxima venta lo vuelve a agotar.
       delete producto.agotadoPorStock;
+      break;
+    }
+    case "abrir_para_llevar": {
+      apagada(estado, "paraLlevar");
+      if (accion.cuentaId && estado.cuentas.some((c) => c.id === accion.cuentaId))
+        falla("Esa cuenta ya existe.");
+      abrirParaLlevar(estado, ctx, {
+        id: accion.cuentaId,
+        nombre: accion.nombre,
+        telefono: accion.telefono,
+        recogida: accion.recogida,
+        online: false,
+        empleadoId: empleado.id,
+      });
+      break;
+    }
+    case "guardar_reserva": {
+      apagada(estado, "reservas");
+      const { id, ...datos } = accion.reserva;
+      if (datos.mesaId) buscar(estado.mesas, datos.mesaId, "esa mesa");
+      if (id) {
+        const reserva = buscar(estado.reservas, id, "esa reserva");
+        Object.assign(reserva, datos);
+      } else {
+        if (datos.dia < diaLocal(ctx.ahora)) falla("Ese día ya ha pasado.");
+        estado.reservas.push({
+          id: ctx.nuevoId(),
+          ...datos,
+          estado: "confirmada",
+          online: false,
+          creadaEn: ctx.ahora,
+        });
+      }
+      podarReservas(estado, ctx);
+      break;
+    }
+    case "cambiar_reserva": {
+      apagada(estado, "reservas");
+      const reserva = buscar(estado.reservas, accion.reservaId, "esa reserva");
+      if (reserva.estado === "sentada") falla("Ya están sentados: la reserva está cumplida.");
+      reserva.estado = accion.estado;
+      break;
+    }
+    case "sentar_reserva": {
+      apagada(estado, "reservas");
+      const reserva = buscar(estado.reservas, accion.reservaId, "esa reserva");
+      if (reserva.estado === "sentada") falla("Esta reserva ya está sentada.");
+      if (reserva.estado === "cancelada") falla("Esta reserva está cancelada.");
+      buscar(estado.mesas, accion.mesaId, "la mesa");
+      const cuenta = cuentaDeMesa(estado, accion.mesaId);
+      if (cuenta) cuenta.comensales = Math.max(cuenta.comensales, reserva.personas);
+      else
+        estado.cuentas.push({
+          id: ctx.nuevoId(),
+          mesaId: accion.mesaId,
+          estado: "abierta",
+          comensales: reserva.personas,
+          abiertaEn: ctx.ahora,
+          cerradaEn: null,
+          empleadoId: empleado.id,
+          lineas: [],
+          descuento: 0,
+          rondas: 0,
+          ticketId: null,
+        });
+      reserva.estado = "sentada";
+      reserva.mesaId = accion.mesaId;
       break;
     }
     case "fichar": {
@@ -1147,10 +1215,18 @@ function reducirEncargado(
       estado.empleados = nuevos;
       break;
     }
-    case "guardar_ajustes":
+    case "guardar_ajustes": {
       // Las funciones se cambian aparte: guardar los datos del local no las toca.
-      estado.ajustes = { ...accion.ajustes, funciones: estado.ajustes.funciones };
+      // Sin el campo, se queda el enlace de reseñas que había; vacío, se quita.
+      const { enlaceResena, ...datos } = accion.ajustes;
+      const enlace = enlaceResena ?? estado.ajustes.enlaceResena;
+      estado.ajustes = {
+        ...datos,
+        funciones: estado.ajustes.funciones,
+        ...(enlace ? { enlaceResena: enlace } : {}),
+      };
       break;
+    }
     case "cambiar_funcion":
       estado.ajustes.funciones = { ...estado.ajustes.funciones, [accion.funcion]: accion.activa };
       // Al apagar el stock, lo que había agotado vuelve a la carta (y al revés).
@@ -1260,6 +1336,11 @@ function reducirEncargado(
   return { estado, trabajos };
 }
 
+/** El enlace para dejar una reseña, si el bar la pide. */
+export function enlaceResena(estado: Pick<Estado, "ajustes">): string | undefined {
+  return activa(estado.ajustes, "resenas") ? estado.ajustes.enlaceResena : undefined;
+}
+
 /** Corta la acción si la función está apagada en este bar. */
 function apagada(estado: Estado, funcion: Funcion) {
   if (!activa(estado.ajustes, funcion))
@@ -1330,7 +1411,60 @@ function apuntarMovimiento(
     estado.movimientosStock.splice(0, estado.movimientosStock.length - MAX_MOVIMIENTOS_STOCK);
 }
 
-/** Aplica una acción que llega desde el QR de una mesa. */
+/** Abre la cuenta de un pedido para llevar. Cada uno lleva su propia «mesa» (ver selectores). */
+function abrirParaLlevar(
+  estado: Estado,
+  ctx: Contexto,
+  datos: {
+    id?: string;
+    nombre: string;
+    telefono: string;
+    recogida: string;
+    online: boolean;
+    empleadoId: string | null;
+    token?: string;
+  },
+): Cuenta {
+  const id = datos.id ?? ctx.nuevoId();
+  const cuenta: Cuenta = {
+    id,
+    mesaId: `${PREFIJO_LLEVAR}${id}`,
+    llevar: {
+      nombre: datos.nombre,
+      telefono: datos.telefono,
+      recogida: datos.recogida,
+      online: datos.online,
+      ...(datos.token ? { token: datos.token } : {}),
+    },
+    estado: "abierta",
+    comensales: 1,
+    abiertaEn: ctx.ahora,
+    cerradaEn: null,
+    empleadoId: datos.empleadoId,
+    lineas: [],
+    descuento: 0,
+    rondas: 0,
+    ticketId: null,
+  };
+  estado.cuentas.push(cuenta);
+  return cuenta;
+}
+
+function podarReservas(estado: Estado, ctx: Contexto) {
+  const desde = sumarDias(diaLocal(ctx.ahora), -DIAS_RESERVAS);
+  estado.reservas = estado.reservas.filter((r) => r.dia >= desde);
+}
+
+/** Lo que hay detrás de un enlace de cliente: el QR de una mesa o un encargo para llevar. */
+function porToken(estado: Estado, token: string): { mesaId: string; llevar?: Cuenta } {
+  const mesa = estado.mesas.find((m) => m.token === token);
+  if (mesa) return { mesaId: mesa.id };
+  const llevar = estado.cuentas.find((c) => c.llevar?.token === token);
+  if (llevar) return { mesaId: llevar.mesaId, llevar };
+  return falla("Este QR ya no es válido. Pide uno nuevo al camarero.");
+}
+
+/** Aplica una acción que llega desde el QR de una mesa (o desde el enlace de un encargo). */
 export function reducirCliente(
   anterior: Estado,
   mesaToken: string,
@@ -1339,19 +1473,18 @@ export function reducirCliente(
 ): Resultado {
   const estado = copiaEditable(anterior);
   const trabajos: TrabajoImpresion[] = [];
-  const mesa =
-    estado.mesas.find((m) => m.token === mesaToken) ??
-    falla("Este QR ya no es válido. Pide uno nuevo al camarero.");
+  const { mesaId, llevar } = porToken(estado, mesaToken);
 
   switch (accion.tipo) {
     case "pedir": {
       if (!estado.ajustes.pedidosQRActivos)
         falla("Ahora mismo los pedidos se hacen con el camarero.");
-      let cuenta = cuentaDeMesa(estado, mesa.id);
+      let cuenta = cuentaDeMesa(estado, mesaId);
+      if (llevar && !cuenta) falla("Este encargo ya está cerrado. Si quieres algo más, haz otro.");
       if (!cuenta) {
         cuenta = {
           id: ctx.nuevoId(),
-          mesaId: mesa.id,
+          mesaId,
           estado: "abierta",
           comensales: 1,
           abiertaEn: ctx.ahora,
@@ -1378,7 +1511,7 @@ export function reducirCliente(
         avisar(
           estado,
           ctx,
-          mesa.id,
+          mesaId,
           "pedido_qr",
           `${unidades} ${unidades === 1 ? "cosa" : "cosas"} por aceptar`,
         );
@@ -1388,18 +1521,156 @@ export function reducirCliente(
       break;
     }
     case "llamar_camarero":
-      avisar(estado, ctx, mesa.id, "llamar", "Quieren que vayas a la mesa");
+      if (llevar) falla("En los encargos no hay camarero de mesa: llama al bar si hace falta.");
+      avisar(estado, ctx, mesaId, "llamar", "Quieren que vayas a la mesa");
       break;
     case "pedir_cuenta": {
+      if (llevar) falla("El encargo se paga al recogerlo.");
       const cuenta =
-        cuentaDeMesa(estado, mesa.id) ?? falla("Todavía no hay nada que cobrar en esta mesa.");
+        cuentaDeMesa(estado, mesaId) ?? falla("Todavía no hay nada que cobrar en esta mesa.");
       const como = { efectivo: "en efectivo", tarjeta: "con tarjeta", bizum: "con Bizum" }[
         accion.metodo
       ];
-      avisar(estado, ctx, mesa.id, "cuenta", `Pagará ${como} · ${euros(totalCuenta(cuenta))}`);
+      avisar(estado, ctx, mesaId, "cuenta", `Pagará ${como} · ${euros(totalCuenta(cuenta))}`);
       break;
     }
   }
+  return { estado, trabajos };
+}
+
+/** Encargos online vacíos (abiertos y sin pedir nada) que se guardan como mucho. */
+const MAX_ENCARGOS_VACIOS = 40;
+
+/**
+ * Un cliente empieza un encargo para llevar desde la web del bar. Devuelve el código de su
+ * enlace: con él pide de la carta como si fuera una mesa y ve cómo va.
+ */
+export function reducirEncargoOnline(
+  anterior: Estado,
+  datos: EncargoOnline,
+  ctx: Contexto,
+): Resultado & { token: string } {
+  const estado = copiaEditable(anterior);
+  if (!activa(estado.ajustes, "pedidosOnline") || !activa(estado.ajustes, "paraLlevar"))
+    falla("Este bar no acepta encargos por internet ahora mismo.");
+  if (!estado.ajustes.pedidosQRActivos) falla("Ahora mismo los pedidos se hacen en el bar.");
+  if (instante(diaLocal(ctx.ahora), datos.recogida) < ctx.ahora)
+    falla("Esa hora ya ha pasado. Elige una más tarde.");
+  // Los encargos que se empezaron y no se pidieron se olvidan a las 3 horas.
+  const caducan = new Date(Date.parse(ctx.ahora) - 3 * 3_600_000).toISOString();
+  const vacio = (c: Cuenta) => c.llevar?.online && c.estado === "abierta" && !c.lineas.length;
+  estado.cuentas = estado.cuentas.filter((c) => !vacio(c) || c.abiertaEn > caducan);
+  if (estado.cuentas.filter(vacio).length >= MAX_ENCARGOS_VACIOS)
+    falla("Ahora mismo hay muchos encargos a medias. Prueba dentro de un rato.");
+  const token = ctx.nuevoToken();
+  abrirParaLlevar(estado, ctx, { ...datos, online: true, empleadoId: null, token });
+  return { estado, trabajos: [], token };
+}
+
+/** Peticiones de reserva por confirmar que puede tener un mismo teléfono. */
+const MAX_RESERVAS_POR_TELEFONO = 3;
+
+/** Un cliente pide mesa desde la web del bar. Queda por confirmar. */
+export function reducirReservaOnline(
+  anterior: Estado,
+  datos: ReservaOnline,
+  ctx: Contexto,
+): Resultado {
+  const estado = copiaEditable(anterior);
+  if (!activa(estado.ajustes, "reservasOnline") || !activa(estado.ajustes, "reservas"))
+    falla("Este bar no coge reservas por internet. Llama por teléfono.");
+  const hoy = diaLocal(ctx.ahora);
+  if (instante(datos.dia, datos.hora) < ctx.ahora) falla("Esa hora ya ha pasado.");
+  if (datos.dia > sumarDias(hoy, 60)) falla("Solo se reserva con dos meses de antelación.");
+  const telefono = datos.telefono.replace(/\s/g, "");
+  const suyas = estado.reservas.filter(
+    (r) => r.estado === "por_confirmar" && r.telefono.replace(/\s/g, "") === telefono,
+  );
+  if (suyas.length >= MAX_RESERVAS_POR_TELEFONO)
+    falla("Ya tienes reservas pendientes de confirmar. Te llamaremos enseguida.");
+  const reserva: Reserva = {
+    id: ctx.nuevoId(),
+    ...datos,
+    mesaId: null,
+    estado: "por_confirmar",
+    online: true,
+    creadaEn: ctx.ahora,
+  };
+  estado.reservas.push(reserva);
+  podarReservas(estado, ctx);
+  return { estado, trabajos: [] };
+}
+
+/** Lo que se puede pagar desde el QR: lo pendiente, si no queda nada por aceptar ni por mandar. */
+export function pendienteOnline(cuenta: Cuenta): Centimos {
+  if (cuenta.estado !== "abierta") return 0;
+  if (cuenta.lineas.some((l) => l.estado === "por_confirmar" || l.estado === "anotada")) return 0;
+  return totalCuenta(cuenta);
+}
+
+/** Quien «cobra» un pago hecho desde el QR (no es nadie del equipo). */
+const CARTA_QR: Empleado = {
+  id: "carta-qr",
+  nombre: "Carta QR",
+  pin: "",
+  rol: "camarero",
+  activo: true,
+};
+
+/**
+ * La pasarela avisa de que el cliente ha pagado con tarjeta desde el QR. Si la cuenta sigue
+ * igual, se cobra sola (con su ticket); si ha cambiado o la caja está cerrada, se avisa al
+ * equipo para cobrarlo a mano. Un mismo pago avisado dos veces se apunta una sola.
+ */
+export function reducirPagoOnline(
+  anterior: Estado,
+  pago: { referencia: string; cuentaId: string; importe: Centimos },
+  ctx: Contexto,
+): Resultado {
+  if (anterior.pagosOnline.some((p) => p.referencia === pago.referencia))
+    return { estado: anterior, trabajos: [] };
+  const estado = copiaEditable(anterior);
+  const trabajos: TrabajoImpresion[] = [];
+  const cuenta = estado.cuentas.find((c) => c.id === pago.cuentaId);
+  let ticketId: string | undefined;
+  if (
+    cuenta &&
+    pendienteOnline(cuenta) === pago.importe &&
+    pago.importe > 0 &&
+    turnoAbierto(estado)
+  ) {
+    const empleado = estado.empleados.find((e) => e.id === cuenta.empleadoId) ?? CARTA_QR;
+    ticketId = cobrarLineas(
+      estado,
+      ctx,
+      trabajos,
+      cuenta,
+      lineasCobrables(cuenta),
+      [{ metodo: "tarjeta", importe: pago.importe, referencia: pago.referencia }],
+      0,
+      empleado,
+      // Un encargo pagado sigue en cocina hasta que lo recojan.
+      !cuenta.llevar,
+    ).id;
+  } else {
+    avisar(
+      estado,
+      ctx,
+      cuenta?.mesaId ?? MESA_VENTA_RAPIDA,
+      "cuenta",
+      `Ha pagado ${euros(pago.importe)} con tarjeta desde el QR: cóbralo a mano como tarjeta`,
+    );
+  }
+  estado.pagosOnline.push({
+    referencia: pago.referencia,
+    fecha: ctx.ahora,
+    cuentaId: pago.cuentaId,
+    importe: pago.importe,
+    resultado: ticketId ? "cobrado" : "a_mano",
+    ...(ticketId ? { ticketId } : {}),
+  });
+  if (estado.pagosOnline.length > MAX_PAGOS_ONLINE)
+    estado.pagosOnline.splice(0, estado.pagosOnline.length - MAX_PAGOS_ONLINE);
   return { estado, trabajos };
 }
 

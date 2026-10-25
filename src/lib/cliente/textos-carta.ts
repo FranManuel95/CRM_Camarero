@@ -51,6 +51,25 @@ export const TEXTOS = {
     unaMenos: "Una menos",
     otraMas: "Una más",
     cambiarIdioma: "English",
+    recogeA: (h: string) => `Recoges a las ${h}`,
+    encargoListo: "¡Tu encargo está listo! Pásate a recogerlo.",
+    pagasAlRecoger: "Lo pagas al recogerlo.",
+    comoVaEncargo: (confirmar: boolean) =>
+      confirmar
+        ? "El bar lo confirma y lo prepara para tu hora."
+        : "Va directo a cocina para tu hora.",
+    pagarAhora: (importe: string) => `Pagar ahora con tarjeta · ${importe}`,
+    pagoSeguro: "Pagas en la página segura de Stripe; el bar no ve tu tarjeta.",
+    esperaAceptar: "Para pagar desde aquí, espera a que acepten tu último pedido.",
+    pagoCancelado: "No se ha cobrado nada. Puedes pagar cuando quieras.",
+    gracias: "¡Gracias!",
+    pagadoTicket: (n: string, importe: string) => `Pagado ${importe} · ticket ${n}`,
+    ticketPorCorreo: "¿Te mandamos el ticket por correo?",
+    tuCorreo: "Tu correo",
+    mandar: "Mandar",
+    mandado: "Hecho. Mira tu correo (y la carpeta de spam).",
+    noGuardamos: "Solo lo usamos para mandarte el ticket; no lo guardamos.",
+    dejarResena: "¿Qué tal? Déjanos tu opinión",
     estado: {
       por_confirmar: "Esperando al camarero",
       anotada: "Anotado",
@@ -106,6 +125,25 @@ export const TEXTOS = {
     unaMenos: "One less",
     otraMas: "One more",
     cambiarIdioma: "Español",
+    recogeA: (h: string) => `Pick-up at ${h}`,
+    encargoListo: "Your order is ready! Come and pick it up.",
+    pagasAlRecoger: "You pay when you pick it up.",
+    comoVaEncargo: (confirmar: boolean) =>
+      confirmar
+        ? "The bar confirms it and gets it ready for your time."
+        : "It goes straight to the kitchen for your time.",
+    pagarAhora: (importe: string) => `Pay now by card · ${importe}`,
+    pagoSeguro: "You pay on Stripe's secure page; the bar never sees your card.",
+    esperaAceptar: "To pay from here, wait until your last order has been accepted.",
+    pagoCancelado: "Nothing has been charged. You can pay whenever you like.",
+    gracias: "Thank you!",
+    pagadoTicket: (n: string, importe: string) => `Paid ${importe} · receipt ${n}`,
+    ticketPorCorreo: "Shall we email you the receipt?",
+    tuCorreo: "Your email",
+    mandar: "Send",
+    mandado: "Done. Check your inbox (and your spam folder).",
+    noGuardamos: "We only use it to send the receipt; we don't keep it.",
+    dejarResena: "How was it? Leave us a review",
     estado: {
       por_confirmar: "Waiting for your waiter",
       anotada: "Noted",

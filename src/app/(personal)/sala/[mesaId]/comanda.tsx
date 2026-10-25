@@ -33,6 +33,7 @@ import type { Cuenta, EstadoLinea, LineaCuenta } from "@/lib/dominio/tipos";
 import { formatearHora, minutosEntre } from "@/lib/fechas";
 import { useAhora } from "@/lib/cliente/use-ahora";
 import { CartaTpv } from "@/components/carta-tpv";
+import { buscarMesa, esParaLlevar } from "@/lib/dominio/selectores";
 import { Cobrar } from "./cobrar";
 
 const TEXTO_ESTADO: Record<EstadoLinea, string> = {
@@ -56,7 +57,7 @@ export function Comanda({ mesaId, alSalir }: { mesaId: string; alSalir?: () => v
   const propinas = useFuncion("propinas");
   const router = useRouter();
   const salir = () => (alSalir ? alSalir() : router.push("/sala"));
-  const mesa = estado.mesas.find((m) => m.id === mesaId);
+  const mesa = buscarMesa(estado, mesaId);
   const cuenta = estado.cuentas.find((c) => c.mesaId === mesaId && c.estado === "abierta");
   // Si hay un pedido del QR por aceptar, en el móvil se abre directamente la cuenta.
   const [panel, setPanel] = useState<"carta" | "cuenta">(() =>
@@ -67,13 +68,23 @@ export function Comanda({ mesaId, alSalir }: { mesaId: string; alSalir?: () => v
   if (!mesa)
     return (
       <main className="p-6">
-        <Vacio titulo="Esta mesa ya no existe" />
+        <Vacio
+          titulo={esParaLlevar(mesaId) ? "Este encargo ya está cerrado" : "Esta mesa ya no existe"}
+        >
+          <Link href="/sala" className="font-semibold text-cobalto underline">
+            Volver a la sala
+          </Link>
+        </Vacio>
       </main>
     );
   if (!cuenta)
     return (
       <main className="mx-auto max-w-md p-6">
-        <Vacio titulo={`${mesa.nombre} está libre`}>
+        <Vacio
+          titulo={
+            esParaLlevar(mesaId) ? "Este encargo ya está cerrado" : `${mesa.nombre} está libre`
+          }
+        >
           <p className="mb-4">La cuenta se ha cobrado o cerrado desde otra pantalla.</p>
           <button type="button" onClick={salir} className="font-semibold text-cobalto underline">
             Volver a la sala
@@ -106,7 +117,20 @@ export function Comanda({ mesaId, alSalir }: { mesaId: string; alSalir?: () => v
           </Link>
         )}
         <h1 className="font-rotulo text-3xl font-bold">{mesa.nombre}</h1>
-        <div className="flex items-center gap-1 rounded-lg bg-zinc-claro px-1 ring-1 ring-zinc">
+        {cuenta.llevar?.telefono && (
+          <a
+            href={`tel:${cuenta.llevar.telefono.replace(/\s/g, "")}`}
+            className="text-sm underline"
+          >
+            {cuenta.llevar.telefono}
+          </a>
+        )}
+        <div
+          className={clsx(
+            "flex items-center gap-1 rounded-lg bg-zinc-claro px-1 ring-1 ring-zinc",
+            cuenta.llevar && "hidden",
+          )}
+        >
           <button
             type="button"
             className="p-2"
@@ -147,14 +171,17 @@ export function Comanda({ mesaId, alSalir }: { mesaId: string; alSalir?: () => v
             ` · ${estado.empleados.find((e) => e.id === cuenta.empleadoId)?.nombre ?? ""}`}
         </p>
         <div className="ml-auto flex flex-wrap gap-1">
-          <Boton tamano="pequeno" variante="fantasma" onClick={() => setDialogo("mover")}>
-            <ArrowRightLeft aria-hidden className="size-4" /> Mover o juntar
-          </Boton>
+          {!cuenta.llevar && (
+            <Boton tamano="pequeno" variante="fantasma" onClick={() => setDialogo("mover")}>
+              <ArrowRightLeft aria-hidden className="size-4" /> Mover o juntar
+            </Boton>
+          )}
           <Boton tamano="pequeno" variante="fantasma" onClick={() => setDialogo("descuento")}>
             % Descuento
           </Boton>
           <Boton tamano="pequeno" variante="fantasma" onClick={() => setDialogo("anular")}>
-            <Ban aria-hidden className="size-4" /> Anular mesa
+            <Ban aria-hidden className="size-4" />{" "}
+            {cuenta.llevar ? "Anular encargo" : "Anular mesa"}
           </Boton>
         </div>
       </header>

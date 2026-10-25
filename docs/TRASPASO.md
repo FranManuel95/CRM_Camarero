@@ -135,12 +135,37 @@
 - Ojo: en la demo de la nube los tickets del historial antiguo no van en orden de fecha (eso ya
   está arreglado en `demo.ts`, pero el bar `la-esquina` se creó antes).
 
+## Fase 5: clientes (25/10/2026)
+
+- Estado en versión 6 (`reservas`, `pagosOnline`). Todo activable en Gestión → Funciones; lo que
+  abre el bar a internet (reservar desde la web, encargar desde el móvil, reseñas) viene apagado.
+- **Para llevar**: cada encargo es una cuenta con `llevar` y `mesaId` = `llevar-<id>` (una «mesa»
+  propia; `buscarMesa` en `selectores.ts` da su nombre). Lista en la sala hasta entregarlo.
+- **Encargos desde el móvil**: `/m/<bar>/llevar` → `/api/encargo/<bar>` crea la cuenta con un
+  `token` y manda al cliente a `/m/<bar>/<token>`: la misma carta QR (`vistaCliente` y
+  `reducirCliente` aceptan códigos de mesa o de encargo).
+- **Reservas**: `/sala/reservas`, en el plano dos horas antes (`reservas.ts`), «Han llegado» abre
+  la mesa (`sentar_reserva`). Desde la web, `/m/<bar>/reservar` (quedan por confirmar; 3 por
+  teléfono como mucho). Se guardan 90 días.
+- **Pagar desde el QR** (`src/lib/servidor/stripe.ts`, sin la librería): `/api/mesa/…/pago` crea
+  un Stripe Checkout con el importe que calcula el servidor; Stripe avisa a `/api/pago/stripe`
+  (firma comprobada) y `reducirPagoOnline` cobra solo si la cuenta no ha cambiado; si no, aviso
+  para cobrarlo a mano. Un mismo pago no se apunta dos veces. Necesita `STRIPE_SECRET_KEY` y
+  `STRIPE_WEBHOOK_SECRET`, y en Stripe un webhook a `https://<dominio>/api/pago/stripe` con
+  `checkout.session.completed`.
+- **Ticket por correo** (`src/lib/servidor/correo.ts`, Resend): desde la caja y desde la carta
+  después de pagar. El correo no se guarda. Necesita `RESEND_API_KEY` y `CORREO_REMITENTE`.
+- **Reseñas**: enlace en Ajustes; sale en la carta al pagar y con un QR al pie del ticket.
+- Sin probar contra Stripe ni Resend de verdad (no hay claves): firma y avisos con pruebas
+  unitarias, el resto con la lógica.
+
 ## Pendiente (por orden)
 
 1. **VERI\*FACTU** antes de usarlo como TPV fiscal real (ver `docs/INVESTIGACION.md`).
 2. Probar con una **impresora térmica real** de red (solo se ha probado el formato de los bytes y
    la vista previa; aquí no hay impresora).
-3. Fases 5 y 6 de `docs/PLAN.md` (stock, equipo, clientes…), cuando el usuario lo pida.
+3. Datáfono integrado (hace falta elegir proveedor).
+4. Claves de Stripe y Resend en Vercel cuando el bar tenga cuentas.
 
 ## Trucos del entorno
 

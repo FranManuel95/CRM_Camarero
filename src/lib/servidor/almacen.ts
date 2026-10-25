@@ -1,12 +1,20 @@
 import "server-only";
 import { createHash, createHmac, randomBytes, randomInt, randomUUID } from "node:crypto";
-import type { AccionCliente, AccionPersonal } from "../dominio/acciones";
+import type {
+  AccionCliente,
+  AccionPersonal,
+  EncargoOnline,
+  ReservaOnline,
+} from "../dominio/acciones";
 import { resumenPin } from "../dominio/pin";
 import {
   type Contexto,
   type Resultado,
   reducirCliente,
+  reducirEncargoOnline,
+  reducirPagoOnline,
   reducirPersonal,
+  reducirReservaOnline,
   usarCodigoVinculo,
 } from "../dominio/reducir";
 import type { Empleado, Estado, Fichaje, TrabajoImpresion } from "../dominio/tipos";
@@ -131,6 +139,33 @@ export function ejecutarCliente(local: string, token: string, accion: AccionClie
   return tras(
     a,
     a.cambiar((e) => reducirCliente(e, token, accion, contexto())),
+  );
+}
+
+/** Empieza un encargo para llevar desde la web. Devuelve el código del enlace del cliente. */
+export async function ejecutarEncargoOnline(local: string, datos: EncargoOnline) {
+  let token = "";
+  await almacen(local).cambiar((e) => {
+    const r = reducirEncargoOnline(e, datos, contexto());
+    token = r.token;
+    return r;
+  });
+  return token;
+}
+
+export async function ejecutarReservaOnline(local: string, datos: ReservaOnline) {
+  await almacen(local).cambiar((e) => reducirReservaOnline(e, datos, contexto()));
+}
+
+/** Apunta un pago con tarjeta hecho desde el QR (lo avisa la pasarela). */
+export function ejecutarPagoOnline(
+  local: string,
+  pago: { referencia: string; cuentaId: string; importe: number },
+) {
+  const a = almacen(local);
+  return tras(
+    a,
+    a.cambiar((e) => reducirPagoOnline(e, pago, contexto())),
   );
 }
 

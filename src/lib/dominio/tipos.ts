@@ -42,6 +42,8 @@ export type Ajustes = {
   serieTicket: string;
   /** Funciones encendidas o apagadas (ver funciones.ts). Lo que no está, va por defecto. */
   funciones?: Partial<Record<string, boolean>>;
+  /** Dónde dejar una reseña (Google, TripAdvisor…). Sale al pagar si «Reseñas» está encendido. */
+  enlaceResena?: string;
 };
 
 export type Zona = { id: Id; nombre: string; orden: number };
@@ -233,13 +235,35 @@ export type LineaCuenta = {
 
 export type MetodoPago = "efectivo" | "tarjeta" | "bizum" | "otro";
 
-export type Pago = { metodo: MetodoPago; importe: Centimos };
+export type Pago = {
+  metodo: MetodoPago;
+  importe: Centimos;
+  /** En los pagos con tarjeta desde el QR, la referencia del cobro en la pasarela. */
+  referencia?: string;
+};
 
 export type EstadoCuenta = "abierta" | "cobrada" | "anulada";
+
+/**
+ * Datos de un pedido para llevar. Su cuenta no tiene mesa de verdad: `mesaId` es
+ * «llevar-…» (ver selectores.ts), así que cada pedido es como una mesa más.
+ */
+export type DatosLlevar = {
+  nombre: string;
+  telefono: string;
+  /** Hora de recogida, «14:30» (hora de Madrid). */
+  recogida: string;
+  /** Lo ha hecho el cliente desde su móvil (no el camarero). */
+  online: boolean;
+  /** Código del enlace con el que el cliente sigue su pedido (solo en los online). */
+  token?: string;
+};
 
 export type Cuenta = {
   id: Id;
   mesaId: Id;
+  /** Solo en los pedidos para llevar. */
+  llevar?: DatosLlevar;
   estado: EstadoCuenta;
   comensales: number;
   abiertaEn: FechaISO;
@@ -419,6 +443,43 @@ export type EntradaHistorial = {
   texto: string;
 };
 
+export type EstadoReserva =
+  /** Pedida desde la web: falta que el bar la confirme. */
+  | "por_confirmar"
+  | "confirmada"
+  /** Ya han llegado y están en su mesa. */
+  | "sentada"
+  | "cancelada"
+  | "no_vino";
+
+export type Reserva = {
+  id: Id;
+  nombre: string;
+  telefono: string;
+  personas: number;
+  /** «2026-10-27» y «21:30», hora de Madrid. */
+  dia: string;
+  hora: string;
+  /** Mesa asignada (puede no tener todavía). */
+  mesaId: Id | null;
+  nota: string;
+  estado: EstadoReserva;
+  /** Pedida desde la web del bar (si no, la apuntó alguien del equipo). */
+  online: boolean;
+  creadaEn: FechaISO;
+};
+
+/** Un pago con tarjeta desde el QR, tal como lo avisa la pasarela (se guarda para no repetirlo). */
+export type PagoOnline = {
+  referencia: string;
+  fecha: FechaISO;
+  cuentaId: Id;
+  importe: Centimos;
+  /** «cobrado»: se hizo el ticket solo. «a_mano»: la cuenta cambió y hay que cobrarlo a mano. */
+  resultado: "cobrado" | "a_mano";
+  ticketId?: Id;
+};
+
 export type MovimientoCaja = {
   id: Id;
   fecha: FechaISO;
@@ -513,6 +574,8 @@ export type Estado = {
   cuadrante: TurnoCuadrante[];
   incidencias: Incidencia[];
   historial: EntradaHistorial[];
+  reservas: Reserva[];
+  pagosOnline: PagoOnline[];
   /**
    * Códigos de 6 cifras para vincular un móvil o una tablet a este bar sin la cuenta del dueño.
    * Caducan a los 15 minutos y se usan una sola vez.

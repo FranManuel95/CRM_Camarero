@@ -17,6 +17,8 @@ const metodo = z.enum(["efectivo", "tarjeta", "bizum", "otro"]);
 const cantidad = z.number().min(0).max(1_000_000);
 const dia = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Día no válido");
 const hora = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Hora no válida");
+/** Código de cuenta que pone el propio aparato (para seguir trabajando sin esperar respuesta). */
+const idDelAparato = z.string().regex(/^sr-[a-z0-9-]{8,40}$/, "Identificador no válido");
 const receta = z.array(z.object({ ingredienteId: id, cantidad: cantidad.positive() })).max(30);
 
 export const lineaPedida = z.object({
@@ -56,10 +58,7 @@ export const accionCamarero = z.discriminatedUnion("tipo", [
     mesaId: id,
     comensales: z.number().int().min(1).max(99),
     /** La pone el aparato cuando abre la mesa sin conexión, para anotar en ella después. */
-    cuentaId: z
-      .string()
-      .regex(/^sr-[a-z0-9-]{8,40}$/, "Identificador no válido")
-      .optional(),
+    cuentaId: idDelAparato.optional(),
   }),
   z.object({
     tipo: z.literal("anotar"),
@@ -156,6 +155,34 @@ export const accionCamarero = z.discriminatedUnion("tipo", [
     cantidad,
     nota: texto(140).default(""),
   }),
+  // Para llevar y reservas: lo apunta quien coge el teléfono.
+  z.object({
+    tipo: z.literal("abrir_para_llevar"),
+    nombre: texto(40).min(1, "Pon un nombre para llamarle al recoger"),
+    telefono: texto(20),
+    recogida: hora,
+    cuentaId: idDelAparato.optional(),
+  }),
+  z.object({
+    tipo: z.literal("guardar_reserva"),
+    reserva: z.object({
+      id: id.optional(),
+      nombre: texto(40).min(1, "Pon a nombre de quién es"),
+      telefono: texto(20),
+      personas: z.number().int().min(1).max(99),
+      dia,
+      hora,
+      mesaId: id.nullable(),
+      nota: texto(200),
+    }),
+  }),
+  z.object({
+    tipo: z.literal("cambiar_reserva"),
+    reservaId: id,
+    estado: z.enum(["por_confirmar", "confirmada", "cancelada", "no_vino"]),
+  }),
+  /** Han llegado los de la reserva: se abre su mesa. */
+  z.object({ tipo: z.literal("sentar_reserva"), reservaId: id, mesaId: id }),
   // Registro de jornada: cada uno ficha lo suyo.
   z.object({ tipo: z.literal("fichar"), que: z.enum(["entrada", "pausa", "vuelta", "salida"]) }),
 ]);
@@ -309,6 +336,12 @@ export const accionEncargado = z.discriminatedUnion("tipo", [
       pedidosQRActivos: z.boolean(),
       pieTicket: texto(200),
       serieTicket: z.string().regex(/^[A-Z0-9-]{1,10}$/, "Solo mayúsculas, números y guiones"),
+      enlaceResena: z
+        .union([
+          z.literal(""),
+          z.url({ protocol: /^https$/, error: "El enlace empieza por https://" }),
+        ])
+        .optional(),
     }),
   }),
   z.object({
@@ -375,6 +408,31 @@ export const accionCliente = z.discriminatedUnion("tipo", [
   z.object({ tipo: z.literal("pedir_cuenta"), metodo: z.enum(["efectivo", "tarjeta", "bizum"]) }),
 ]);
 export type AccionCliente = z.infer<typeof accionCliente>;
+
+/** Un encargo para llevar desde la web del bar (luego se pide con la carta, como en una mesa). */
+export const encargoOnline = z.object({
+  nombre: texto(40).min(1, "Dinos tu nombre"),
+  telefono: z
+    .string()
+    .trim()
+    .regex(/^\+?[\d ]{9,15}$/, "Pon un teléfono para avisarte si hay algún problema"),
+  recogida: hora,
+});
+export type EncargoOnline = z.infer<typeof encargoOnline>;
+
+/** Una petición de reserva desde la web del bar (el bar la confirma). */
+export const reservaOnline = z.object({
+  nombre: texto(40).min(1, "Dinos a nombre de quién"),
+  telefono: z
+    .string()
+    .trim()
+    .regex(/^\+?[\d ]{9,15}$/, "Pon un teléfono para confirmarte la reserva"),
+  personas: z.number().int().min(1).max(20),
+  dia,
+  hora,
+  nota: texto(200).default(""),
+});
+export type ReservaOnline = z.infer<typeof reservaOnline>;
 
 export type AccionPersonal = z.infer<typeof accionPersonal>;
 

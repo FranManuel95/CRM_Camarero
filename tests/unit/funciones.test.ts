@@ -32,9 +32,11 @@ function preparar() {
 const caña = { productoId: "prod-1-1", cantidad: 1, opciones: [], nota: "" };
 
 describe("funciones", () => {
-  it("todo viene encendido, y lo que necesita una clave solo se usa con ella", () => {
+  it("lo de dentro del bar viene encendido, y lo que necesita una clave solo se usa con ella", () => {
     const { ajustes } = estadoDeEjemplo(ctx);
-    expect(LISTA_FUNCIONES.every((f) => activa(ajustes, f))).toBe(true);
+    // Lo que abre el bar a los clientes por internet se enciende a propósito.
+    const apagadas = ["reservasOnline", "pedidosOnline", "resenas"];
+    expect(LISTA_FUNCIONES.filter((f) => !activa(ajustes, f))).toEqual(apagadas);
     expect(disponible(ajustes, { ia: false }, "facturasConFoto")).toBe(false);
     expect(disponible(ajustes, { ia: true }, "facturasConFoto")).toBe(true);
   });

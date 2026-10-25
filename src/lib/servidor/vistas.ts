@@ -1,11 +1,12 @@
 import { DIAS_EN_PANTALLA } from "../constantes";
 import { servicios } from "./servicios";
-import { activa } from "../dominio/funciones";
-import { cuentaDeMesa } from "../dominio/reducir";
-import { cuentaEnJuego } from "../dominio/selectores";
+import { activa, disponible } from "../dominio/funciones";
+import { turnoAbierto } from "../dominio/caja";
+import { cuentaDeMesa, pendienteOnline } from "../dominio/reducir";
+import { cuentaEnJuego, nombreLlevar } from "../dominio/selectores";
 import { pagadoCuenta, totalCuenta } from "../dominio/importes";
 import { dentroDeHorario } from "../dominio/horario";
-import type { Empleado, Estado, LineaCuenta } from "../dominio/tipos";
+import type { Cuenta, Empleado, Estado, LineaCuenta } from "../dominio/tipos";
 
 /**
  * Lo que ve el personal: todo menos los PIN y el historial antiguo. Las cuentas cerradas no
@@ -46,15 +47,39 @@ export type LineaCliente = Pick<
   "id" | "nombre" | "cantidad" | "precioUnitario" | "opciones" | "nota" | "estado" | "invitacion"
 > & { pagada: boolean };
 
-/** Lo que ve un cliente desde el QR: la carta y su mesa. Nada de otras mesas ni del local. */
+/** Lo que tarda en desaparecer de la carta el ticket de la cuenta recién pagada. */
+const MINUTOS_ULTIMO_TICKET = 30;
+
+/**
+ * Lo que ve un cliente desde el QR: la carta y su mesa (o su encargo para llevar, si el código
+ * es el de un encargo). Nada de otras mesas ni de los datos del local.
+ */
 export function vistaCliente(estado: Estado, token: string, ahora = new Date().toISOString()) {
-  const mesa = estado.mesas.find((m) => m.token === token);
-  if (!mesa) return null;
+  const mesaQR = estado.mesas.find((m) => m.token === token);
+  const encargo = mesaQR ? undefined : estado.cuentas.find((c) => c.llevar?.token === token);
+  if (!mesaQR && !encargo?.llevar) return null;
+  const mesa = mesaQR ?? { id: encargo!.mesaId, nombre: nombreLlevar(encargo!.llevar!) };
   const categorias = estado.categorias
     .filter((c) => c.visibleEnQR && dentroDeHorario(c.horario, ahora))
     .sort((a, b) => a.orden - b.orden);
   const ids = new Set(categorias.map((c) => c.id));
-  const cuenta = cuentaDeMesa(estado, mesa.id);
+  // Un encargo se sigue viendo después de pagarlo (para saber cuándo está listo).
+  const cuenta: Cuenta | undefined =
+    encargo && encargo.estado !== "anulada" ? encargo : cuentaDeMesa(estado, mesa.id);
+  // La última cuenta pagada de la mesa, para pedir el ticket por correo o dejar una reseña.
+  const desde = new Date(Date.parse(ahora) - MINUTOS_ULTIMO_TICKET * 60_000).toISOString();
+  const pagada = encargo
+    ? encargo.estado === "cobrada"
+      ? encargo
+      : undefined
+    : estado.cuentas.findLast(
+        (c) => c.mesaId === mesa.id && c.estado === "cobrada" && (c.cerradaEn ?? "") >= desde,
+      );
+  const ticket = pagada?.ticketId
+    ? estado.tickets.find((t) => t.id === pagada.ticketId)
+    : undefined;
+  const { ajustes } = estado;
+  const servidor = servicios();
   const lineas: LineaCliente[] = (cuenta?.lineas ?? [])
     .filter((l) => l.estado !== "anulada")
     .map(
@@ -88,9 +113,16 @@ export function vistaCliente(estado: Estado, token: string, ahora = new Date().t
       nombre: estado.ajustes.nombreLocal,
       pedidosActivos: estado.ajustes.pedidosQRActivos,
       confirmarPedidos: estado.ajustes.confirmarPedidosQR,
-      ingles: activa(estado.ajustes, "cartaIngles"),
+      ingles: activa(ajustes, "cartaIngles"),
+      /** Se puede pagar con tarjeta desde el móvil (hay pasarela y la caja está abierta). */
+      pagoQR: disponible(ajustes, servidor, "pagoQR") && Boolean(turnoAbierto(estado)),
+      ticketCorreo: disponible(ajustes, servidor, "ticketCorreo"),
+      /** Enlace para dejar una reseña, si el bar lo pide. */
+      resena: (activa(ajustes, "resenas") && ajustes.enlaceResena) || null,
     },
     mesa: { nombre: mesa.nombre },
+    /** Solo en los encargos para llevar. */
+    llevar: encargo?.llevar ? { recogida: encargo.llevar.recogida } : null,
     categorias: categorias.map(({ id, nombre, nombreEn }) => ({ id, nombre, nombreEn })),
     productos: estado.productos
       .filter((p) => ids.has(p.categoriaId))
@@ -122,7 +154,17 @@ export function vistaCliente(estado: Estado, token: string, ahora = new Date().t
           grupos,
         }),
       ),
-    cuenta: cuenta ? { lineas, total: totalCuenta(cuenta), pagado: pagadoCuenta(cuenta) } : null,
+    cuenta: cuenta
+      ? {
+          lineas,
+          total: totalCuenta(cuenta),
+          pagado: pagadoCuenta(cuenta),
+          /** Lo que se puede pagar ahora con tarjeta desde el móvil (0 si aún no se puede). */
+          aPagar: pendienteOnline(cuenta),
+        }
+      : null,
+    /** El ticket de lo último que se pagó (en la última media hora). */
+    ticket: ticket ? { id: ticket.id, numero: ticket.numero, total: ticket.total } : null,
     avisos,
   };
 }

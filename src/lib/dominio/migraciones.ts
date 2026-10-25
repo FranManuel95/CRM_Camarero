@@ -1,7 +1,7 @@
 import { resumenPin } from "./pin";
 import type { Estado } from "./tipos";
 
-export const VERSION_ESTADO = 5;
+export const VERSION_ESTADO = 6;
 
 /** Pone al día un estado guardado con una versión anterior del programa. */
 export function migrar(estado: Estado): Estado {
@@ -21,6 +21,10 @@ export function migrar(estado: Estado): Estado {
   if (e.version === 4) {
     // Versión 5: historial de cambios.
     e = { ...e, version: 5, historial: [] };
+  }
+  if (e.version === 5) {
+    // Versión 6: reservas y pagos desde el QR.
+    e = { ...e, version: 6, reservas: [], pagosOnline: [] };
   }
   if (e.version !== VERSION_ESTADO)
     throw new Error(`Datos de una versión desconocida (${e.version}).`);

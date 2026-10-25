@@ -48,11 +48,11 @@ monta su bar sin ayuda.
 
 ## Fase 5 · Clientes y más ventas
 
-- [ ] Reservas con plano y recordatorio.
-- [ ] Pagar desde el QR (Stripe; necesita cuenta del bar).
-- [ ] Ticket por correo (necesita un proveedor de correo).
-- [ ] Pedidos para llevar y recogida.
-- [ ] Invitación a dejar reseña al pagar.
+- [x] Reservas con plano y recordatorio.
+- [x] Pagar desde el QR (Stripe; necesita cuenta del bar).
+- [x] Ticket por correo (necesita un proveedor de correo).
+- [x] Pedidos para llevar y recogida.
+- [x] Invitación a dejar reseña al pagar.
 
 ## Fase 6 · A prueba de fallos
 
@@ -68,5 +68,7 @@ monta su bar sin ayuda.
   y el correo de Supabase solo manda unos pocos por hora.
 - Supabase → Authentication → URL Configuration: poner `https://comanda-tpv.vercel.app` como
   Site URL y `https://comanda-tpv.vercel.app/**` en Redirect URLs (enlaces de los correos).
-- Cuentas de Stripe y de correo (fase 5).
+- Cuentas de Stripe (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` y el webhook a
+  `/api/pago/stripe`) y de Resend (`RESEND_API_KEY`, `CORREO_REMITENTE`) para encender el pago
+  desde el QR y el ticket por correo.
 - Clave de la API de Claude (`ANTHROPIC_API_KEY` en Vercel) para leer facturas con foto (fase 3).

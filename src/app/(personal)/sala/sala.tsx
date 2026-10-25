@@ -4,6 +4,7 @@ import clsx from "clsx";
 import {
   Zap,
   BellRing,
+  CalendarDays,
   CheckCheck,
   Clock,
   Hand,
@@ -11,6 +12,7 @@ import {
   Map as IconoPlano,
   QrCode,
   Receipt,
+  ShoppingBag,
   Users,
   UtensilsCrossed,
 } from "lucide-react";
@@ -21,11 +23,19 @@ import { useDatos, useFuncion } from "@/components/datos-personal";
 import { Comanda } from "./[mesaId]/comanda";
 import { Boton, Dialogo } from "@/components/ui";
 import { euros } from "@/lib/dominio/importes";
-import { situacionMesa, type SituacionMesa, TEXTO_SITUACION } from "@/lib/dominio/selectores";
+import { reservaCercana } from "@/lib/dominio/reservas";
+import {
+  buscarMesa,
+  MESA_VENTA_RAPIDA,
+  situacionMesa,
+  type SituacionMesa,
+  TEXTO_SITUACION,
+} from "@/lib/dominio/selectores";
 import type { Aviso, Mesa } from "@/lib/dominio/tipos";
 import { formatearHora, minutosEntre } from "@/lib/fechas";
 import { useAhora } from "@/lib/cliente/use-ahora";
 import { useGuardado } from "@/lib/cliente/use-guardado";
+import { ListaParaLlevar, NuevoParaLlevar } from "./para-llevar";
 
 export const COLOR_SITUACION: Record<SituacionMesa, string> = {
   libre: "bg-white ring-zinc-oscuro text-tinta",
@@ -34,6 +44,10 @@ export const COLOR_SITUACION: Record<SituacionMesa, string> = {
   cuenta: "bg-cuenta-claro ring-cuenta text-tinta",
   aviso: "bg-aviso-claro ring-aviso text-tinta",
 };
+
+/** Botones de la sala (venta rápida, para llevar, reservas). */
+const claseAtajo =
+  "flex h-14 flex-col items-center justify-center gap-0.5 rounded-lg px-2 text-xs font-semibold sm:h-11 sm:flex-row sm:gap-1.5 sm:px-4 sm:text-base";
 
 const ICONO_AVISO = {
   llamar: Hand,
@@ -51,6 +65,9 @@ const TEXTO_AVISO = {
 export function Sala() {
   const { estado, hacer } = useDatos();
   const ventaRapida = useFuncion("ventaRapida");
+  const paraLlevar = useFuncion("paraLlevar");
+  const reservas = useFuncion("reservas");
+  const [nuevoLlevar, setNuevoLlevar] = useState(false);
   const router = useRouter();
   const ahora = useAhora();
   const zonas = [...estado.zonas].sort((a, b) => a.orden - b.orden);
@@ -62,7 +79,14 @@ export function Sala() {
   const avisos = estado.avisos
     .filter((a) => !a.atendido)
     .sort((a, b) => a.creadoEn.localeCompare(b.creadoEn));
-  const ocupadas = estado.cuentas.filter((c) => c.estado === "abierta").length;
+  const ocupadas = estado.cuentas.filter(
+    (c) => c.estado === "abierta" && !c.llevar && c.mesaId !== MESA_VENTA_RAPIDA,
+  ).length;
+  const porConfirmar = reservas
+    ? estado.reservas.filter((r) => r.estado === "por_confirmar").length
+    : 0;
+  const reservaAbrir =
+    abrir && reservas ? reservaCercana(estado.reservas, abrir.id, ahora) : undefined;
 
   // Sin red no se puede ir a otra pantalla: la mesa se abre aquí mismo.
   const [mesaAqui, setMesaAqui] = useState<string | null>(null);
@@ -126,13 +150,44 @@ export function Sala() {
               );
             })}
           </div>
-          {ventaRapida && (
-            <Link
-              href="/sala/rapida"
-              className="inline-flex h-11 items-center gap-1.5 rounded-lg bg-cuenta px-4 font-semibold text-white hover:brightness-95"
-            >
-              <Zap aria-hidden className="size-4" /> Venta rápida
-            </Link>
+          {(ventaRapida || paraLlevar || reservas) && (
+            // En el móvil, los tres en una fila con el icono encima; en pantallas grandes, en línea.
+            <div className="grid basis-full auto-cols-fr grid-flow-col gap-2 sm:flex sm:basis-auto">
+              {ventaRapida && (
+                <Link
+                  href="/sala/rapida"
+                  className={clsx(claseAtajo, "bg-cuenta text-white hover:brightness-95")}
+                >
+                  <Zap aria-hidden className="size-4" /> Venta rápida
+                </Link>
+              )}
+              {paraLlevar && (
+                <button
+                  type="button"
+                  onClick={() => setNuevoLlevar(true)}
+                  className={clsx(claseAtajo, "bg-white ring-1 ring-zinc-oscuro hover:bg-zinc")}
+                >
+                  <ShoppingBag aria-hidden className="size-4" /> Para llevar
+                </button>
+              )}
+              {reservas && (
+                <Link
+                  href="/sala/reservas"
+                  className={clsx(
+                    claseAtajo,
+                    "relative bg-white ring-1 ring-zinc-oscuro hover:bg-zinc",
+                  )}
+                >
+                  <CalendarDays aria-hidden className="size-4" /> Reservas
+                  {porConfirmar > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 grid min-w-5 place-items-center rounded-full bg-aviso px-1 text-xs text-white ring-2 ring-white sm:static sm:ring-0">
+                      {porConfirmar}
+                      <span className="sr-only"> por confirmar</span>
+                    </span>
+                  )}
+                </Link>
+              )}
+            </div>
           )}
           <p className="mr-auto text-sm text-tinta-suave sm:mr-0">
             {ocupadas} {ocupadas === 1 ? "mesa ocupada" : "mesas ocupadas"}
@@ -182,6 +237,7 @@ export function Sala() {
       </section>
 
       <aside aria-labelledby="titulo-avisos" className="lg:sticky lg:top-18 lg:self-start">
+        {paraLlevar && <ListaParaLlevar />}
         <h2
           id="titulo-avisos"
           className="mb-2 flex items-center gap-2 font-rotulo text-2xl font-bold"
@@ -207,6 +263,34 @@ export function Sala() {
         alCerrar={() => setAbrir(null)}
         titulo={`Abrir ${abrir?.nombre ?? ""}`}
       >
+        {reservaAbrir && (
+          <div className="mb-4 rounded-xl bg-cobalto/10 p-3">
+            <p className="mb-2">
+              Reservada a las <strong>{reservaAbrir.hora}</strong> para {reservaAbrir.nombre} (
+              {reservaAbrir.personas}).
+              {reservaAbrir.nota && <span className="block text-sm">«{reservaAbrir.nota}»</span>}
+            </p>
+            <Boton
+              variante="primario"
+              className="w-full"
+              onClick={async () => {
+                const mesa = abrir!;
+                if (
+                  await hacer({
+                    tipo: "sentar_reserva",
+                    reservaId: reservaAbrir.id,
+                    mesaId: mesa.id,
+                  })
+                ) {
+                  setAbrir(null);
+                  irAMesa(mesa.id);
+                }
+              }}
+            >
+              Han llegado: abrir para {reservaAbrir.personas}
+            </Boton>
+          </div>
+        )}
         <p className="mb-3 font-semibold">¿Cuántas personas?</p>
         <div className="grid grid-cols-4 gap-2">
           {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
@@ -221,6 +305,11 @@ export function Sala() {
           ))}
         </div>
       </Dialogo>
+      <NuevoParaLlevar
+        abierto={nuevoLlevar}
+        alCerrar={() => setNuevoLlevar(false)}
+        alAbrir={irAMesa}
+      />
     </main>
   );
 }
@@ -243,7 +332,7 @@ function Leyenda() {
 
 function FilaAviso({ aviso, ahora }: { aviso: Aviso; ahora: string }) {
   const { estado, hacer } = useDatos();
-  const mesa = estado.mesas.find((m) => m.id === aviso.mesaId);
+  const mesa = buscarMesa(estado, aviso.mesaId);
   const Icono = ICONO_AVISO[aviso.tipo];
   const minutos = minutosEntre(aviso.creadoEn, ahora);
   return (
@@ -303,7 +392,12 @@ function FichaMesa({
   enPlano?: boolean;
 }) {
   const { estado } = useDatos();
+  const reservas = useFuncion("reservas");
   const s = situacionMesa(estado, mesa);
+  const reserva =
+    reservas && s.situacion === "libre"
+      ? reservaCercana(estado.reservas, mesa.id, ahora)
+      : undefined;
   const urgente = s.situacion === "aviso" || s.situacion === "qr";
   return (
     <button
@@ -350,6 +444,10 @@ function FichaMesa({
             </span>
           </span>
         </>
+      ) : reserva ? (
+        <span className="rounded bg-cobalto px-1 text-[11px] font-semibold text-white">
+          Reserva {reserva.hora}
+        </span>
       ) : (
         <span className="text-xs text-tinta-suave">{mesa.plazas} pax</span>
       )}

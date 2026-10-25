@@ -31,11 +31,57 @@ export const FUNCIONES = {
     descripcion: "Apuntar la propina al cobrar; sale en el cierre y en los informes.",
     defecto: true,
   },
+  paraLlevar: {
+    grupo: "Servicio",
+    nombre: "Pedidos para llevar",
+    descripcion: "Apuntar encargos con nombre y hora de recogida; cocina los ve aparte.",
+    defecto: true,
+  },
   cartaIngles: {
     grupo: "Carta QR",
     nombre: "Carta en inglés",
     descripcion: "Botón «English» en la carta del cliente.",
     defecto: true,
+  },
+  pagoQR: {
+    grupo: "Carta QR",
+    nombre: "Pagar desde el QR",
+    descripcion: "Que el cliente pague la cuenta con tarjeta en su móvil; el ticket sale solo.",
+    defecto: true,
+    necesita: "pagos",
+  },
+  reservas: {
+    grupo: "Clientes",
+    nombre: "Reservas",
+    descripcion: "Libro de reservas del día; la mesa reservada se ve en la sala antes de la hora.",
+    defecto: true,
+  },
+  reservasOnline: {
+    grupo: "Clientes",
+    nombre: "Reservar desde la web",
+    descripcion: "Un enlace para que los clientes pidan mesa; el bar la confirma por teléfono.",
+    defecto: false,
+  },
+  pedidosOnline: {
+    grupo: "Clientes",
+    nombre: "Encargar para llevar desde el móvil",
+    descripcion:
+      "Un enlace para pedir con la carta y recoger a una hora; cocina lo ve al aceptarlo.",
+    defecto: false,
+  },
+  resenas: {
+    grupo: "Clientes",
+    nombre: "Pedir una reseña",
+    descripcion:
+      "Al pagar, la carta y el ticket invitan a dejar una opinión (pon el enlace en Ajustes).",
+    defecto: false,
+  },
+  ticketCorreo: {
+    grupo: "Clientes",
+    nombre: "Ticket por correo",
+    descripcion: "Mandar el ticket al correo del cliente, desde la caja o desde su móvil.",
+    defecto: true,
+    necesita: "correo",
   },
   stock: {
     grupo: "Stock",
@@ -92,7 +138,7 @@ export const FUNCIONES = {
 } as const satisfies Record<string, DefinicionFuncion>;
 
 /** Servicios del servidor que algunas funciones necesitan (una clave o un certificado). */
-export type Servicio = "ia";
+export type Servicio = "ia" | "pagos" | "correo";
 
 export type DefinicionFuncion = {
   grupo: string;

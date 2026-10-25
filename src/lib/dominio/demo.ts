@@ -12,9 +12,11 @@ import type {
   Ingrediente,
   Mesa,
   Producto,
+  Reserva,
   TurnoCuadrante,
   Zona,
 } from "./tipos";
+import { diaLocal } from "../fechas";
 
 /**
  * El bar de ejemplo con el que arranca la aplicación: «La Esquina», ficticio. Incluye dos
@@ -346,6 +348,8 @@ export function estadoDeEjemplo(ctx: Contexto, opciones: { conHistorial?: boolea
     cuadrante: [],
     incidencias: [],
     historial: [],
+    reservas: reservasDeEjemplo(ctx.ahora, mesas),
+    pagosOnline: [],
   };
 
   estado.cuadrante = cuadranteDeEjemplo(
@@ -711,6 +715,40 @@ function conHistorial(inicial: Estado, ctx: Contexto): Estado {
   // Los trabajos de impresión del historial no interesan: se empieza con la cola limpia.
   estado.trabajos = [];
   return estado;
+}
+
+/** Un par de reservas para esta noche (nombres y teléfonos inventados). */
+function reservasDeEjemplo(ahora: string, mesas: Mesa[]): Reserva[] {
+  const hoy = diaLocal(ahora);
+  const mesa = (nombre: string) => mesas.find((m) => m.nombre === nombre)?.id ?? null;
+  const base = { nota: "", creadaEn: ahora };
+  return [
+    {
+      ...base,
+      id: "res-1",
+      nombre: "Familia Ejemplo",
+      telefono: "600 000 001",
+      personas: 4,
+      dia: hoy,
+      hora: "21:00",
+      mesaId: mesa("Mesa 4"),
+      estado: "confirmada",
+      online: false,
+      nota: "Traen una trona",
+    },
+    {
+      ...base,
+      id: "res-2",
+      nombre: "Paula Inventada",
+      telefono: "600 000 002",
+      personas: 2,
+      dia: hoy,
+      hora: "21:30",
+      mesaId: null,
+      estado: "por_confirmar",
+      online: true,
+    },
+  ];
 }
 
 type AccionGasto = Extract<AccionPersonal, { tipo: "guardar_gasto" }>["gasto"];

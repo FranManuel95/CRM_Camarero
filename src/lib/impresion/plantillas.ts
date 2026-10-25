@@ -159,6 +159,8 @@ export function plantillaTicket(datos: {
   abrirCajon?: boolean;
   /** Dirección para el QR del ticket; con VERI*FACTU será la de cotejo de la AEAT. */
   urlQr?: string;
+  /** Enlace para dejar una reseña (sale con su propio QR al pie). */
+  resena?: string;
 }): Bloque[] {
   const { ticket: t } = datos;
   const subtotal = t.lineas.reduce((s, l) => s + l.importe, 0);
@@ -225,6 +227,13 @@ export function plantillaTicket(datos: {
     bloques.push(
       { tipo: "espacio" },
       { tipo: "texto", texto: datos.ajustes.pieTicket, alinear: "centro" },
+    );
+  }
+  if (datos.resena) {
+    bloques.push(
+      { tipo: "espacio" },
+      { tipo: "texto", texto: "¿Qué tal? Déjanos tu opinión:", alinear: "centro" },
+      { tipo: "qr", datos: datos.resena },
     );
   }
   bloques.push(
