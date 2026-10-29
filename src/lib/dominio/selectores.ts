@@ -75,6 +75,32 @@ export function buscarMesa(
   return estado.mesas.find((m) => m.id === mesaId);
 }
 
+/** Nombre para la pantalla de pedidos: el nombre y la inicial del apellido («Lucía M.»). */
+export function nombreCorto(nombre: string): string {
+  const [primero = "", segundo] = nombre.trim().split(/\s+/);
+  return segundo ? `${primero} ${segundo[0]!.toUpperCase()}.` : primero;
+}
+
+/**
+ * Lo que sale en la pantalla que ven los clientes: quién está esperando y quién ya puede
+ * recoger. Solo los pedidos que ya están en cocina o barra.
+ */
+export function pantallaPedidos(estado: Pick<Estado, "cuentas">): {
+  preparando: { id: string; nombre: string }[];
+  listos: { id: string; nombre: string }[];
+} {
+  const preparando: { id: string; nombre: string }[] = [];
+  const listos: { id: string; nombre: string }[] = [];
+  for (const c of pedidosParaLlevar(estado)) {
+    const enCocina = c.lineas.filter((l) => EN_COCINA.has(l.estado));
+    if (!enCocina.length || c.lineas.some((l) => l.estado === "por_confirmar")) continue;
+    const fila = { id: c.id, nombre: nombreCorto(c.llevar!.nombre) };
+    if (enCocina.every((l) => l.estado === "lista")) listos.push(fila);
+    else preparando.push(fila);
+  }
+  return { preparando, listos };
+}
+
 /**
  * Los pedidos para llevar que faltan por entregar, por hora de recogida: los abiertos y los ya
  * pagados desde el móvil que aún no se han recogido. Los online sin nada pedido no cuentan.

@@ -4,6 +4,7 @@ import clsx from "clsx";
 import { Beer, ChefHat, Clock, LayoutGrid, LogOut, Settings, Wallet } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { NotificarAlertas, useAlertas } from "./alertas";
 import { useDatos, useFuncion } from "./datos-personal";
 
 /** En el móvil, icono encima y nombre pequeño debajo; desde tablet, en línea. */
@@ -16,6 +17,7 @@ export function BarraPersonal() {
   const ruta = usePathname();
   const destino = useSearchParams().get("destino");
   const router = useRouter();
+  const urgentes = useAlertas().filter((a) => a.nivel === "urgente").length;
   const avisosPendientes = estado.avisos.filter((a) => !a.atendido && a.tipo !== "listo").length;
 
   const enlaces = [
@@ -46,6 +48,7 @@ export function BarraPersonal() {
             texto: "Gestión",
             icono: Settings,
             activo: ruta.startsWith("/gestion"),
+            contador: urgentes,
           },
         ]
       : []),
@@ -58,6 +61,7 @@ export function BarraPersonal() {
 
   return (
     <header className="no-imprimir sticky top-0 z-40 bg-tinta text-white">
+      {empleado.rol === "encargado" && <NotificarAlertas />}
       <nav
         aria-label="Principal"
         className="mx-auto flex h-14 max-w-screen-2xl items-center gap-0.5 px-1 sm:gap-1 sm:px-4"
@@ -83,7 +87,7 @@ export function BarraPersonal() {
                 {contador ? (
                   <span className="absolute top-0 right-0.5 grid min-w-5 place-items-center rounded-full bg-aviso px-1 text-xs text-white sm:static sm:ml-0.5">
                     {contador}
-                    <span className="sr-only"> avisos</span>
+                    <span className="sr-only">{href === "/gestion" ? " alertas" : " avisos"}</span>
                   </span>
                 ) : null}
               </Link>

@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { useDatos, useFuncion } from "@/components/datos-personal";
 import { Barras } from "@/components/barras";
+import { ListaAlertas } from "@/components/alertas";
 import { euros } from "@/lib/dominio/importes";
 import { informe, rangoDeDias, sumarDias } from "@/lib/dominio/informes";
 import { primerosPasos } from "@/lib/dominio/primeros-pasos";
-import { bajoMinimo } from "@/lib/dominio/stock";
 import { situacion } from "@/lib/dominio/equipo";
 import { NOMBRE_CATEGORIA_GASTO } from "@/lib/dominio/tipos";
 import { diaLocal } from "@/lib/fechas";
@@ -27,8 +27,6 @@ export function Resumen() {
   const catorce = informe(estado, rangoDeDias(sumarDias(hoy, -13), hoy));
   const mes = informe(estado, rangoDeDias(`${hoy.slice(0, 8)}01`, hoy));
   const abiertas = estado.cuentas.filter((c) => c.estado === "abierta");
-  const bajos = estado.ingredientes.filter(bajoMinimo);
-  const conStock = useFuncion("stock");
   const conFichajes = useFuncion("fichajes");
   const trabajando = estado.empleados.filter(
     (e) => situacion(estado.fichajes, e.id, ahora).situacion !== "fuera",
@@ -47,6 +45,7 @@ export function Resumen() {
     <main>
       <h1 className="mb-4 font-rotulo text-4xl font-bold">Resumen</h1>
       <PrimerosPasos />
+      <ListaAlertas />
       <dl className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Tarjeta
           titulo="Ventas de hoy"
@@ -152,14 +151,6 @@ export function Resumen() {
                 : "Ahora mismo no hay nadie fichado."}{" "}
               <Link href="/gestion/equipo/fichajes" className="font-semibold underline">
                 Ver los fichajes
-              </Link>
-            </p>
-          )}
-          {conStock && bajos.length > 0 && (
-            <p className="mt-4 rounded-lg bg-aviso-claro p-3 text-sm">
-              En el mínimo: {bajos.map((i) => i.nombre).join(", ")}.{" "}
-              <Link href="/gestion/stock" className="font-semibold underline">
-                Ver la lista de la compra
               </Link>
             </p>
           )}

@@ -1,7 +1,7 @@
 "use client";
 
 import clsx from "clsx";
-import { Clock, PackageCheck, ShoppingBag, Smartphone } from "lucide-react";
+import { Clock, PackageCheck, ShoppingBag, Smartphone, Tv } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { useDatos } from "@/components/datos-personal";
@@ -32,12 +32,18 @@ export function ListaParaLlevar() {
   if (!pedidos.length) return null;
   return (
     <section aria-labelledby="titulo-llevar" className="mb-5">
-      <h2
-        id="titulo-llevar"
-        className="mb-2 flex items-center gap-2 font-rotulo text-2xl font-bold"
-      >
-        <ShoppingBag aria-hidden className="size-5" /> Para llevar
-      </h2>
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <h2 id="titulo-llevar" className="flex items-center gap-2 font-rotulo text-2xl font-bold">
+          <ShoppingBag aria-hidden className="size-5" /> Para llevar
+        </h2>
+        <Link
+          href="/pedidos"
+          className="ml-auto inline-flex min-h-10 items-center gap-1.5 text-sm font-semibold text-cobalto underline"
+        >
+          <Tv aria-hidden className="size-4" />
+          Pantalla para clientes
+        </Link>
+      </div>
       <ul className="space-y-2">
         {pedidos.map((c) => {
           const s = situacion(c);
@@ -55,7 +61,7 @@ export function ListaParaLlevar() {
                     )}
                   </p>
                   <p className="text-sm text-tinta-suave">
-                    {s.texto} · {pagado ? "Pagado con tarjeta" : euros(totalCuenta(c))}
+                    {s.texto} · {pagado ? "Pagado" : euros(totalCuenta(c))}
                     {c.llevar!.telefono && ` · ${c.llevar!.telefono}`}
                   </p>
                 </div>

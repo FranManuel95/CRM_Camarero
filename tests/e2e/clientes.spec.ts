@@ -56,6 +56,15 @@ test("el camarero apunta un pedido para llevar y sale en la sala", async ({ page
     .getByRole("listitem")
     .filter({ hasText: nombre });
   await expect(pedido).toContainText("Preparando");
+
+  // La pantalla de cara al público.
+  const corto = `Lucía ${info.project.name[0]!.toUpperCase()}.`;
+  await page.getByRole("link", { name: "Pantalla para clientes" }).click();
+  await expect(
+    page.getByRole("region", { name: "Preparando" }).getByText(corto, { exact: true }),
+  ).toBeVisible();
+  const axe = await new AxeBuilder({ page }).analyze();
+  expect(axe.violations.map((v) => v.id)).toEqual([]);
 });
 
 test("un cliente encarga para llevar desde el móvil y el bar lo acepta", async ({
