@@ -12,7 +12,7 @@ import {
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useDatos } from "@/components/datos-personal";
 import {
   DibujoDecoracion,
@@ -29,6 +29,23 @@ type Pieza = { id: string; x: number; y: number; ancho: number; alto: number };
 
 const limitar = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
 
+/** Tiempo sin tocar nada antes de guardar (así un deslizador no manda cien cambios). */
+const ESPERA_GUARDAR = 450;
+
+/**
+ * Cambio hecho en esta pantalla que aún no ha vuelto del servidor: se pinta ya, se guarda al
+ * rato y se olvida cuando los datos del servidor coinciden con él.
+ */
+type CambioLocal = {
+  datos: Partial<Mesa> & Partial<Decoracion>;
+  version: number;
+  guardado: boolean;
+};
+
+/** ¿Lo que dice el servidor ya coincide con el cambio hecho aquí? */
+const coincide = (base: object | undefined, datos: object) =>
+  !base || Object.entries(datos).every(([k, v]) => (base as Record<string, unknown>)[k] === v);
+
 /**
  * Editor del plano: se arrastran las mesas y las decoraciones (mostrador, paredes, puertas…) y
  * se cambian sus datos en el panel de al lado.
@@ -41,23 +58,122 @@ export function EditorMesas() {
   const [arrastre, setArrastre] = useState<{ id: string; x: number; y: number } | null>(null);
   const plano = useRef<HTMLDivElement>(null);
   const inicio = useRef<{ px: number; py: number; x: number; y: number } | null>(null);
+  const fotograma = useRef<number | null>(null);
+  const posicion = useRef<{ id: string; x: number; y: number } | null>(null);
+
+  // Los cambios se ven al momento. Los sueltos (marcar, soltar una pieza) se guardan ya; los
+  // seguidos (deslizador, flechas) cuando se deja de tocar, de una vez.
+  const [locales, setLocales] = useState<Record<string, CambioLocal>>({});
+  /** Lo cambiado aquí que el servidor aún no ha confirmado, por pieza. */
+  const sinConfirmar = useRef(new Map<string, { datos: CambioLocal["datos"]; version: number }>());
+  const temporizadores = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const ultimo = useRef({ estado });
+  const mandarAhora = useRef<(id: string) => Promise<void>>(async () => {});
+  useEffect(() => {
+    ultimo.current = { estado };
+    mandarAhora.current = mandar;
+  });
+  useEffect(() => {
+    // Al salir de la pantalla (o cerrar la pestaña) se manda lo que estaba esperando.
+    const t = temporizadores.current;
+    const vaciar = () => {
+      for (const [id, h] of t) {
+        clearTimeout(h);
+        void mandarAhora.current(id);
+      }
+      t.clear();
+    };
+    window.addEventListener("pagehide", vaciar);
+    return () => {
+      window.removeEventListener("pagehide", vaciar);
+      vaciar();
+    };
+  }, []);
+
+  const baseDe = (id: string) =>
+    ultimo.current.estado.mesas.find((m) => m.id === id) ??
+    ultimo.current.estado.decoraciones?.find((d) => d.id === id);
+
+  // Cuando llegan datos nuevos del servidor, se olvida lo ya guardado que coincide con ellos.
+  const [vistos, setVistos] = useState({ m: estado.mesas, d: estado.decoraciones });
+  if (vistos.m !== estado.mesas || vistos.d !== estado.decoraciones) {
+    setVistos({ m: estado.mesas, d: estado.decoraciones });
+    setLocales((prev) => {
+      const quedan = Object.entries(prev).filter(([id, c]) => {
+        const base =
+          estado.mesas.find((m) => m.id === id) ?? estado.decoraciones?.find((d) => d.id === id);
+        return !(c.guardado && coincide(base, c.datos));
+      });
+      return quedan.length === Object.keys(prev).length ? prev : Object.fromEntries(quedan);
+    });
+  }
+
+  const conLocal = <T extends { id: string }>(x: T): T => ({ ...x, ...locales[x.id]?.datos });
   const zona = zonas.find((z) => z.id === zonaId);
-  const mesas = estado.mesas.filter((m) => m.zonaId === zonaId);
-  const decoraciones = (estado.decoraciones ?? []).filter((d) => d.zonaId === zonaId);
-  const elegida = estado.mesas.find((m) => m.id === elegidaId);
+  const mesas = estado.mesas.filter((m) => m.zonaId === zonaId).map(conLocal);
+  const decoraciones = (estado.decoraciones ?? []).filter((d) => d.zonaId === zonaId).map(conLocal);
+  const elegida = mesas.find((m) => m.id === elegidaId);
   const elegidaDeco = decoraciones.find((d) => d.id === elegidaId);
 
-  const guardar = (m: Mesa, cambios: Partial<Mesa>) => {
-    const { token: _t, ...datos } = { ...m, ...cambios };
-    void _t;
-    return hacer({ tipo: "guardar_mesa", mesa: datos });
-  };
-  const guardarDeco = (d: Decoracion, cambios: Partial<Decoracion>) => {
-    const { texto, ...resto } = { ...d, ...cambios };
-    return hacer({
-      tipo: "guardar_decoracion",
-      decoracion: { ...resto, ...(texto?.trim() ? { texto: texto.trim() } : {}) },
+  async function mandar(id: string) {
+    const cambio = sinConfirmar.current.get(id);
+    const base = baseDe(id);
+    if (!cambio || !base) return;
+    const version = cambio.version;
+    let ok: boolean;
+    if ("token" in base) {
+      const { token: _t, ...datos } = { ...base, ...cambio.datos } as Mesa;
+      void _t;
+      ok = await hacer({ tipo: "guardar_mesa", mesa: datos });
+    } else {
+      const { texto, ...resto } = { ...base, ...cambio.datos } as Decoracion;
+      ok = await hacer({
+        tipo: "guardar_decoracion",
+        decoracion: { ...resto, ...(texto?.trim() ? { texto: texto.trim() } : {}) },
+      });
+    }
+    // Si mientras tanto se ha vuelto a cambiar, eso se guardará en su propio turno.
+    if (sinConfirmar.current.get(id)?.version !== version) return;
+    sinConfirmar.current.delete(id);
+    setLocales((prev) => {
+      const actual = prev[id];
+      if (!actual) return prev;
+      const { [id]: _quitado, ...resto } = prev;
+      void _quitado;
+      // Si no se pudo guardar, vuelve a como estaba (el aviso de error ya ha salido).
+      if (!ok || coincide(baseDe(id), actual.datos)) return resto;
+      return { ...prev, [id]: { ...actual, guardado: true } };
     });
+  }
+
+  /** Cambia una mesa o decoración en pantalla ya y la guarda (si es seguido, al parar). */
+  function cambiar(id: string, datos: CambioLocal["datos"], seguido = false) {
+    const previo = sinConfirmar.current.get(id);
+    const nuevo = { datos: { ...previo?.datos, ...datos }, version: (previo?.version ?? 0) + 1 };
+    sinConfirmar.current.set(id, nuevo);
+    setLocales((prev) => ({ ...prev, [id]: { ...nuevo, guardado: false } }));
+    clearTimeout(temporizadores.current.get(id));
+    temporizadores.current.delete(id);
+    if (!seguido) {
+      void mandar(id);
+      return;
+    }
+    temporizadores.current.set(
+      id,
+      setTimeout(() => {
+        temporizadores.current.delete(id);
+        void mandar(id);
+      }, ESPERA_GUARDAR),
+    );
+  }
+
+  const guardar = (m: Mesa, cambios: Partial<Mesa>, seguido = false) => {
+    cambiar(m.id, cambios, seguido);
+    return Promise.resolve(true);
+  };
+  const guardarDeco = (d: Decoracion, cambios: Partial<Decoracion>, seguido = false) => {
+    cambiar(d.id, cambios, seguido);
+    return Promise.resolve(true);
   };
 
   function empezar(e: React.PointerEvent, m: Pieza) {
@@ -78,21 +194,29 @@ export function EditorMesas() {
       0,
       100 - m.alto * 1.6,
     );
-    setArrastre({ id: m.id, x: Math.round(x), y: Math.round(y) });
+    // Un repintado por fotograma, aunque el dedo mande más movimientos.
+    if (fotograma.current !== null) cancelAnimationFrame(fotograma.current);
+    const pos = { id: m.id, x: Math.round(x * 2) / 2, y: Math.round(y * 2) / 2 };
+    posicion.current = pos;
+    fotograma.current = requestAnimationFrame(() => {
+      fotograma.current = null;
+      setArrastre(pos);
+    });
   }
-  async function soltar<T extends Pieza>(
-    m: T,
-    alGuardar: (m: T, c: Partial<Pieza>) => Promise<boolean>,
-  ) {
+  function soltar<T extends Pieza>(m: T, alGuardar: (m: T, c: Partial<Pieza>) => Promise<boolean>) {
     inicio.current = null;
-    if (arrastre?.id === m.id && (arrastre.x !== m.x || arrastre.y !== m.y))
-      await alGuardar(m, { x: arrastre.x, y: arrastre.y });
+    if (fotograma.current !== null) cancelAnimationFrame(fotograma.current);
+    fotograma.current = null;
+    const fin = posicion.current;
+    posicion.current = null;
+    if (fin?.id === m.id && (fin.x !== m.x || fin.y !== m.y))
+      void alGuardar(m, { x: fin.x, y: fin.y });
     setArrastre(null);
   }
   function teclas<T extends Pieza>(
     e: React.KeyboardEvent,
     m: T,
-    alGuardar: (m: T, c: Partial<Pieza>) => Promise<boolean>,
+    alGuardar: (m: T, c: Partial<Pieza>, seguido?: boolean) => Promise<boolean>,
   ) {
     const paso = e.shiftKey ? 5 : 1;
     const d = {
@@ -103,10 +227,14 @@ export function EditorMesas() {
     }[e.key];
     if (!d) return;
     e.preventDefault();
-    void alGuardar(m, {
-      x: limitar(m.x + d[0]!, 0, 100 - m.ancho),
-      y: limitar(m.y + d[1]!, 0, 100 - m.alto * 1.6),
-    });
+    void alGuardar(
+      m,
+      {
+        x: limitar(m.x + d[0]!, 0, 100 - m.ancho),
+        y: limitar(m.y + d[1]!, 0, 100 - m.alto * 1.6),
+      },
+      true,
+    );
   }
 
   async function nuevaDecoracion(tipo: TipoDecoracion) {
@@ -340,7 +468,8 @@ function FormularioMesa({
   alBorrar,
 }: {
   mesa: Mesa;
-  alGuardar: (m: Mesa, c: Partial<Mesa>) => Promise<boolean>;
+  /** «seguido»: cambios continuos (deslizador, cifras) que se guardan al parar. */
+  alGuardar: (m: Mesa, c: Partial<Mesa>, seguido?: boolean) => Promise<boolean>;
   alBorrar: () => void;
 }) {
   const { estado, hacer } = useDatos();
@@ -394,7 +523,7 @@ function FormularioMesa({
           className={claseEntrada}
           value={mesa.plazas}
           onChange={(e) =>
-            Number(e.target.value) >= 1 && alGuardar(mesa, { plazas: Number(e.target.value) })
+            Number(e.target.value) >= 1 && alGuardar(mesa, { plazas: Number(e.target.value) }, true)
           }
         />
       </Campo>
@@ -406,10 +535,11 @@ function FormularioMesa({
           value={mesa.alto}
           onChange={(e) => {
             const alto = Number(e.target.value);
-            void alGuardar(mesa, {
-              alto,
-              ancho: mesa.forma === "alargada" ? Math.min(60, alto * 1.7) : alto,
-            });
+            void alGuardar(
+              mesa,
+              { alto, ancho: mesa.forma === "alargada" ? Math.min(60, alto * 1.7) : alto },
+              true,
+            );
           }}
           className="w-full"
         />
@@ -473,7 +603,7 @@ function FormularioDecoracion({
   alBorrar,
 }: {
   decoracion: Decoracion;
-  alGuardar: (d: Decoracion, c: Partial<Decoracion>) => Promise<boolean>;
+  alGuardar: (d: Decoracion, c: Partial<Decoracion>, seguido?: boolean) => Promise<boolean>;
   alBorrar: () => void;
 }) {
   const { hacer } = useDatos();
@@ -499,10 +629,14 @@ function FormularioDecoracion({
           max={100}
           value={decoracion.ancho}
           onChange={(e) =>
-            alGuardar(decoracion, {
-              ancho: Number(e.target.value),
-              x: Math.min(decoracion.x, 100 - Number(e.target.value)),
-            })
+            alGuardar(
+              decoracion,
+              {
+                ancho: Number(e.target.value),
+                x: Math.min(decoracion.x, 100 - Number(e.target.value)),
+              },
+              true,
+            )
           }
           className="w-full"
         />
@@ -515,10 +649,14 @@ function FormularioDecoracion({
           step={0.5}
           value={decoracion.alto}
           onChange={(e) =>
-            alGuardar(decoracion, {
-              alto: Number(e.target.value),
-              y: Math.max(0, Math.min(decoracion.y, 100 - Number(e.target.value) * 1.6)),
-            })
+            alGuardar(
+              decoracion,
+              {
+                alto: Number(e.target.value),
+                y: Math.max(0, Math.min(decoracion.y, 100 - Number(e.target.value) * 1.6)),
+              },
+              true,
+            )
           }
           className="w-full"
         />
