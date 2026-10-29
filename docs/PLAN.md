@@ -49,7 +49,7 @@ monta su bar sin ayuda.
 ## Fase 5 · Clientes y más ventas
 
 - [x] Reservas con plano y recordatorio.
-- [x] Pagar desde el QR (Stripe; necesita cuenta del bar).
+- [x] ~~Pagar desde el QR~~ (quitado: el bar no quiere cobros desde el móvil).
 - [x] Ticket por correo (necesita un proveedor de correo).
 - [x] Pedidos para llevar y recogida.
 - [x] Invitación a dejar reseña al pagar.
@@ -69,6 +69,16 @@ monta su bar sin ayuda.
 - [x] Gestión → VERI*FACTU: lo mandado, lo pendiente y lo rechazado.
 - [ ] Probar con la AEAT de pruebas y un certificado real; declaración responsable.
 
+## Lo que pidió el primer bar
+
+- [x] Elegir al mandar si la comanda sale en papel o solo en pantalla.
+- [x] Subir o bajar precios y descuentos de uno, varios o toda la cuenta, al cobrar.
+- [x] Productos ocultos que el encargado puede anotar igual.
+- [x] Reseñas de Google en dos toques (enlace directo, QR y carteles).
+- [x] Club de clientes con puntos, premio e historial (RGPD: consentimiento y baja).
+- [x] Fiado, tarifas por horario y zona, tiempos de cocina, reparto de propinas.
+- [x] Alertas para el encargado y pantalla de pedidos para los clientes.
+
 ## Cosas que dependen del usuario
 
 - Supabase → Authentication → Sign In / Providers → Email: desactivar «Confirm email» (acordado el
@@ -76,9 +86,7 @@ monta su bar sin ayuda.
   y el correo de Supabase solo manda unos pocos por hora.
 - Supabase → Authentication → URL Configuration: poner `https://comanda-tpv.vercel.app` como
   Site URL y `https://comanda-tpv.vercel.app/**` en Redirect URLs (enlaces de los correos).
-- Cuentas de Stripe (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` y el webhook a
-  `/api/pago/stripe`) y de Resend (`RESEND_API_KEY`, `CORREO_REMITENTE`) para encender el pago
-  desde el QR y el ticket por correo.
+- Cuenta de Resend (`RESEND_API_KEY`, `CORREO_REMITENTE`) para el ticket por correo.
 - Clave de la API de Claude (`ANTHROPIC_API_KEY` en Vercel) para leer facturas con foto (fase 3).
 - Para VERI*FACTU: el certificado electrónico del bar (`VERIFACTU_CERTIFICADO` en base64 y
   `VERIFACTU_CLAVE`) y los datos del fabricante del programa (`VERIFACTU_PRODUCTOR_NOMBRE`,

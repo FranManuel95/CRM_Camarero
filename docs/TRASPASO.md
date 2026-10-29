@@ -147,17 +147,12 @@
 - **Reservas**: `/sala/reservas`, en el plano dos horas antes (`reservas.ts`), «Han llegado» abre
   la mesa (`sentar_reserva`). Desde la web, `/m/<bar>/reservar` (quedan por confirmar; 3 por
   teléfono como mucho). Se guardan 90 días.
-- **Pagar desde el QR** (`src/lib/servidor/stripe.ts`, sin la librería): `/api/mesa/…/pago` crea
-  un Stripe Checkout con el importe que calcula el servidor; Stripe avisa a `/api/pago/stripe`
-  (firma comprobada) y `reducirPagoOnline` cobra solo si la cuenta no ha cambiado; si no, aviso
-  para cobrarlo a mano. Un mismo pago no se apunta dos veces. Necesita `STRIPE_SECRET_KEY` y
-  `STRIPE_WEBHOOK_SECRET`, y en Stripe un webhook a `https://<dominio>/api/pago/stripe` con
-  `checkout.session.completed`.
+- **Pagar desde el QR**: quitado el 29/10/2026 (el bar no quiere cobros desde el móvil). La
+  migración a la versión 7 borra `pagosOnline`.
 - **Ticket por correo** (`src/lib/servidor/correo.ts`, Resend): desde la caja y desde la carta
   después de pagar. El correo no se guarda. Necesita `RESEND_API_KEY` y `CORREO_REMITENTE`.
 - **Reseñas**: enlace en Ajustes; sale en la carta al pagar y con un QR al pie del ticket.
-- Sin probar contra Stripe ni Resend de verdad (no hay claves): firma y avisos con pruebas
-  unitarias, el resto con la lógica.
+- Sin probar contra Resend de verdad (no hay clave).
 
 ## VERI*FACTU (26/10/2026)
 
@@ -193,6 +188,38 @@
 - Las pruebas E2E arrancan con un certificado falso (`playwright.config.ts`): se puede encender
   y se ve el fallo del envío sin llegar a la AEAT.
 
+## Lo que pidió el primer bar (29/10/2026)
+
+Estado en versión 7 (`clientes`; fuera `pagosOnline`). Todo con pruebas unitarias y E2E.
+
+- **Servicio**
+  - «Comanda en papel: sí/no» al mandar (`enviar_comanda.imprimir`); por defecto, lo de Ajustes →
+    Servicio (`imprimirComandas`). Sin papel, solo va a la pantalla de cocina y barra.
+  - «Precios y descuentos» en la cuenta y al cobrar (`sala/[mesaId]/precios.tsx`): % o precio
+    nuevo a uno o varios artículos (`ajustar_lineas`), % o euros a toda la cuenta y «Cobrar
+    justo». `preciosSoloEncargado` lo limita al encargado.
+  - Productos ocultos (`producto.oculto`): no los ven ni camareros ni clientes; el encargado los
+    ve con borde discontinuo y los anota igual, también los agotados.
+- **Reseñas** (Gestión → Reseñas): con el Place ID sale el enlace directo a escribir la reseña;
+  QR grande al cobrar, al pie del ticket y carteles para las mesas.
+- **Club de clientes** (función `club`, apagada): alta desde el QR (`/m/<bar>/club`, con
+  consentimiento RGPD apuntado) o en la cuenta. Puntos por euro, premio en euros que se canjea
+  como descuento al cobrar, historial, favoritos y baja (borra los datos). Gestión → Clientes.
+- **Fiado** (función `fiado`, apagada): «A deber» al cobrar si la cuenta tiene cliente del club;
+  el ticket sale como siempre (método `fiado`) y la deuda se salda desde la ficha.
+- **Tarifas** (`tarifas.ts`, función `tarifas`): % por horario, días y zona (happy hour,
+  terraza). Se aplica al anotar; la carta QR enseña el precio de carta tachado.
+- **Tiempos de cocina** (`tiempos.ts`): al marcar listo se guarda por día y plato; Informes los
+  enseña del más lento al más rápido.
+- **Reparto de propinas** (`repartoPropinas` en `equipo.ts`): por horas fichadas o a partes
+  iguales, en Informes.
+- **Alertas** (`alertas.ts`): descuadre, anulaciones, reservas por confirmar, rechazos de
+  Hacienda, stock y deudas. En Gestión → Resumen, con contador en el menú y notificación del
+  navegador si se permite.
+- **Pantalla de pedidos** (`/pedidos`): para una tele de cara al público, los encargos para
+  llevar «Preparando» y «¡Listo!», con el nombre y la inicial.
+- El menú del día ya existía: plantilla en el editor de la carta.
+
 ## Pendiente (por orden)
 
 1. **VERI\*FACTU**: probarlo con la AEAT de pruebas y un certificado real, y la declaración
@@ -200,7 +227,7 @@
 2. Probar con una **impresora térmica real** de red (solo se ha probado el formato de los bytes y
    la vista previa; aquí no hay impresora).
 3. Datáfono integrado (hace falta elegir proveedor).
-4. Claves de Stripe y Resend en Vercel cuando el bar tenga cuentas.
+4. Clave de Resend en Vercel cuando el bar tenga cuenta.
 
 ## Trucos del entorno
 
