@@ -84,7 +84,12 @@ export const accionCamarero = z.discriminatedUnion("tipo", [
     lineaId: id,
     invitacion: z.boolean(),
   }),
-  z.object({ tipo: z.literal("enviar_comanda"), cuentaId: id }),
+  z.object({
+    tipo: z.literal("enviar_comanda"),
+    cuentaId: id,
+    /** Si sale en papel. Sin decirlo, lo que diga Ajustes (normalmente sí). */
+    imprimir: z.boolean().optional(),
+  }),
   /** «Marcha»: lo que estaba en espera pasa a prepararse. */
   z.object({ tipo: z.literal("marchar"), cuentaId: id }),
   z.object({ tipo: z.literal("cambiar_despues"), cuentaId: id, lineaId: id, despues: z.boolean() }),
@@ -102,6 +107,21 @@ export const accionCamarero = z.discriminatedUnion("tipo", [
     tipo: z.literal("aplicar_descuento"),
     cuentaId: id,
     descuento: z.number().min(0).max(100),
+    /** Descuento en euros sobre el total (después del %). 0 lo quita; sin él, no se toca. */
+    importe: centimos.optional(),
+  }),
+  /** Cambiar el precio o poner un descuento a una o varias líneas de la cuenta. */
+  z.object({
+    tipo: z.literal("ajustar_lineas"),
+    cuentaId: id,
+    lineaIds: z.array(id).min(1).max(100),
+    cambio: z.discriminatedUnion("tipo", [
+      /** Precio por unidad, con las opciones incluidas. */
+      z.object({ tipo: z.literal("precio"), precio: centimos }),
+      z.object({ tipo: z.literal("descuento"), porcentaje: z.number().min(0).max(100) }),
+      /** Volver al precio de la carta, sin descuento. */
+      z.object({ tipo: z.literal("original") }),
+    ]),
   }),
   z.object({ tipo: z.literal("mover_cuenta"), cuentaId: id, mesaId: id }),
   z.object({ tipo: z.literal("imprimir_precuenta"), cuentaId: id }),
@@ -133,7 +153,13 @@ export const accionCamarero = z.discriminatedUnion("tipo", [
   z.object({ tipo: z.literal("reimprimir_ticket"), ticketId: id }),
   z.object({ tipo: z.literal("rectificar_ticket"), ticketId: id }),
   z.object({ tipo: z.literal("atender_aviso"), avisoId: id }),
-  z.object({ tipo: z.literal("cambiar_disponible"), productoId: id, disponible: z.boolean() }),
+  z.object({
+    tipo: z.literal("cambiar_disponible"),
+    productoId: id,
+    disponible: z.boolean(),
+    /** Solo el encargado: ocultarlo a camareros y clientes. */
+    oculto: z.boolean().optional(),
+  }),
   // Caja
   z.object({ tipo: z.literal("abrir_caja"), fondoInicial: centimos }),
   z.object({
@@ -253,6 +279,7 @@ export const accionEncargado = z.discriminatedUnion("tipo", [
       grupos: z.array(grupoOpciones).max(10),
       coste: centimos.optional(),
       receta: receta.optional(),
+      oculto: z.boolean().optional(),
     }),
   }),
   z.object({ tipo: z.literal("borrar_producto"), productoId: id }),
@@ -336,6 +363,8 @@ export const accionEncargado = z.discriminatedUnion("tipo", [
       pedidosQRActivos: z.boolean(),
       pieTicket: texto(200),
       serieTicket: z.string().regex(/^[A-Z0-9-]{1,10}$/, "Solo mayúsculas, números y guiones"),
+      imprimirComandas: z.boolean().optional(),
+      preciosSoloEncargado: z.boolean().optional(),
       enlaceResena: z
         .union([
           z.literal(""),

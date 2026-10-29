@@ -4,10 +4,8 @@ import { estadoDeEjemplo } from "@/lib/dominio/demo";
 import { migrar } from "@/lib/dominio/migraciones";
 import {
   cuentaDeMesa,
-  pendienteOnline,
   reducirCliente,
   reducirEncargoOnline,
-  reducirPagoOnline,
   reducirPersonal,
   reducirReservaOnline,
 } from "@/lib/dominio/reducir";
@@ -160,79 +158,6 @@ describe("reservas", () => {
     expect(() => reducirReservaOnline(t.estado, { ...datos, telefono: "600000005" }, ctx)).toThrow(
       /pendientes/,
     );
-  });
-});
-
-describe("pagar desde el QR", () => {
-  function mesaConCuenta() {
-    const t = preparar();
-    const mesa = t.estado.mesas.find((m) => m.nombre === "Mesa 7")!;
-    t.hacer({ tipo: "abrir_cuenta", mesaId: mesa.id, comensales: 2 }, t.luis);
-    const cuentaId = cuentaDeMesa(t.estado, mesa.id)!.id;
-    t.hacer({ tipo: "anotar", cuentaId, lineas: [caña] }, t.luis);
-    t.hacer({ tipo: "enviar_comanda", cuentaId }, t.luis);
-    return { t, mesa, cuentaId };
-  }
-
-  it("si la cuenta no ha cambiado, se cobra sola con su ticket (y una sola vez)", () => {
-    const { t, mesa, cuentaId } = mesaConCuenta();
-    const importe = pendienteOnline(cuentaDeMesa(t.estado, mesa.id)!);
-    expect(importe).toBe(400);
-    const pago = { referencia: "cs_prueba_1", cuentaId, importe };
-    t.estado = reducirPagoOnline(t.estado, pago, ctx).estado;
-    const ticket = t.estado.tickets.at(-1)!;
-    expect(ticket.pagos).toEqual([{ metodo: "tarjeta", importe: 400, referencia: "cs_prueba_1" }]);
-    expect(ticket.empleadoId).toBe(t.luis.id);
-    expect(cuentaDeMesa(t.estado, mesa.id)).toBeUndefined();
-    const tickets = t.estado.tickets.length;
-    t.estado = reducirPagoOnline(t.estado, pago, ctx).estado;
-    expect(t.estado.tickets).toHaveLength(tickets);
-    expect(t.estado.pagosOnline).toEqual([
-      expect.objectContaining({ referencia: "cs_prueba_1", resultado: "cobrado" }),
-    ]);
-  });
-
-  it("si la cuenta ha cambiado, avisa para cobrarlo a mano", () => {
-    const { t, mesa, cuentaId } = mesaConCuenta();
-    t.hacer({ tipo: "anotar", cuentaId, lineas: [caña] }, t.luis);
-    expect(pendienteOnline(cuentaDeMesa(t.estado, mesa.id)!)).toBe(0);
-    t.hacer({ tipo: "enviar_comanda", cuentaId }, t.luis);
-    t.estado = reducirPagoOnline(
-      t.estado,
-      { referencia: "cs_2", cuentaId, importe: 400 },
-      ctx,
-    ).estado;
-    expect(cuentaDeMesa(t.estado, mesa.id)).toBeDefined();
-    expect(t.estado.avisos.at(-1)).toMatchObject({ mesaId: mesa.id, tipo: "cuenta" });
-    expect(t.estado.avisos.at(-1)!.detalle).toMatch(/a mano/);
-    expect(t.estado.pagosOnline.at(-1)!.resultado).toBe("a_mano");
-  });
-
-  it("un encargo pagado sigue en la lista hasta que se entrega", () => {
-    const t = preparar();
-    t.encender("pedidosOnline");
-    t.hacer({ tipo: "cambiar_funcion", funcion: "pagoQR", activa: true });
-    const r = reducirEncargoOnline(
-      t.estado,
-      { nombre: "Óscar", telefono: "600000003", recogida: "21:45" },
-      ctx,
-    );
-    t.estado = reducirCliente(r.estado, r.token, { tipo: "pedir", lineas: [caña] }, ctx).estado;
-    const pedido = pedidosParaLlevar(t.estado)[0]!;
-    t.hacer({ tipo: "aceptar_pedido_qr", cuentaId: pedido.id });
-    t.estado = reducirPagoOnline(
-      t.estado,
-      { referencia: "cs_3", cuentaId: pedido.id, importe: 400 },
-      ctx,
-    ).estado;
-    const pagado = pedidosParaLlevar(t.estado)[0]!;
-    expect(pagado.estado).toBe("cobrada");
-    t.hacer({
-      tipo: "marcar_servida",
-      cuentaId: pagado.id,
-      lineaIds: pagado.lineas.map((l) => l.id),
-    });
-    expect(pedidosParaLlevar(t.estado)).toHaveLength(0);
   });
 });
 

@@ -43,13 +43,6 @@ export const FUNCIONES = {
     descripcion: "Botón «English» en la carta del cliente.",
     defecto: true,
   },
-  pagoQR: {
-    grupo: "Carta QR",
-    nombre: "Pagar desde el QR",
-    descripcion: "Que el cliente pague la cuenta con tarjeta en su móvil; el ticket sale solo.",
-    defecto: true,
-    necesita: "pagos",
-  },
   reservas: {
     grupo: "Clientes",
     nombre: "Reservas",
@@ -146,7 +139,7 @@ export const FUNCIONES = {
 } as const satisfies Record<string, DefinicionFuncion>;
 
 /** Servicios del servidor que algunas funciones necesitan (una clave o un certificado). */
-export type Servicio = "ia" | "pagos" | "correo" | "aeat";
+export type Servicio = "ia" | "correo" | "aeat";
 
 export type DefinicionFuncion = {
   grupo: string;

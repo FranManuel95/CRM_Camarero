@@ -18,6 +18,13 @@ export function precioConOpciones(linea: Pick<LineaCuenta, "precioUnitario" | "o
   return linea.precioUnitario + linea.opciones.reduce((s, o) => s + o.suplemento, 0);
 }
 
+/** Lo que se cobra por unidad: el precio cambiado a mano o el de la carta con sus opciones. */
+export function precioFinal(
+  linea: Pick<LineaCuenta, "precioUnitario" | "opciones" | "precioCambiado">,
+): Centimos {
+  return linea.precioCambiado ?? precioConOpciones(linea);
+}
+
 /** Las líneas que quedan por cobrar: ni anuladas, ni pendientes de aceptar, ni ya pagadas. */
 export function lineasCobrables(cuenta: Pick<Cuenta, "lineas">): LineaCuenta[] {
   return cuenta.lineas.filter(
@@ -26,7 +33,9 @@ export function lineasCobrables(cuenta: Pick<Cuenta, "lineas">): LineaCuenta[] {
 }
 
 /** Lo ya pagado de una cuenta que se está cobrando por partes. */
-export function pagadoCuenta(cuenta: Pick<Cuenta, "lineas" | "descuento">): Centimos {
+export function pagadoCuenta(
+  cuenta: Pick<Cuenta, "lineas" | "descuento" | "descuentoImporte">,
+): Centimos {
   const pagadas = cuenta.lineas.filter((l) => l.ticketId && l.estado !== "anulada");
   return aplicarDescuento(
     pagadas.reduce((s, l) => s + importeLinea(l), 0),
@@ -34,9 +43,14 @@ export function pagadoCuenta(cuenta: Pick<Cuenta, "lineas" | "descuento">): Cent
   );
 }
 
-export function importeLinea(linea: LineaCuenta): Centimos {
+export function importeLinea(
+  linea: Pick<
+    LineaCuenta,
+    "invitacion" | "precioUnitario" | "opciones" | "precioCambiado" | "descuentoLinea" | "cantidad"
+  >,
+): Centimos {
   if (linea.invitacion) return 0;
-  return precioConOpciones(linea) * linea.cantidad;
+  return aplicarDescuento(precioFinal(linea) * linea.cantidad, linea.descuentoLinea ?? 0);
 }
 
 export function subtotalCuenta(cuenta: Pick<Cuenta, "lineas">): Centimos {
@@ -47,31 +61,39 @@ export function aplicarDescuento(importe: Centimos, descuento: number): Centimos
   return Math.round((importe * (100 - descuento)) / 100);
 }
 
-export function totalCuenta(cuenta: Pick<Cuenta, "lineas" | "descuento">): Centimos {
-  return aplicarDescuento(subtotalCuenta(cuenta), cuenta.descuento);
+/** Lo que queda por cobrar: con el descuento en % y el descuento en euros. */
+export function totalCuenta(
+  cuenta: Pick<Cuenta, "lineas" | "descuento" | "descuentoImporte">,
+): Centimos {
+  return Math.max(
+    0,
+    aplicarDescuento(subtotalCuenta(cuenta), cuenta.descuento) - (cuenta.descuentoImporte ?? 0),
+  );
 }
 
 /** Agrupa líneas iguales (mismo producto, opciones y precio) para el ticket. */
 export function lineasDeTicket(cuenta: Pick<Cuenta, "lineas">): LineaTicket[] {
   const grupos = new Map<string, LineaTicket>();
   for (const l of lineasCobrables(cuenta)) {
-    const unitario = l.invitacion ? 0 : precioConOpciones(l);
+    const unitario = l.invitacion ? 0 : precioFinal(l);
+    const descuento = l.invitacion ? 0 : (l.descuentoLinea ?? 0);
     const nombre =
       l.nombre +
       (l.opciones.length ? ` (${l.opciones.map((o) => o.nombre).join(", ")})` : "") +
-      (l.invitacion ? " · invitación" : "");
+      (l.invitacion ? " · invitación" : "") +
+      (descuento ? ` · −${descuento} %` : "");
     const clave = `${nombre}|${unitario}|${l.iva}`;
     const previa = grupos.get(clave);
     if (previa) {
       previa.cantidad += l.cantidad;
-      previa.importe += unitario * l.cantidad;
+      previa.importe += importeLinea(l);
     } else {
       grupos.set(clave, {
         nombre,
         producto: l.nombre,
         cantidad: l.cantidad,
         precioUnitario: unitario,
-        importe: unitario * l.cantidad,
+        importe: importeLinea(l),
         iva: l.iva,
       });
     }
@@ -84,11 +106,15 @@ export function lineasDeTicket(cuenta: Pick<Cuenta, "lineas">): LineaTicket[] {
  * dividir: base = total / (1 + tipo). El descuento se reparte entre los tipos en proporción.
  * La suma de los totales del desglose coincide siempre con el total del ticket.
  */
-export function desgloseIva(lineas: LineaTicket[], descuento: number): DesgloseIva[] {
+export function desgloseIva(
+  lineas: LineaTicket[],
+  descuento: number,
+  descuentoImporte: Centimos = 0,
+): DesgloseIva[] {
   const porTipo = new Map<number, Centimos>();
   for (const l of lineas) porTipo.set(l.iva, (porTipo.get(l.iva) ?? 0) + l.importe);
   const bruto = [...porTipo.values()].reduce((s, v) => s + v, 0);
-  const totalFinal = aplicarDescuento(bruto, descuento);
+  const totalFinal = Math.max(0, aplicarDescuento(bruto, descuento) - descuentoImporte);
   const tipos = [...porTipo.keys()].sort((a, b) => a - b);
   const desglose: DesgloseIva[] = [];
   let repartido = 0;

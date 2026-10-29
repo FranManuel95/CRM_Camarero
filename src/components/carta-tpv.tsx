@@ -14,6 +14,8 @@ export type Anotar = (linea: LineaPedida) => Promise<boolean>;
 /**
  * La carta para el camarero: categorías, buscador y botones grandes. Tocar un plato lo anota; los
  * que tienen opciones (o el botón «…») abren el detalle con cantidad, nota y «para después».
+ * Lo oculto no lo ve el camarero; el encargado ve lo oculto y lo agotado (en gris) y puede
+ * anotarlo igualmente, sin tener que ir a cambiar la carta.
  */
 export function CartaTpv({
   alAnotar,
@@ -22,7 +24,8 @@ export function CartaTpv({
   alAnotar: Anotar;
   permitirDespues?: boolean;
 }) {
-  const { estado } = useDatos();
+  const { estado, empleado } = useDatos();
+  const encargado = empleado.rol === "encargado";
   const categorias = useMemo(
     () => [...estado.categorias].sort((a, b) => a.orden - b.orden),
     [estado.categorias],
@@ -33,6 +36,7 @@ export function CartaTpv({
 
   const termino = busqueda.trim().toLowerCase();
   const productos = estado.productos
+    .filter((p) => encargado || !p.oculto)
     .filter((p) =>
       termino ? p.nombre.toLowerCase().includes(termino) : p.categoriaId === categoriaId,
     )
@@ -79,31 +83,47 @@ export function CartaTpv({
         </div>
       )}
       <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
-        {productos.map((p) => (
-          <li key={p.id} className="relative">
-            <button
-              type="button"
-              disabled={!p.disponible}
-              onClick={() => tocar(p)}
-              className="flex h-24 w-full flex-col justify-between rounded-xl bg-white p-3 text-left ring-1 ring-zinc-oscuro transition hover:ring-cobalto active:scale-[0.97] disabled:opacity-45"
-            >
-              <span className="line-clamp-2 pr-7 leading-tight font-semibold">{p.nombre}</span>
-              <span className="text-sm text-tinta-suave">
-                {p.disponible ? euros(p.precio) : "Agotado"}
-                {p.grupos.length > 0 && " · elegir"}
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setDetalle(p)}
-              disabled={!p.disponible}
-              className="absolute top-1 right-1 rounded-lg p-2 text-tinta-suave hover:bg-zinc disabled:hidden"
-              aria-label={`Más opciones de ${p.nombre}: cantidad y nota`}
-            >
-              <MoreHorizontal aria-hidden className="size-4" />
-            </button>
-          </li>
-        ))}
+        {productos.map((p) => {
+          const fuera = p.oculto || !p.disponible;
+          return (
+            <li key={p.id} className="relative">
+              <button
+                type="button"
+                disabled={fuera && !encargado}
+                onClick={() => tocar(p)}
+                className={clsx(
+                  "flex h-24 w-full flex-col justify-between rounded-xl bg-white p-3 text-left ring-1 ring-zinc-oscuro transition hover:ring-cobalto active:scale-[0.97] disabled:opacity-45",
+                  fuera &&
+                    encargado &&
+                    "border-2 border-dashed border-zinc-oscuro bg-zinc-claro ring-0",
+                )}
+              >
+                <span className="line-clamp-2 pr-7 leading-tight font-semibold">{p.nombre}</span>
+                <span className="text-sm text-tinta-suave">
+                  {p.oculto ? (
+                    <span className="font-semibold">Oculto · {euros(p.precio)}</span>
+                  ) : !p.disponible ? (
+                    <span className="font-semibold">
+                      Agotado{encargado ? ` · ${euros(p.precio)}` : ""}
+                    </span>
+                  ) : (
+                    euros(p.precio)
+                  )}
+                  {p.grupos.length > 0 && " · elegir"}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setDetalle(p)}
+                disabled={fuera && !encargado}
+                className="absolute top-1 right-1 rounded-lg p-2 text-tinta-suave hover:bg-zinc disabled:hidden"
+                aria-label={`Más opciones de ${p.nombre}: cantidad y nota`}
+              >
+                <MoreHorizontal aria-hidden className="size-4" />
+              </button>
+            </li>
+          );
+        })}
       </ul>
       {productos.length === 0 && (
         <Vacio titulo="Nada por aquí">
@@ -134,6 +154,10 @@ function DetalleProducto({
   alAnotar: Anotar;
   permitirDespues: boolean;
 }) {
+  const { estado, empleado, hacer } = useDatos();
+  // El producto al día (si se cambia su disponibilidad aquí mismo, se ve al momento).
+  const actual = estado.productos.find((p) => p.id === producto.id) ?? producto;
+  const encargado = empleado.rol === "encargado";
   const [despues, setDespues] = useState(false);
   const [elegidas, setElegidas] = useState<string[]>([]);
   const [cantidad, setCantidad] = useState(1);
@@ -242,6 +266,50 @@ function DetalleProducto({
           Falta elegir: {faltan.map((g) => g.nombre.toLowerCase()).join(", ")}
         </p>
       )}
+      <fieldset className="mt-5 border-t border-zinc pt-3">
+        <legend className="sr-only">En la carta</legend>
+        <p className="mb-2 text-sm font-semibold">En la carta</p>
+        <div className="flex flex-wrap gap-2">
+          {(
+            [
+              ["disponible", "Disponible", true, false],
+              ["agotado", "Agotado hoy", false, false],
+              ...(encargado ? ([["oculto", "Oculto", true, true]] as const) : []),
+            ] as const
+          ).map(([clave, texto, disponible, oculto]) => {
+            const activa =
+              clave === "oculto"
+                ? Boolean(actual.oculto)
+                : !actual.oculto && actual.disponible === disponible;
+            return (
+              <Boton
+                key={clave}
+                tamano="pequeno"
+                variante={activa ? "primario" : "secundario"}
+                aria-pressed={activa}
+                onClick={() =>
+                  hacer(
+                    {
+                      tipo: "cambiar_disponible",
+                      productoId: actual.id,
+                      disponible,
+                      ...(encargado ? { oculto } : {}),
+                    },
+                    `${actual.nombre}: ${texto.toLowerCase()}`,
+                  )
+                }
+              >
+                {texto}
+              </Boton>
+            );
+          })}
+        </div>
+        <p className="mt-1 text-xs text-tinta-suave">
+          {encargado
+            ? "Oculto: no lo ven ni los clientes ni los camareros. Tú puedes anotarlo igualmente."
+            : "Agotado: sale en gris y no se puede pedir hasta que vuelva a haber."}
+        </p>
+      </fieldset>
     </Dialogo>
   );
 }

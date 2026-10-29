@@ -1,7 +1,7 @@
 "use client";
 
 import clsx from "clsx";
-import { Banknote, CreditCard, Minus, Plus, Smartphone } from "lucide-react";
+import { Banknote, CreditCard, Minus, Percent, Plus, Smartphone } from "lucide-react";
 import { useState } from "react";
 import { Boton, claseEntrada, Dialogo } from "@/components/ui";
 import {
@@ -11,7 +11,6 @@ import {
   euros,
   importeLinea,
   leerEuros,
-  precioConOpciones,
 } from "@/lib/dominio/importes";
 import type { Centimos, LineaCuenta, MetodoPago, Pago } from "@/lib/dominio/tipos";
 
@@ -38,6 +37,8 @@ export function Cobrar({
   abierto,
   lineas,
   descuento,
+  descuentoImporte = 0,
+  alAjustar,
   comensales,
   alCerrar,
   cobrar,
@@ -48,6 +49,10 @@ export function Cobrar({
   /** Lo que queda por cobrar. */
   lineas: LineaCuenta[];
   descuento: number;
+  /** Descuento en euros de la cuenta: se aplica si se cobra todo lo que queda. */
+  descuentoImporte?: number;
+  /** Abre «Precios y descuentos» (para cambiar algo justo antes de cobrar). */
+  alAjustar?: () => void;
   comensales: number;
   alCerrar: () => void;
   cobrar: (datos: DatosCobro, mensajeOk: string) => Promise<boolean>;
@@ -63,14 +68,16 @@ export function Cobrar({
   const [enviando, setEnviando] = useState(false);
 
   const seleccion = modo === "todo" ? lineas : lineas.filter((l) => (cuantas[l.id] ?? 0) > 0);
-  const subtotal = aplicarDescuento(
-    modo === "todo"
-      ? lineas.reduce((s, l) => s + importeLinea(l), 0)
-      : seleccion.reduce(
-          (s, l) => s + (l.invitacion ? 0 : precioConOpciones(l) * (cuantas[l.id] ?? 0)),
-          0,
-        ),
-    descuento,
+  // El descuento en euros va en el cobro que salda la cuenta.
+  const saldaTodo = modo === "todo" || lineas.every((l) => (cuantas[l.id] ?? 0) === l.cantidad);
+  const subtotal = Math.max(
+    0,
+    aplicarDescuento(
+      modo === "todo"
+        ? lineas.reduce((s, l) => s + importeLinea(l), 0)
+        : seleccion.reduce((s, l) => s + importeLinea({ ...l, cantidad: cuantas[l.id] ?? 0 }), 0),
+      descuento,
+    ) - (saldaTodo ? descuentoImporte : 0),
   );
   const propina = leerEuros(propinaTexto) ?? 0;
   const total = subtotal + propina;
@@ -129,6 +136,15 @@ export function Cobrar({
 
   return (
     <Dialogo abierto={abierto} alCerrar={alCerrar} titulo="Cobrar">
+      {alAjustar && (
+        <button
+          type="button"
+          onClick={alAjustar}
+          className="mb-3 flex w-full items-center justify-center gap-2 rounded-lg bg-cobalto-claro py-2.5 font-semibold text-cobalto-oscuro"
+        >
+          <Percent aria-hidden className="size-4" /> Cambiar precios o hacer un descuento
+        </button>
+      )}
       {permitirPartes && lineas.reduce((n, l) => n + l.cantidad, 0) > 1 && (
         <div
           className="mb-4 grid grid-cols-2 rounded-lg bg-zinc-claro p-1"
@@ -167,7 +183,7 @@ export function Cobrar({
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-semibold">{l.nombre}</span>
                   <span className="text-xs text-tinta-suave">
-                    {l.cantidad} en la cuenta · {euros(l.invitacion ? 0 : precioConOpciones(l))} c/u
+                    {l.cantidad} en la cuenta · {euros(importeLinea({ ...l, cantidad: 1 }))} c/u
                   </span>
                 </span>
                 <button

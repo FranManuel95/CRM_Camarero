@@ -40,6 +40,10 @@ export type Ajustes = {
   pieTicket: string;
   /** Serie de los tickets (facturas simplificadas). */
   serieTicket: string;
+  /** Al mandar una comanda, si sale en papel en cocina y barra (si no, solo en su pantalla). */
+  imprimirComandas?: boolean;
+  /** Solo el encargado puede cambiar precios y hacer descuentos al cobrar. */
+  preciosSoloEncargado?: boolean;
   /** Funciones encendidas o apagadas (ver funciones.ts). Lo que no está, va por defecto. */
   funciones?: Partial<Record<string, boolean>>;
   /** Dónde dejar una reseña (Google, TripAdvisor…). Sale al pagar si «Reseñas» está encendido. */
@@ -177,6 +181,11 @@ export type Producto = {
   receta?: LineaReceta[];
   /** Lo puso agotado el stock (no una persona): vuelve solo cuando entra género. */
   agotadoPorStock?: boolean;
+  /**
+   * Oculto: no lo ven ni los clientes en el QR ni los camareros. El encargado sí, y puede
+   * anotarlo igualmente (por ejemplo, un plato fuera de carta).
+   */
+  oculto?: boolean;
 };
 
 export type EstadoLinea =
@@ -230,6 +239,10 @@ export type LineaCuenta = {
   descontado?: boolean;
   /** Ticket con el que se pagó (cuando se cobra la cuenta por partes). */
   ticketId?: Id;
+  /** Precio por unidad cambiado a mano (con las opciones incluidas). */
+  precioCambiado?: Centimos;
+  /** Descuento de esta línea, en %. */
+  descuentoLinea?: number;
   motivoAnulacion?: string;
 };
 
@@ -273,6 +286,8 @@ export type Cuenta = {
   lineas: LineaCuenta[];
   /** Descuento sobre el total, en %. */
   descuento: number;
+  /** Descuento sobre el total en euros (después del %): «cóbrale 20 €». */
+  descuentoImporte?: Centimos;
   rondas: number;
   ticketId: Id | null;
 };
@@ -306,6 +321,8 @@ export type Ticket = {
   empleadoId: Id | null;
   lineas: LineaTicket[];
   descuento: number;
+  /** Descuento en euros sobre el total (después del %). */
+  descuentoImporte?: Centimos;
   desglose: DesgloseIva[];
   total: Centimos;
   pagos: Pago[];

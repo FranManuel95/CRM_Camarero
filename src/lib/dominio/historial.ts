@@ -45,9 +45,29 @@ export function describir(accion: AccionPersonal, antes: Estado, despues: Estado
     case "aplicar_descuento": {
       const c = cuenta(antes, accion.cuentaId);
       if (!c) return null;
-      return accion.descuento
-        ? `Puso un ${accion.descuento} % de descuento en ${nombreMesa(antes, c.mesaId)}`
-        : `Quitó el descuento de ${nombreMesa(antes, c.mesaId)}`;
+      const donde = nombreMesa(antes, c.mesaId);
+      const partes = [
+        accion.descuento ? `un ${accion.descuento} %` : "",
+        accion.importe ? euros(accion.importe) : "",
+      ].filter(Boolean);
+      return partes.length
+        ? `Puso ${partes.join(" y ")} de descuento en ${donde}`
+        : `Quitó el descuento de ${donde}`;
+    }
+    case "ajustar_lineas": {
+      const c = cuenta(antes, accion.cuentaId);
+      if (!c) return null;
+      const lineas = c.lineas.filter((l) => accion.lineaIds.includes(l.id));
+      const que = lineas.map((l) => `${l.cantidad} ${l.nombre}`).join(", ");
+      const donde = nombreMesa(antes, c.mesaId);
+      const cambio = accion.cambio;
+      if (cambio.tipo === "precio")
+        return `Cambió el precio de ${que} a ${euros(cambio.precio)}/ud. en ${donde}`;
+      if (cambio.tipo === "descuento")
+        return cambio.porcentaje
+          ? `Puso un ${cambio.porcentaje} % de descuento a ${que} en ${donde}`
+          : `Quitó el descuento de ${que} en ${donde}`;
+      return `Volvió al precio de la carta ${que} en ${donde}`;
     }
     case "mover_cuenta": {
       const c = cuenta(antes, accion.cuentaId);
@@ -74,6 +94,7 @@ export function describir(accion: AccionPersonal, antes: Estado, despues: Estado
       return `${accion.movimiento === "entrada" ? "Metió" : "Sacó"} ${euros(accion.importe)} de la caja («${accion.motivo}»)`;
     case "cambiar_disponible": {
       const p = nombreDe(antes.productos, accion.productoId);
+      if (accion.oculto) return `Ocultó ${p} de la carta`;
       return `Puso ${p} como ${accion.disponible ? "disponible" : "agotado"}`;
     }
     case "ajustar_stock": {

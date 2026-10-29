@@ -82,6 +82,21 @@ export function Ajustes() {
             ayuda="Recomendado: evita pedidos de broma. Si lo quitas, va directo a cocina y barra."
           />
         </section>
+        <section className="space-y-4 rounded-2xl bg-white p-4 ring-1 ring-zinc">
+          <h2 className="font-rotulo text-2xl font-bold">Servicio</h2>
+          <Interruptor
+            activo={a.imprimirComandas ?? true}
+            alCambiar={(v) => setA({ ...a, imprimirComandas: v })}
+            etiqueta="Las comandas salen en papel en cocina y barra"
+            ayuda="Es lo que pasa al pulsar «Mandar». El camarero puede cambiarlo en cada envío; si lo quitas, solo se ven en la pantalla de cocina."
+          />
+          <Interruptor
+            activo={a.preciosSoloEncargado ?? false}
+            alCambiar={(v) => setA({ ...a, preciosSoloEncargado: v })}
+            etiqueta="Solo el encargado cambia precios y hace descuentos"
+            ayuda="Si lo dejas abierto, cualquiera del equipo puede; queda apuntado quién en el historial."
+          />
+        </section>
         {resenas && (
           <section className="space-y-3 rounded-2xl bg-white p-4 ring-1 ring-zinc">
             <h2 className="font-rotulo text-2xl font-bold">Reseñas</h2>

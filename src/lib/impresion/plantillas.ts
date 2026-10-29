@@ -129,15 +129,21 @@ export function plantillaPrecuenta(datos: {
     })),
     { tipo: "separador" },
   ];
-  if (cuenta.descuento) {
-    bloques.push(
-      { tipo: "par", izquierda: "Subtotal", derecha: euros(subtotal) },
-      {
+  if (cuenta.descuento || cuenta.descuentoImporte) {
+    const trasPorcentaje = total + (cuenta.descuentoImporte ?? 0);
+    bloques.push({ tipo: "par", izquierda: "Subtotal", derecha: euros(subtotal) });
+    if (cuenta.descuento)
+      bloques.push({
         tipo: "par",
         izquierda: `Descuento ${cuenta.descuento} %`,
-        derecha: euros(total - subtotal),
-      },
-    );
+        derecha: euros(trasPorcentaje - subtotal),
+      });
+    if (cuenta.descuentoImporte)
+      bloques.push({
+        tipo: "par",
+        izquierda: "Descuento",
+        derecha: euros(-cuenta.descuentoImporte),
+      });
   }
   bloques.push({ tipo: "par", izquierda: "TOTAL", derecha: euros(total), negrita: true });
   if (cuenta.comensales > 1) {
@@ -192,11 +198,17 @@ export function plantillaTicket(datos: {
       bloques.push({ tipo: "texto", texto: `   ${euros(l.precioUnitario)} / ud.` });
   }
   bloques.push({ tipo: "separador" });
-  if (t.descuento) {
-    bloques.push(
-      { tipo: "par", izquierda: "Subtotal", derecha: euros(subtotal) },
-      { tipo: "par", izquierda: `Descuento ${t.descuento} %`, derecha: euros(t.total - subtotal) },
-    );
+  if (t.descuento || t.descuentoImporte) {
+    const trasPorcentaje = t.total + (t.descuentoImporte ?? 0);
+    bloques.push({ tipo: "par", izquierda: "Subtotal", derecha: euros(subtotal) });
+    if (t.descuento)
+      bloques.push({
+        tipo: "par",
+        izquierda: `Descuento ${t.descuento} %`,
+        derecha: euros(trasPorcentaje - subtotal),
+      });
+    if (t.descuentoImporte)
+      bloques.push({ tipo: "par", izquierda: "Descuento", derecha: euros(-t.descuentoImporte) });
   }
   bloques.push({
     tipo: "par",

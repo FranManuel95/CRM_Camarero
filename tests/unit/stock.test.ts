@@ -115,8 +115,9 @@ describe("escandallos", () => {
       disponible: false,
       agotadoPorStock: true,
     });
+    // El camarero ya no puede anotarlo (el encargado sí, a propósito).
     expect(() =>
-      t.hacer({ tipo: "anotar", cuentaId: t.cuentaId, lineas: [linea(pulpo.id)] }),
+      t.hacer({ tipo: "anotar", cuentaId: t.cuentaId, lineas: [linea(pulpo.id)] }, t.luis),
     ).toThrow(/agotado/);
 
     t.hacer({

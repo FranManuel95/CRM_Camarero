@@ -58,10 +58,6 @@ export const TEXTOS = {
       confirmar
         ? "El bar lo confirma y lo prepara para tu hora."
         : "Va directo a cocina para tu hora.",
-    pagarAhora: (importe: string) => `Pagar ahora con tarjeta · ${importe}`,
-    pagoSeguro: "Pagas en la página segura de Stripe; el bar no ve tu tarjeta.",
-    esperaAceptar: "Para pagar desde aquí, espera a que acepten tu último pedido.",
-    pagoCancelado: "No se ha cobrado nada. Puedes pagar cuando quieras.",
     gracias: "¡Gracias!",
     pagadoTicket: (n: string, importe: string) => `Pagado ${importe} · ticket ${n}`,
     ticketPorCorreo: "¿Te mandamos el ticket por correo?",
@@ -132,10 +128,6 @@ export const TEXTOS = {
       confirmar
         ? "The bar confirms it and gets it ready for your time."
         : "It goes straight to the kitchen for your time.",
-    pagarAhora: (importe: string) => `Pay now by card · ${importe}`,
-    pagoSeguro: "You pay on Stripe's secure page; the bar never sees your card.",
-    esperaAceptar: "To pay from here, wait until your last order has been accepted.",
-    pagoCancelado: "Nothing has been charged. You can pay whenever you like.",
     gracias: "Thank you!",
     pagadoTicket: (n: string, importe: string) => `Paid ${importe} · receipt ${n}`,
     ticketPorCorreo: "Shall we email you the receipt?",

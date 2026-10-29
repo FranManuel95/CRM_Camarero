@@ -5,7 +5,6 @@ import {
   Bell,
   Check,
   Clock,
-  CreditCard,
   Languages,
   Mail,
   Minus,
@@ -15,7 +14,7 @@ import {
   Star,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Boton, Campo, claseEntrada, Dialogo } from "@/components/ui";
 import { useEnDirecto } from "@/lib/cliente/use-en-directo";
 import { useGuardado } from "@/lib/cliente/use-guardado";
@@ -87,37 +86,13 @@ export function CartaCliente({
   // Un encargo ya pagado no admite más pedidos (se hace otro).
   const pedir = vista.local.pedidosActivos && !(llevar && vista.ticket);
   const [verGracias, setVerGracias] = useState(true);
-  const [pagando, setPagando] = useState(false);
   const encargoListo = Boolean(
     llevar &&
     vista.cuenta?.lineas.some((l) => l.estado === "lista") &&
     vista.cuenta.lineas.every((l) => ["lista", "servida", "anulada"].includes(l.estado)),
   );
 
-  // Al volver de la página de pago: si se echó atrás, se le dice; la dirección queda limpia.
-  useEffect(() => {
-    const pago = new URLSearchParams(window.location.search).get("pago");
-    if (!pago) return;
-    window.history.replaceState(null, "", window.location.pathname);
-    if (pago === "cancelado") avisar(t.pagoCancelado);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al cargar la página
-  }, []);
 
-  async function pagarConTarjeta() {
-    setPagando(true);
-    try {
-      const r = await fetch(`/api/mesa/${local}/${token}/pago`, { method: "POST" });
-      const datos = (await r.json()) as { url?: string; error?: string };
-      if (datos.url) window.location.assign(datos.url);
-      else {
-        avisar(datos.error ?? t.sinConexion, true);
-        setPagando(false);
-      }
-    } catch {
-      avisar(t.sinConexion, true);
-      setPagando(false);
-    }
-  }
 
   function avisar(texto: string, error = false) {
     setMensaje({ texto, error });
@@ -495,7 +470,7 @@ export function CartaCliente({
         </Boton>
         <p className="mt-2 text-center text-xs text-tinta-suave">
           {llevar
-            ? `${t.comoVaEncargo(vista.local.confirmarPedidos)} ${vista.local.pagoQR ? "" : t.pagasAlRecoger}`
+            ? `${t.comoVaEncargo(vista.local.confirmarPedidos)} ${t.pagasAlRecoger}`
             : t.comoVa(vista.local.confirmarPedidos)}
         </p>
       </Dialogo>
@@ -549,30 +524,8 @@ export function CartaCliente({
               <span>{vista.cuenta.pagado > 0 ? t.pendiente : t.total}</span>
               <span>{euros(vista.cuenta.total)}</span>
             </p>
-            {vista.local.pagoQR && vista.cuenta.total > 0 && (
-              <div className="mb-4">
-                {vista.cuenta.aPagar > 0 ? (
-                  <>
-                    <Boton
-                      variante="exito"
-                      tamano="grande"
-                      className="w-full"
-                      disabled={pagando}
-                      onClick={pagarConTarjeta}
-                    >
-                      <CreditCard aria-hidden className="size-5" />
-                      {t.pagarAhora(euros(vista.cuenta.aPagar))}
-                    </Boton>
-                    <p className="mt-1 text-center text-xs text-tinta-suave">{t.pagoSeguro}</p>
-                  </>
-                ) : (
-                  <p className="text-center text-sm text-tinta-suave">{t.esperaAceptar}</p>
-                )}
-              </div>
-            )}
             {llevar ? (
-              vista.cuenta.total > 0 &&
-              !vista.local.pagoQR && (
+              vista.cuenta.total > 0 && (
                 <p className="rounded-lg bg-zinc-claro p-3 text-center font-semibold">
                   {t.pagasAlRecoger}
                 </p>

@@ -10,7 +10,9 @@ import {
   Gift,
   Minus,
   Plus,
+  Percent,
   Printer,
+  MonitorSmartphone,
   QrCode,
   Trash2,
   Users,
@@ -26,6 +28,7 @@ import {
   importeLinea,
   lineasCobrables,
   pagadoCuenta,
+  precioConOpciones,
   subtotalCuenta,
   totalCuenta,
 } from "@/lib/dominio/importes";
@@ -35,6 +38,7 @@ import { useAhora } from "@/lib/cliente/use-ahora";
 import { CartaTpv } from "@/components/carta-tpv";
 import { buscarMesa, esParaLlevar } from "@/lib/dominio/selectores";
 import { Cobrar } from "./cobrar";
+import { PreciosYDescuentos } from "./precios";
 
 const TEXTO_ESTADO: Record<EstadoLinea, string> = {
   por_confirmar: "Por aceptar",
@@ -63,7 +67,19 @@ export function Comanda({ mesaId, alSalir }: { mesaId: string; alSalir?: () => v
   const [panel, setPanel] = useState<"carta" | "cuenta">(() =>
     cuenta?.lineas.some((l) => l.estado === "por_confirmar") ? "cuenta" : "carta",
   );
-  const [dialogo, setDialogo] = useState<null | "cobrar" | "mover" | "descuento" | "anular">(null);
+  const [dialogo, setDialogo] = useState<null | "cobrar" | "mover" | "precios" | "anular">(null);
+  const [preseleccion, setPreseleccion] = useState<string[]>([]);
+  const abrirPrecios = (lineaIds: string[] = []) => {
+    setPreseleccion(lineaIds);
+    setDialogo("precios");
+  };
+  // Si la comanda sale en papel: lo que diga Ajustes, y se puede cambiar en cada envío.
+  const [enPapel, setEnPapel] = useState(estado.ajustes.imprimirComandas ?? true);
+  const mandar = () =>
+    hacer(
+      { tipo: "enviar_comanda", cuentaId: cuenta!.id, imprimir: enPapel },
+      enPapel ? "Comanda mandada" : "Mandada a pantalla (sin papel)",
+    );
 
   if (!mesa)
     return (
@@ -176,8 +192,8 @@ export function Comanda({ mesaId, alSalir }: { mesaId: string; alSalir?: () => v
               <ArrowRightLeft aria-hidden className="size-4" /> Mover o juntar
             </Boton>
           )}
-          <Boton tamano="pequeno" variante="fantasma" onClick={() => setDialogo("descuento")}>
-            % Descuento
+          <Boton tamano="pequeno" variante="fantasma" onClick={() => abrirPrecios()}>
+            <Percent aria-hidden className="size-4" /> Precios y descuentos
           </Boton>
           <Boton tamano="pequeno" variante="fantasma" onClick={() => setDialogo("anular")}>
             <Ban aria-hidden className="size-4" />{" "}
@@ -221,13 +237,7 @@ export function Comanda({ mesaId, alSalir }: { mesaId: string; alSalir?: () => v
             <Boton onClick={() => setPanel("cuenta")}>
               Ver cuenta · {euros(totalCuenta(cuenta))}
             </Boton>
-            <Boton
-              variante="primario"
-              disabled={!sinMandar.length}
-              onClick={() =>
-                hacer({ tipo: "enviar_comanda", cuentaId: cuenta.id }, "Comanda mandada")
-              }
-            >
+            <Boton variante="primario" disabled={!sinMandar.length} onClick={mandar}>
               <ChefHat aria-hidden className="size-5" />
               Mandar{sinMandar.length ? ` (${unidades(sinMandar)})` : ""}
             </Boton>
@@ -277,16 +287,29 @@ export function Comanda({ mesaId, alSalir }: { mesaId: string; alSalir?: () => v
               <Lineas
                 cuenta={cuenta}
                 lineas={cuenta.lineas.filter((l) => l.estado !== "por_confirmar")}
+                alTocarPrecio={(id) => abrirPrecios([id])}
               />
             )}
           </div>
 
           <footer className="border-t border-zinc-oscuro/50 p-3">
-            {cuenta.descuento > 0 && (
-              <p className="flex justify-between text-sm text-tinta-suave">
+            {(cuenta.descuento > 0 || Boolean(cuenta.descuentoImporte)) && (
+              <button
+                type="button"
+                onClick={() => abrirPrecios()}
+                className="flex w-full justify-between text-sm text-tinta-suave hover:underline"
+              >
                 <span>Subtotal {euros(subtotalCuenta(cuenta))}</span>
-                <span>Descuento {cuenta.descuento} %</span>
-              </p>
+                <span>
+                  Descuento{" "}
+                  {[
+                    cuenta.descuento ? `${cuenta.descuento} %` : "",
+                    cuenta.descuentoImporte ? euros(cuenta.descuentoImporte) : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" + ")}
+                </span>
+              </button>
             )}
             {pagado > 0 && (
               <p className="flex justify-between text-sm text-cuenta">
@@ -309,6 +332,20 @@ export function Comanda({ mesaId, alSalir }: { mesaId: string; alSalir?: () => v
               <span className="font-semibold">{pagado > 0 ? "Pendiente" : "Total"}</span>
               <span className="font-rotulo text-4xl font-bold">{euros(totalCuenta(cuenta))}</span>
             </p>
+            <button
+              type="button"
+              aria-pressed={enPapel}
+              onClick={() => setEnPapel((v) => !v)}
+              className="mb-2 flex items-center gap-2 text-sm font-semibold text-tinta-suave"
+            >
+              {enPapel ? (
+                <Printer aria-hidden className="size-4" />
+              ) : (
+                <MonitorSmartphone aria-hidden className="size-4" />
+              )}
+              Comanda en papel: {enPapel ? "sí" : "no, solo en pantalla"}
+              <span className="font-normal underline">cambiar</span>
+            </button>
             <div className="grid grid-cols-[auto_1fr_1fr] gap-2">
               <Boton
                 aria-label="Imprimir la cuenta"
@@ -325,9 +362,7 @@ export function Comanda({ mesaId, alSalir }: { mesaId: string; alSalir?: () => v
                 variante="primario"
                 tamano="grande"
                 disabled={!sinMandar.length}
-                onClick={() =>
-                  hacer({ tipo: "enviar_comanda", cuentaId: cuenta.id }, "Comanda mandada")
-                }
+                onClick={mandar}
               >
                 <ChefHat aria-hidden className="size-5" />
                 Mandar{sinMandar.length ? ` (${unidades(sinMandar)})` : ""}
@@ -344,6 +379,11 @@ export function Comanda({ mesaId, alSalir }: { mesaId: string; alSalir?: () => v
         abierto={dialogo === "cobrar"}
         lineas={lineasCobrables(cuenta)}
         descuento={cuenta.descuento}
+        descuentoImporte={cuenta.descuentoImporte ?? 0}
+        alAjustar={() => {
+          setDialogo(null);
+          abrirPrecios();
+        }}
         comensales={cuenta.comensales}
         permitirPartes={porPartes}
         permitirPropina={propinas}
@@ -359,9 +399,10 @@ export function Comanda({ mesaId, alSalir }: { mesaId: string; alSalir?: () => v
         }}
       />
       <Mover abierto={dialogo === "mover"} cuenta={cuenta} alCerrar={() => setDialogo(null)} />
-      <Descuento
-        abierto={dialogo === "descuento"}
+      <PreciosYDescuentos
+        abierto={dialogo === "precios"}
         cuenta={cuenta}
+        preseleccion={preseleccion}
         alCerrar={() => setDialogo(null)}
       />
       <Dialogo
@@ -390,7 +431,16 @@ export function Comanda({ mesaId, alSalir }: { mesaId: string; alSalir?: () => v
   );
 }
 
-function Lineas({ cuenta, lineas }: { cuenta: Cuenta; lineas: LineaCuenta[] }) {
+function Lineas({
+  cuenta,
+  lineas,
+  alTocarPrecio,
+}: {
+  cuenta: Cuenta;
+  lineas: LineaCuenta[];
+  /** Tocar el importe de una línea abre «Precios y descuentos» con ella marcada. */
+  alTocarPrecio?: (lineaId: string) => void;
+}) {
   const { hacer } = useDatos();
   const paraDespues = useFuncion("paraDespues");
   const ahora = useAhora();
@@ -437,12 +487,36 @@ function Lineas({ cuenta, lineas }: { cuenta: Cuenta; lineas: LineaCuenta[] }) {
                       <span>hace {minutosEntre(l.enviadaEn, ahora)} min</span>
                     )}
                     {l.invitacion && <span className="font-semibold text-cuenta">Invitación</span>}
+                    {l.descuentoLinea ? (
+                      <span className="font-semibold text-cuenta">−{l.descuentoLinea} %</span>
+                    ) : null}
+                    {l.precioCambiado !== undefined && (
+                      <span className="font-semibold">Precio cambiado</span>
+                    )}
                     {l.motivoAnulacion && <span>{l.motivoAnulacion}</span>}
                   </p>
                 </div>
-                <span className="shrink-0 font-semibold tabular-nums">
-                  {anulada ? "—" : euros(importeLinea(l))}
-                </span>
+                {anulada ? (
+                  <span className="shrink-0 font-semibold">—</span>
+                ) : alTocarPrecio && !l.ticketId && l.estado !== "por_confirmar" ? (
+                  <button
+                    type="button"
+                    onClick={() => alTocarPrecio(l.id)}
+                    className="shrink-0 rounded-md px-1 text-right font-semibold tabular-nums underline decoration-dotted underline-offset-4 hover:bg-zinc"
+                    aria-label={`${euros(importeLinea(l))}. Cambiar precio o descuento de ${l.nombre}`}
+                  >
+                    {euros(importeLinea(l))}
+                    {(l.precioCambiado !== undefined || Boolean(l.descuentoLinea)) && (
+                      <span className="block text-xs font-normal text-tinta-suave line-through">
+                        {euros(precioConOpciones(l) * l.cantidad)}
+                      </span>
+                    )}
+                  </button>
+                ) : (
+                  <span className="shrink-0 font-semibold tabular-nums">
+                    {euros(importeLinea(l))}
+                  </span>
+                )}
               </div>
               {l.estado !== "por_confirmar" && !anulada && !l.ticketId && (
                 <div className="mt-1 flex flex-wrap justify-end gap-1 pl-9">
@@ -675,41 +749,6 @@ function Mover({
             </div>
           </div>
         ))}
-    </Dialogo>
-  );
-}
-
-function Descuento({
-  abierto,
-  cuenta,
-  alCerrar,
-}: {
-  abierto: boolean;
-  cuenta: Cuenta;
-  alCerrar: () => void;
-}) {
-  const { hacer } = useDatos();
-  return (
-    <Dialogo abierto={abierto} alCerrar={alCerrar} titulo="Descuento a toda la cuenta">
-      <div className="grid grid-cols-4 gap-2">
-        {[0, 5, 10, 15, 20, 25, 50, 100].map((d) => (
-          <Boton
-            key={d}
-            tamano="grande"
-            variante={cuenta.descuento === d ? "primario" : "secundario"}
-            onClick={async () => {
-              if (await hacer({ tipo: "aplicar_descuento", cuentaId: cuenta.id, descuento: d }))
-                alCerrar();
-            }}
-          >
-            {d === 0 ? "Sin" : `${d} %`}
-          </Boton>
-        ))}
-      </div>
-      <p className="mt-3 text-sm text-tinta-suave">
-        Para invitar a algo suelto, usa «Invitar» en esa línea. Total ahora:{" "}
-        {euros(totalCuenta(cuenta))}
-      </p>
     </Dialogo>
   );
 }

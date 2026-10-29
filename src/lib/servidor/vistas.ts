@@ -1,8 +1,7 @@
 import { DIAS_EN_PANTALLA } from "../constantes";
 import { servicios } from "./servicios";
 import { activa, disponible } from "../dominio/funciones";
-import { turnoAbierto } from "../dominio/caja";
-import { cuentaDeMesa, pendienteOnline } from "../dominio/reducir";
+import { cuentaDeMesa } from "../dominio/reducir";
 import { cuentaEnJuego, nombreLlevar } from "../dominio/selectores";
 import { pagadoCuenta, totalCuenta } from "../dominio/importes";
 import { dentroDeHorario } from "../dominio/horario";
@@ -116,8 +115,6 @@ export function vistaCliente(estado: Estado, token: string, ahora = new Date().t
       pedidosActivos: estado.ajustes.pedidosQRActivos,
       confirmarPedidos: estado.ajustes.confirmarPedidosQR,
       ingles: activa(ajustes, "cartaIngles"),
-      /** Se puede pagar con tarjeta desde el móvil (hay pasarela y la caja está abierta). */
-      pagoQR: disponible(ajustes, servidor, "pagoQR") && Boolean(turnoAbierto(estado)),
       ticketCorreo: disponible(ajustes, servidor, "ticketCorreo"),
       /** Enlace para dejar una reseña, si el bar lo pide. */
       resena: (activa(ajustes, "resenas") && ajustes.enlaceResena) || null,
@@ -127,7 +124,7 @@ export function vistaCliente(estado: Estado, token: string, ahora = new Date().t
     llevar: encargo?.llevar ? { recogida: encargo.llevar.recogida } : null,
     categorias: categorias.map(({ id, nombre, nombreEn }) => ({ id, nombre, nombreEn })),
     productos: estado.productos
-      .filter((p) => ids.has(p.categoriaId))
+      .filter((p) => ids.has(p.categoriaId) && !p.oculto)
       .sort((a, b) => a.orden - b.orden)
       .map(
         ({
@@ -161,8 +158,6 @@ export function vistaCliente(estado: Estado, token: string, ahora = new Date().t
           lineas,
           total: totalCuenta(cuenta),
           pagado: pagadoCuenta(cuenta),
-          /** Lo que se puede pagar ahora con tarjeta desde el móvil (0 si aún no se puede). */
-          aPagar: pendienteOnline(cuenta),
         }
       : null,
     /** El ticket de lo último que se pagó (en la última media hora). */

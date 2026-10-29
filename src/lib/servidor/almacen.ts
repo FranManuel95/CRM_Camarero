@@ -12,7 +12,6 @@ import {
   type Resultado,
   reducirCliente,
   reducirEncargoOnline,
-  reducirPagoOnline,
   reducirPersonal,
   reducirReservaOnline,
   usarCodigoVinculo,
@@ -156,18 +155,6 @@ export async function ejecutarEncargoOnline(local: string, datos: EncargoOnline)
 
 export async function ejecutarReservaOnline(local: string, datos: ReservaOnline) {
   await almacen(local).cambiar((e) => reducirReservaOnline(e, datos, contexto()));
-}
-
-/** Apunta un pago con tarjeta hecho desde el QR (lo avisa la pasarela). */
-export function ejecutarPagoOnline(
-  local: string,
-  pago: { referencia: string; cuentaId: string; importe: number },
-) {
-  const a = almacen(local);
-  return tras(
-    a,
-    a.cambiar((e) => reducirPagoOnline(e, pago, contexto())),
-  );
 }
 
 /** Apunta cómo ha ido un trabajo de impresión (desde una pantalla, el puente o el servidor). */

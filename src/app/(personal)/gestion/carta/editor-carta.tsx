@@ -5,8 +5,6 @@ import {
   ArrowDown,
   ArrowUp,
   Clock,
-  Eye,
-  EyeOff,
   ImagePlus,
   Pencil,
   Plus,
@@ -300,7 +298,7 @@ export function EditorCarta({ clavePublica }: { clavePublica: string }) {
                     <p
                       className={clsx(
                         "font-semibold",
-                        !p.disponible && "text-tinta-suave line-through",
+                        (!p.disponible || p.oculto) && "text-tinta-suave line-through",
                       )}
                     >
                       {p.nombre}
@@ -314,27 +312,32 @@ export function EditorCarta({ clavePublica }: { clavePublica: string }) {
                   </div>
                   <div className="ml-auto flex items-center gap-1">
                     <span className="mr-1 font-semibold tabular-nums">{euros(p.precio)}</span>
-                    <Boton
-                      tamano="pequeno"
-                      variante={p.disponible ? "fantasma" : "secundario"}
-                      onClick={() =>
-                        hacer(
-                          {
-                            tipo: "cambiar_disponible",
-                            productoId: p.id,
-                            disponible: !p.disponible,
-                          },
-                          p.disponible ? `${p.nombre}: agotado` : `${p.nombre}: disponible`,
-                        )
-                      }
-                    >
-                      {p.disponible ? (
-                        <Eye aria-hidden className="size-4" />
-                      ) : (
-                        <EyeOff aria-hidden className="size-4" />
-                      )}
-                      {p.disponible ? "Disponible" : "Agotado"}
-                    </Boton>
+                    <label>
+                      <span className="sr-only">Cómo está {p.nombre} en la carta</span>
+                      <select
+                        className={clsx(
+                          "h-8 rounded-lg border border-zinc-oscuro bg-white px-2 text-sm font-semibold",
+                          (p.oculto || !p.disponible) && "bg-zinc-claro",
+                        )}
+                        value={p.oculto ? "oculto" : p.disponible ? "disponible" : "agotado"}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          void hacer(
+                            {
+                              tipo: "cambiar_disponible",
+                              productoId: p.id,
+                              disponible: v !== "agotado",
+                              oculto: v === "oculto",
+                            },
+                            `${p.nombre}: ${v}`,
+                          );
+                        }}
+                      >
+                        <option value="disponible">Disponible</option>
+                        <option value="agotado">Agotado</option>
+                        <option value="oculto">Oculto</option>
+                      </select>
+                    </label>
                     <Boton
                       tamano="pequeno"
                       variante="fantasma"
