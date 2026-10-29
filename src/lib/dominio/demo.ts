@@ -349,7 +349,7 @@ export function estadoDeEjemplo(ctx: Contexto, opciones: { conHistorial?: boolea
     incidencias: [],
     historial: [],
     reservas: reservasDeEjemplo(ctx.ahora, mesas),
-    pagosOnline: [],
+    clientes: [],
   };
 
   estado.cuadrante = cuadranteDeEjemplo(

@@ -129,8 +129,8 @@ export function plantillaPrecuenta(datos: {
     })),
     { tipo: "separador" },
   ];
-  if (cuenta.descuento || cuenta.descuentoImporte) {
-    const trasPorcentaje = total + (cuenta.descuentoImporte ?? 0);
+  if (cuenta.descuento || cuenta.descuentoImporte || cuenta.canje) {
+    const trasPorcentaje = total + (cuenta.descuentoImporte ?? 0) + (cuenta.canje?.importe ?? 0);
     bloques.push({ tipo: "par", izquierda: "Subtotal", derecha: euros(subtotal) });
     if (cuenta.descuento)
       bloques.push({
@@ -143,6 +143,12 @@ export function plantillaPrecuenta(datos: {
         tipo: "par",
         izquierda: "Descuento",
         derecha: euros(-cuenta.descuentoImporte),
+      });
+    if (cuenta.canje)
+      bloques.push({
+        tipo: "par",
+        izquierda: "Premio del club",
+        derecha: euros(-cuenta.canje.importe),
       });
   }
   bloques.push({ tipo: "par", izquierda: "TOTAL", derecha: euros(total), negrita: true });
@@ -198,8 +204,8 @@ export function plantillaTicket(datos: {
       bloques.push({ tipo: "texto", texto: `   ${euros(l.precioUnitario)} / ud.` });
   }
   bloques.push({ tipo: "separador" });
-  if (t.descuento || t.descuentoImporte) {
-    const trasPorcentaje = t.total + (t.descuentoImporte ?? 0);
+  if (t.descuento || t.descuentoImporte || t.canjeClub) {
+    const trasPorcentaje = t.total + (t.descuentoImporte ?? 0) + (t.canjeClub ?? 0);
     bloques.push({ tipo: "par", izquierda: "Subtotal", derecha: euros(subtotal) });
     if (t.descuento)
       bloques.push({
@@ -209,6 +215,8 @@ export function plantillaTicket(datos: {
       });
     if (t.descuentoImporte)
       bloques.push({ tipo: "par", izquierda: "Descuento", derecha: euros(-t.descuentoImporte) });
+    if (t.canjeClub)
+      bloques.push({ tipo: "par", izquierda: "Premio del club", derecha: euros(-t.canjeClub) });
   }
   bloques.push({
     tipo: "par",
@@ -247,6 +255,16 @@ export function plantillaTicket(datos: {
     bloques.push(
       { tipo: "espacio" },
       { tipo: "texto", texto: datos.ajustes.pieTicket, alinear: "centro" },
+    );
+  }
+  if (t.club) {
+    bloques.push(
+      { tipo: "espacio" },
+      {
+        tipo: "texto",
+        texto: `Club: ${t.club.nombre}, +${t.club.puntos} puntos. Tienes ${t.club.saldo}.`,
+        alinear: "centro",
+      },
     );
   }
   if (datos.resena) {

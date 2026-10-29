@@ -2,6 +2,7 @@ import "server-only";
 import { createHash, createHmac, randomBytes, randomInt, randomUUID } from "node:crypto";
 import type {
   AccionCliente,
+  AltaClub,
   AccionPersonal,
   EncargoOnline,
   ReservaOnline,
@@ -11,6 +12,7 @@ import {
   type Contexto,
   type Resultado,
   reducirCliente,
+  reducirAltaClub,
   reducirEncargoOnline,
   reducirPersonal,
   reducirReservaOnline,
@@ -151,6 +153,17 @@ export async function ejecutarEncargoOnline(local: string, datos: EncargoOnline)
     return r;
   });
   return token;
+}
+
+/** Alta en el club desde el móvil. Devuelve el código de la tarjeta. */
+export async function ejecutarAltaClub(local: string, datos: AltaClub) {
+  let codigo = "";
+  await almacen(local).cambiar((e) => {
+    const r = reducirAltaClub(e, datos, contexto());
+    codigo = r.codigo;
+    return r;
+  });
+  return codigo;
 }
 
 export async function ejecutarReservaOnline(local: string, datos: ReservaOnline) {

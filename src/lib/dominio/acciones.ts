@@ -21,6 +21,12 @@ const hora = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Hora no válida");
 const idDelAparato = z.string().regex(/^sr-[a-z0-9-]{8,40}$/, "Identificador no válido");
 const receta = z.array(z.object({ ingredienteId: id, cantidad: cantidad.positive() })).max(30);
 
+const telefono = z
+  .string()
+  .trim()
+  .regex(/^\+?[\d ]{9,16}$/, "Pon un teléfono de 9 cifras (o con prefijo)");
+const correo = z.union([z.literal(""), z.email("Ese correo no parece bien escrito.").max(120)]);
+
 export const lineaPedida = z.object({
   productoId: id,
   cantidad: z.number().int().min(1).max(99),
@@ -209,6 +215,25 @@ export const accionCamarero = z.discriminatedUnion("tipo", [
   }),
   /** Han llegado los de la reserva: se abre su mesa. */
   z.object({ tipo: z.literal("sentar_reserva"), reservaId: id, mesaId: id }),
+  // Club de clientes: lo lleva quien está en la caja o en la mesa.
+  z.object({
+    tipo: z.literal("guardar_cliente"),
+    cliente: z.object({
+      id: id.optional(),
+      nombre: texto(60).min(1, "Pon el nombre del cliente"),
+      telefono,
+      correo,
+      alergenos: z.array(z.enum(ALERGENOS)).max(14),
+      comunicaciones: z.boolean(),
+      nota: texto(200),
+    }),
+    /** Al dar de alta: el cliente ha aceptado que se guarden sus datos para el club. */
+    consentimiento: z.boolean().optional(),
+    /** Al dar de alta desde una mesa: su cuenta ya suma puntos para él. */
+    asignarA: id.optional(),
+  }),
+  z.object({ tipo: z.literal("asignar_cliente"), cuentaId: id, clienteId: id.nullable() }),
+  z.object({ tipo: z.literal("canjear_puntos"), cuentaId: id, canjear: z.boolean() }),
   // Registro de jornada: cada uno ficha lo suyo.
   z.object({ tipo: z.literal("fichar"), que: z.enum(["entrada", "pausa", "vuelta", "salida"]) }),
 ]);
@@ -422,6 +447,17 @@ export const accionEncargado = z.discriminatedUnion("tipo", [
     }),
   }),
   z.object({ tipo: z.literal("borrar_turno"), turnoId: id }),
+  /** El cliente pide que se borren sus datos (derecho de supresión). */
+  z.object({ tipo: z.literal("baja_cliente"), clienteId: id }),
+  z.object({
+    tipo: z.literal("reglas_club"),
+    reglas: z.object({
+      puntosPorEuro: z.number().min(0).max(100),
+      puntosPremio: z.number().int().min(1).max(100_000),
+      valorPremio: centimos.min(1),
+      bienvenida: z.number().int().min(0).max(10_000),
+    }),
+  }),
   /** Copia los turnos de una semana en otra (los lunes de cada una). */
   z.object({ tipo: z.literal("copiar_semana"), desde: dia, hacia: dia }),
 ]);
@@ -435,7 +471,21 @@ export const accionCliente = z.discriminatedUnion("tipo", [
   z.object({ tipo: z.literal("pedir"), lineas: z.array(lineaPedida).min(1).max(30) }),
   z.object({ tipo: z.literal("llamar_camarero") }),
   z.object({ tipo: z.literal("pedir_cuenta"), metodo: z.enum(["efectivo", "tarjeta", "bizum"]) }),
+  /** El cliente suma la cuenta de su mesa a su tarjeta del club. */
+  z.object({ tipo: z.literal("sumar_al_club"), codigo: z.string().min(8).max(64) }),
 ]);
+
+/** Alta en el club desde el móvil del cliente (con su consentimiento expreso). */
+export const altaClub = z.object({
+  nombre: texto(60).min(1, "Dinos tu nombre"),
+  telefono,
+  correo,
+  comunicaciones: z.boolean(),
+  acepto: z.literal(true, { error: "Hace falta que aceptes para apuntarte" }),
+  /** QR de la mesa desde la que se apunta: su cuenta empieza ya a sumar puntos. */
+  mesa: z.string().max(64).optional(),
+});
+export type AltaClub = z.infer<typeof altaClub>;
 export type AccionCliente = z.infer<typeof accionCliente>;
 
 /** Un encargo para llevar desde la web del bar (luego se pide con la carta, como en una mesa). */

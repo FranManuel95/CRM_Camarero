@@ -66,6 +66,11 @@ export const TEXTOS = {
     mandado: "Hecho. Mira tu correo (y la carpeta de spam).",
     noGuardamos: "Solo lo usamos para mandarte el ticket; no lo guardamos.",
     dejarResena: "¿Qué tal? Déjanos tu opinión",
+    uneteClub: (premio: string) => `Únete al club y gana ${premio} de descuento`,
+    sumarPuntos: "Sumar esta cuenta a mis puntos",
+    sumando: (nombre: string) => `Esta cuenta suma puntos para ${nombre}`,
+    misPuntos: "Ver mis puntos",
+    sumado: "¡Hecho! Esta cuenta ya suma para tu tarjeta.",
     estado: {
       por_confirmar: "Esperando al camarero",
       anotada: "Anotado",
@@ -136,6 +141,11 @@ export const TEXTOS = {
     mandado: "Done. Check your inbox (and your spam folder).",
     noGuardamos: "We only use it to send the receipt; we don't keep it.",
     dejarResena: "How was it? Leave us a review",
+    uneteClub: (premio: string) => `Join our club and earn ${premio} off`,
+    sumarPuntos: "Add this bill to my points",
+    sumando: (nombre: string) => `This bill earns points for ${nombre}`,
+    misPuntos: "See my points",
+    sumado: "Done! This bill now earns points for your card.",
     estado: {
       por_confirmar: "Waiting for your waiter",
       anotada: "Noted",

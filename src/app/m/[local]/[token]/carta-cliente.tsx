@@ -14,7 +14,8 @@ import {
   Star,
   X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
+import { leerTarjeta } from "../club/tarjeta-local";
 import { Boton, Campo, claseEntrada, Dialogo } from "@/components/ui";
 import { useEnDirecto } from "@/lib/cliente/use-en-directo";
 import { useGuardado } from "@/lib/cliente/use-guardado";
@@ -189,6 +190,19 @@ export function CartaCliente({
         >
           {t.encargoListo}
         </p>
+      )}
+      {vista.local.club && !llevar && (
+        <Club
+          local={local}
+          token={token}
+          idioma={idioma}
+          premio={euros(vista.local.club.valorPremio)}
+          hayCuenta={Boolean(vista.cuenta)}
+          paraQuien={vista.cuenta?.club ?? null}
+          sumar={async (codigo) => {
+            if (await mandar({ tipo: "sumar_al_club", codigo })) avisar(t.sumado);
+          }}
+        />
       )}
       {vista.ticket && verGracias && (!vista.cuenta || vista.cuenta.total === 0) && (
         <Gracias
@@ -555,6 +569,64 @@ export function CartaCliente({
         )}
       </Dialogo>
     </div>
+  );
+}
+
+/** El club de clientes en la carta: apuntarse, o sumar la cuenta de la mesa a la tarjeta. */
+function Club({
+  local,
+  token,
+  idioma,
+  premio,
+  hayCuenta,
+  paraQuien,
+  sumar,
+}: {
+  local: string;
+  token: string;
+  idioma: Idioma;
+  premio: string;
+  hayCuenta: boolean;
+  paraQuien: string | null;
+  sumar: (codigo: string) => Promise<void>;
+}) {
+  const t = TEXTOS[idioma];
+  // La tarjeta guardada en este móvil (solo se sabe en el navegador).
+  const tarjeta = useSyncExternalStore(
+    () => () => {},
+    () => leerTarjeta(local),
+    () => null,
+  );
+  const clase =
+    "mx-4 mt-4 flex items-center gap-2 rounded-xl bg-ocupada-claro p-3 font-semibold ring-1 ring-ocupada";
+  if (paraQuien)
+    return (
+      <p className={clase}>
+        <Star aria-hidden className="size-5 shrink-0 fill-current text-ocupada" />
+        {t.sumando(paraQuien)}
+      </p>
+    );
+  if (!tarjeta)
+    return (
+      <a href={`/m/${local}/club?mesa=${token}`} className={clase}>
+        <Star aria-hidden className="size-5 shrink-0 fill-current text-ocupada" />
+        <span className="underline">{t.uneteClub(premio)}</span>
+      </a>
+    );
+  return hayCuenta ? (
+    <button
+      type="button"
+      className={clsx(clase, "w-[calc(100%-2rem)]")}
+      onClick={() => sumar(tarjeta)}
+    >
+      <Star aria-hidden className="size-5 shrink-0 fill-current text-ocupada" />
+      <span className="underline">{t.sumarPuntos}</span>
+    </button>
+  ) : (
+    <a href={`/m/${local}/club/${tarjeta}?mesa=${token}`} className={clase}>
+      <Star aria-hidden className="size-5 shrink-0 fill-current text-ocupada" />
+      <span className="underline">{t.misPuntos}</span>
+    </a>
   );
 }
 

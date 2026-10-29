@@ -2,6 +2,7 @@ import type {
   AccionCliente,
   AccionEncargado,
   AccionPersonal,
+  AltaClub,
   EncargoOnline,
   LineaPedida,
   ReservaOnline,
@@ -27,12 +28,14 @@ import { buscarMesa, lineasPara, MESA_VENTA_RAPIDA, PREFIJO_LLEVAR } from "./sel
 import { descontar, devolver, redondear, revisarAgotados } from "./stock";
 import { activa, type Funcion, FUNCIONES } from "./funciones";
 import { describir } from "./historial";
+import { apuntarCompra, reglasClub, telefonoLimpio } from "./club";
 import { diasDeSemana, instante, jornadaAbierta, lunesDe } from "./equipo";
 import { sumarDias } from "./informes";
 import { diaLocal, formatearHora } from "../fechas";
 import type {
   Aviso,
   Centimos,
+  ClienteClub,
   Cuenta,
   Destino,
   Empleado,
@@ -338,7 +341,13 @@ function cobrarLineas(
   // El descuento en euros se aplica en el pago que deja la cuenta saldada.
   const saldaLaCuenta = lineasCobrables(cuenta).every((l) => seleccion.includes(l));
   const descuentoImporte = saldaLaCuenta ? (cuenta.descuentoImporte ?? 0) : 0;
-  const parte = { lineas: seleccion, descuento: cuenta.descuento, descuentoImporte };
+  const canjeClub = saldaLaCuenta ? (cuenta.canje?.importe ?? 0) : 0;
+  const parte = {
+    lineas: seleccion,
+    descuento: cuenta.descuento,
+    descuentoImporte,
+    ...(canjeClub ? { canje: { puntos: 0, importe: canjeClub } } : {}),
+  };
   const total = totalCuenta(parte);
   const aPagar = total + propina;
   const entregado = totalPagos(pagos);
@@ -347,7 +356,7 @@ function cobrarLineas(
   if (entregado - aPagar > cambio) falla("Con tarjeta o Bizum no se puede cobrar de más.");
   const mesa = mesaDeCuenta(estado, cuenta);
   const lineas = lineasDeTicket(parte);
-  const desglose = desgloseIva(lineas, cuenta.descuento, descuentoImporte);
+  const desglose = desgloseIva(lineas, cuenta.descuento, descuentoImporte + canjeClub);
   const sig = siguienteTicket(estado, ctx);
   const ticket = sellarTicket(
     estado,
@@ -361,6 +370,7 @@ function cobrarLineas(
       lineas,
       descuento: cuenta.descuento,
       ...(descuentoImporte ? { descuentoImporte } : {}),
+      ...(canjeClub ? { canjeClub } : {}),
       desglose,
       total,
       pagos: pagos.filter((p) => p.importe > 0),
@@ -373,6 +383,7 @@ function cobrarLineas(
   );
   for (const l of seleccion) l.ticketId = ticket.id;
   cuenta.ticketId = ticket.id;
+  apuntarEnElClub(estado, cuenta, ticket, saldaLaCuenta);
   if (lineasCobrables(cuenta).length === 0) {
     cuenta.estado = "cobrada";
     cuenta.cerradaEn = ctx.ahora;
@@ -390,6 +401,17 @@ function cobrarLineas(
     pagos.some((p) => p.metodo === "efectivo"),
   );
   return ticket;
+}
+
+/** Suma los puntos al cliente de la cuenta (y le descuenta el premio si lo ha canjeado). */
+function apuntarEnElClub(estado: Estado, cuenta: Cuenta, ticket: Ticket, salda: boolean) {
+  if (!cuenta.clienteId || !activa(estado.ajustes, "club")) return;
+  const cliente = estado.clientes.find((c) => c.id === cuenta.clienteId);
+  if (!cliente) return;
+  const puntos = apuntarCompra(cliente, ticket, reglasClub(estado), salda);
+  if (salda && cuenta.canje) cliente.puntos = Math.max(0, cliente.puntos - cuenta.canje.puntos);
+  // El ticket es nuevo (aún no lo ha visto nadie): se le añade para imprimirlo.
+  ticket.club = { nombre: cliente.nombre.split(" ")[0]!, puntos, saldo: cliente.puntos };
 }
 
 function siguienteTicket(estado: Estado, ctx: Contexto) {
@@ -987,6 +1009,52 @@ function aplicarPersonal(
       reserva.mesaId = accion.mesaId;
       break;
     }
+    case "guardar_cliente": {
+      apagada(estado, "club");
+      const { id, ...datos } = accion.cliente;
+      const tel = telefonoLimpio(datos.telefono);
+      const repetido = estado.clientes.find(
+        (c) => c.id !== id && telefonoLimpio(c.telefono) === tel,
+      );
+      if (repetido) falla(`Ese teléfono ya es de ${repetido.nombre}, que ya está en el club.`);
+      if (id) Object.assign(buscar(estado.clientes, id, "ese cliente"), datos);
+      else {
+        if (!accion.consentimiento)
+          falla("Para apuntarle hace falta que acepte que guardemos sus datos para el club.");
+        const cliente = nuevoCliente(estado, ctx, datos, "personal");
+        estado.clientes.push(cliente);
+        if (accion.asignarA) cuentaAbierta(estado, accion.asignarA).clienteId = cliente.id;
+      }
+      break;
+    }
+    case "asignar_cliente": {
+      apagada(estado, "club");
+      const cuenta = cuentaAbierta(estado, accion.cuentaId);
+      quitarCanje(cuenta);
+      if (accion.clienteId) {
+        buscar(estado.clientes, accion.clienteId, "ese cliente");
+        cuenta.clienteId = accion.clienteId;
+      } else delete cuenta.clienteId;
+      break;
+    }
+    case "canjear_puntos": {
+      apagada(estado, "club");
+      const cuenta = cuentaAbierta(estado, accion.cuentaId);
+      if (!accion.canjear) {
+        quitarCanje(cuenta);
+        break;
+      }
+      const reglas = reglasClub(estado);
+      const cliente = estado.clientes.find((c) => c.id === cuenta.clienteId);
+      if (!cliente) falla("Primero di de quién es la cuenta.");
+      if (cuenta.canje) falla("El premio ya está aplicado en esta cuenta.");
+      if (cliente.puntos < reglas.puntosPremio)
+        falla(`Le faltan ${reglas.puntosPremio - cliente.puntos} puntos para el premio.`);
+      if (totalCuenta(cuenta) < reglas.valorPremio)
+        falla(`La cuenta tiene que ser de al menos ${euros(reglas.valorPremio)}.`);
+      cuenta.canje = { puntos: reglas.puntosPremio, importe: reglas.valorPremio };
+      break;
+    }
     case "fichar": {
       apagada(estado, "fichajes");
       const abierta = jornadaAbierta(estado.fichajes, empleado.id, ctx.ahora);
@@ -1357,6 +1425,19 @@ function reducirEncargado(
       buscar(estado.cuadrante, accion.turnoId, "ese turno");
       estado.cuadrante = estado.cuadrante.filter((t) => t.id !== accion.turnoId);
       break;
+    case "baja_cliente": {
+      const cliente = buscar(estado.clientes, accion.clienteId, "ese cliente");
+      estado.clientes = estado.clientes.filter((c) => c.id !== cliente.id);
+      for (const c of estado.cuentas)
+        if (c.estado === "abierta" && c.clienteId === cliente.id) {
+          quitarCanje(c);
+          delete c.clienteId;
+        }
+      break;
+    }
+    case "reglas_club":
+      estado.ajustes.club = accion.reglas;
+      break;
     case "copiar_semana": {
       apagada(estado, "cuadrante");
       const origen = diasDeSemana(lunesDe(accion.desde));
@@ -1408,6 +1489,34 @@ function reducirEncargado(
 /** El enlace para dejar una reseña, si el bar la pide. */
 export function enlaceResena(estado: Pick<Estado, "ajustes">): string | undefined {
   return activa(estado.ajustes, "resenas") ? estado.ajustes.enlaceResena : undefined;
+}
+
+/** Quita el premio del club de una cuenta (y su descuento). */
+function quitarCanje(cuenta: Cuenta) {
+  delete cuenta.canje;
+}
+
+function nuevoCliente(
+  estado: Estado,
+  ctx: Contexto,
+  datos: Pick<ClienteClub, "nombre" | "telefono" | "correo" | "alergenos" | "comunicaciones"> &
+    Partial<Pick<ClienteClub, "nota">>,
+  via: "qr" | "personal",
+): ClienteClub {
+  return {
+    id: ctx.nuevoId(),
+    codigo: ctx.nuevoToken(),
+    ...datos,
+    nota: datos.nota ?? "",
+    consentimiento: { fecha: ctx.ahora, via },
+    altaEn: ctx.ahora,
+    puntos: reglasClub(estado).bienvenida,
+    visitas: 0,
+    gastado: 0,
+    ultimaVisita: null,
+    favoritos: {},
+    historial: [],
+  };
 }
 
 /** Si el bar lo ha decidido así, solo el encargado cambia precios y hace descuentos. */
@@ -1609,8 +1718,54 @@ export function reducirCliente(
       avisar(estado, ctx, mesaId, "cuenta", `Pagará ${como} · ${euros(totalCuenta(cuenta))}`);
       break;
     }
+    case "sumar_al_club": {
+      if (!activa(estado.ajustes, "club")) falla("Este bar no tiene club de clientes.");
+      const cliente =
+        estado.clientes.find((c) => c.codigo === accion.codigo) ??
+        falla("No encuentro tu tarjeta del club. Apúntate otra vez o pregunta en la barra.");
+      const cuenta =
+        cuentaDeMesa(estado, mesaId) ?? falla("Todavía no hay nada en la cuenta de esta mesa.");
+      if (cuenta.clienteId && cuenta.clienteId !== cliente.id)
+        falla("Esta cuenta ya suma puntos para otra persona de la mesa.");
+      cuenta.clienteId = cliente.id;
+      break;
+    }
   }
   return { estado, trabajos };
+}
+
+/**
+ * Un cliente se apunta al club desde su móvil (con su consentimiento). Si lo hace desde el QR de
+ * una mesa con la cuenta abierta, esa cuenta ya suma puntos para él. Devuelve su código de
+ * tarjeta.
+ */
+export function reducirAltaClub(
+  anterior: Estado,
+  datos: AltaClub,
+  ctx: Contexto,
+): Resultado & { codigo: string } {
+  const estado = copiaEditable(anterior);
+  if (!activa(estado.ajustes, "club")) falla("Este bar no tiene club de clientes.");
+  const tel = telefonoLimpio(datos.telefono);
+  if (estado.clientes.some((c) => telefonoLimpio(c.telefono) === tel))
+    falla("Ese teléfono ya está en el club. Pide en la barra que te enseñen tu tarjeta.");
+  const cliente = nuevoCliente(
+    estado,
+    ctx,
+    {
+      nombre: datos.nombre,
+      telefono: datos.telefono,
+      correo: datos.correo,
+      alergenos: [],
+      comunicaciones: datos.comunicaciones,
+    },
+    "qr",
+  );
+  estado.clientes.push(cliente);
+  const mesa = datos.mesa ? estado.mesas.find((m) => m.token === datos.mesa) : undefined;
+  const cuenta = mesa ? cuentaDeMesa(estado, mesa.id) : undefined;
+  if (cuenta && !cuenta.clienteId) cuenta.clienteId = cliente.id;
+  return { estado, trabajos: [], codigo: cliente.codigo };
 }
 
 /** Encargos online vacíos (abiertos y sin pedir nada) que se guardan como mucho. */

@@ -5,11 +5,19 @@ import { Dialogo, Boton } from "@/components/ui";
 import { useDatos, useFuncion } from "@/components/datos-personal";
 
 /** El QR de la reseña (un SVG que se ve nítido en pantalla y en papel). */
-export function QrResena({ enlace, className }: { enlace: string; className?: string }) {
+export function QrResena({
+  enlace,
+  className,
+  etiqueta = "QR para dejar una reseña",
+}: {
+  enlace: string;
+  className?: string;
+  etiqueta?: string;
+}) {
   return (
     <div
       role="img"
-      aria-label="QR para dejar una reseña"
+      aria-label={etiqueta}
       className={className}
       dangerouslySetInnerHTML={{ __html: renderSVG(enlace, { border: 1 }) }}
     />

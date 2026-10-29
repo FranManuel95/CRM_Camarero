@@ -54,7 +54,7 @@ export function estadoNuevo(ctx: Contexto, datos: DatosBarNuevo): Estado {
     incidencias: [],
     historial: [],
     reservas: [],
-    pagosOnline: [],
+    clientes: [],
     cuentas: [],
     tickets: [],
     gastos: [],

@@ -63,11 +63,13 @@ export function aplicarDescuento(importe: Centimos, descuento: number): Centimos
 
 /** Lo que queda por cobrar: con el descuento en % y el descuento en euros. */
 export function totalCuenta(
-  cuenta: Pick<Cuenta, "lineas" | "descuento" | "descuentoImporte">,
+  cuenta: Pick<Cuenta, "lineas" | "descuento" | "descuentoImporte" | "canje">,
 ): Centimos {
   return Math.max(
     0,
-    aplicarDescuento(subtotalCuenta(cuenta), cuenta.descuento) - (cuenta.descuentoImporte ?? 0),
+    aplicarDescuento(subtotalCuenta(cuenta), cuenta.descuento) -
+      (cuenta.descuentoImporte ?? 0) -
+      (cuenta.canje?.importe ?? 0),
   );
 }
 

@@ -46,8 +46,51 @@ export type Ajustes = {
   preciosSoloEncargado?: boolean;
   /** Funciones encendidas o apagadas (ver funciones.ts). Lo que no está, va por defecto. */
   funciones?: Partial<Record<string, boolean>>;
+  /** El programa de puntos del club de clientes (ver club.ts). */
+  club?: ReglasClub;
   /** Dónde dejar una reseña (Google, TripAdvisor…). Sale al pagar si «Reseñas» está encendido. */
   enlaceResena?: string;
+};
+
+/** Cómo se ganan y se canjean los puntos del club. */
+export type ReglasClub = {
+  /** Puntos por cada euro gastado. */
+  puntosPorEuro: number;
+  /** Puntos que hacen falta para el premio. */
+  puntosPremio: number;
+  /** Lo que vale el premio, en descuento. */
+  valorPremio: Centimos;
+  /** Puntos de regalo al apuntarse. */
+  bienvenida: number;
+};
+
+/**
+ * Un cliente del club. Sus datos son personales: solo se guardan con su consentimiento y se
+ * borran si se da de baja.
+ */
+export type ClienteClub = {
+  id: Id;
+  /** Código de su tarjeta (va en su QR); también sirve para buscarle en la caja. */
+  codigo: string;
+  nombre: string;
+  telefono: string;
+  correo: string;
+  /** Alérgenos que ha dicho que tiene, para avisar al camarero. */
+  alergenos: Alergeno[];
+  /** Acepta recibir ofertas (aparte del club). */
+  comunicaciones: boolean;
+  /** Cuándo y cómo dio su consentimiento. */
+  consentimiento: { fecha: FechaISO; via: "qr" | "personal" };
+  altaEn: FechaISO;
+  puntos: number;
+  visitas: number;
+  gastado: Centimos;
+  ultimaVisita: FechaISO | null;
+  /** Lo que más pide: producto → unidades (los 12 primeros). */
+  favoritos: Record<string, number>;
+  /** Últimas visitas (como mucho 30). */
+  historial: { fecha: FechaISO; ticket: string; total: Centimos; puntos: number }[];
+  nota: string;
 };
 
 export type Zona = { id: Id; nombre: string; orden: number };
@@ -277,6 +320,10 @@ export type Cuenta = {
   mesaId: Id;
   /** Solo en los pedidos para llevar. */
   llevar?: DatosLlevar;
+  /** Cliente del club al que se le suman los puntos. */
+  clienteId?: Id;
+  /** Premio del club que se canjea en esta cuenta (va como descuento en euros). */
+  canje?: { puntos: number; importe: Centimos };
   estado: EstadoCuenta;
   comensales: number;
   abiertaEn: FechaISO;
@@ -323,6 +370,8 @@ export type Ticket = {
   descuento: number;
   /** Descuento en euros sobre el total (después del %). */
   descuentoImporte?: Centimos;
+  /** Premio del club canjeado en este ticket. */
+  canjeClub?: Centimos;
   desglose: DesgloseIva[];
   total: Centimos;
   pagos: Pago[];
@@ -341,6 +390,8 @@ export type Ticket = {
   generadoEn?: string;
   /** Con VERI*FACTU: la dirección de cotejo de la AEAT que va en el QR del ticket. */
   urlQr?: string;
+  /** Si la cuenta era de un cliente del club: los puntos que ha ganado y los que tiene. */
+  club?: { nombre: string; puntos: number; saldo: number };
 };
 
 export type CategoriaGasto =
@@ -492,17 +543,6 @@ export type Reserva = {
   creadaEn: FechaISO;
 };
 
-/** Un pago con tarjeta desde el QR, tal como lo avisa la pasarela (se guarda para no repetirlo). */
-export type PagoOnline = {
-  referencia: string;
-  fecha: FechaISO;
-  cuentaId: Id;
-  importe: Centimos;
-  /** «cobrado»: se hizo el ticket solo. «a_mano»: la cuenta cambió y hay que cobrarlo a mano. */
-  resultado: "cobrado" | "a_mano";
-  ticketId?: Id;
-};
-
 /** Cómo ha ido el envío a la AEAT de un registro de facturación. */
 export type EstadoRegistroAeat = "pendiente" | "correcto" | "aceptado_con_errores" | "incorrecto";
 
@@ -628,7 +668,7 @@ export type Estado = {
   incidencias: Incidencia[];
   historial: EntradaHistorial[];
   reservas: Reserva[];
-  pagosOnline: PagoOnline[];
+  clientes: ClienteClub[];
   /** VERI*FACTU: registros por mandar a la AEAT y los últimos mandados. */
   verifactu?: {
     registros: RegistroAeat[];

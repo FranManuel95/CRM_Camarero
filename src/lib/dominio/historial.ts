@@ -194,6 +194,22 @@ export function describir(accion: AccionPersonal, antes: Estado, despues: Estado
       }[accion.estado];
       return `${que.charAt(0).toUpperCase()}${que.slice(1)} la reserva de ${r.nombre}`;
     }
+    case "guardar_cliente":
+      return accion.cliente.id
+        ? `Cambió los datos de ${accion.cliente.nombre} en el club`
+        : `Apuntó a ${accion.cliente.nombre} en el club`;
+    case "canjear_puntos": {
+      const c = cuenta(antes, accion.cuentaId);
+      if (!c) return null;
+      const cliente = antes.clientes.find((x) => x.id === c.clienteId);
+      return accion.canjear
+        ? `Canjeó el premio del club de ${cliente?.nombre ?? "un cliente"} en ${nombreMesa(antes, c.mesaId)}`
+        : `Quitó el premio del club en ${nombreMesa(antes, c.mesaId)}`;
+    }
+    case "baja_cliente":
+      return "Dio de baja a un cliente del club y borró sus datos";
+    case "reglas_club":
+      return `Cambió los puntos del club: ${accion.reglas.puntosPremio} puntos = ${euros(accion.reglas.valorPremio)}`;
     case "copiar_semana":
       return "Copió los turnos de una semana a otra";
     default:

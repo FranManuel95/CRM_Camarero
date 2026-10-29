@@ -2,6 +2,7 @@ import { DIAS_EN_PANTALLA } from "../constantes";
 import { servicios } from "./servicios";
 import { activa, disponible } from "../dominio/funciones";
 import { cuentaDeMesa } from "../dominio/reducir";
+import { reglasClub } from "../dominio/club";
 import { cuentaEnJuego, nombreLlevar } from "../dominio/selectores";
 import { pagadoCuenta, totalCuenta } from "../dominio/importes";
 import { dentroDeHorario } from "../dominio/horario";
@@ -118,6 +119,8 @@ export function vistaCliente(estado: Estado, token: string, ahora = new Date().t
       ticketCorreo: disponible(ajustes, servidor, "ticketCorreo"),
       /** Enlace para dejar una reseña, si el bar lo pide. */
       resena: (activa(ajustes, "resenas") && ajustes.enlaceResena) || null,
+      /** El club de clientes y cómo se ganan los puntos (si el bar lo tiene). */
+      club: activa(ajustes, "club") ? reglasClub(estado) : null,
     },
     mesa: { nombre: mesa.nombre },
     /** Solo en los encargos para llevar. */
@@ -158,6 +161,10 @@ export function vistaCliente(estado: Estado, token: string, ahora = new Date().t
           lineas,
           total: totalCuenta(cuenta),
           pagado: pagadoCuenta(cuenta),
+          /** Si ya suma puntos del club, para quién (solo el nombre de pila). */
+          club: cuenta.clienteId
+            ? (estado.clientes.find((c) => c.id === cuenta.clienteId)?.nombre.split(" ")[0] ?? null)
+            : null,
         }
       : null,
     /** El ticket de lo último que se pagó (en la última media hora). */

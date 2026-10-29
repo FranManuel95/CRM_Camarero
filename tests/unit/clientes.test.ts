@@ -179,12 +179,14 @@ describe("reseñas y datos antiguos", () => {
     expect(t.estado.ajustes.enlaceResena).toBe("https://example.com/resena");
   });
 
-  it("los datos de la versión 5 se ponen al día sin reservas", () => {
-    const { reservas: _r, pagosOnline: _p, ...viejo } = estadoDeEjemplo(ctx);
-    void [_r, _p];
+  it("los datos de la versión 5 se ponen al día: reservas y club vacíos", () => {
+    const { reservas: _r, clientes: _c, ...viejo } = estadoDeEjemplo(ctx);
+    void [_r, _c];
     const migrado = migrar({ ...viejo, version: 5 } as Estado);
+    expect(migrado.version).toBe(7);
     expect(migrado.reservas).toEqual([]);
-    expect(migrado.pagosOnline).toEqual([]);
+    expect(migrado.clientes).toEqual([]);
+    expect("pagosOnline" in migrado).toBe(false);
   });
 });
 

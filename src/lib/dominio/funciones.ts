@@ -62,6 +62,13 @@ export const FUNCIONES = {
       "Un enlace para pedir con la carta y recoger a una hora; cocina lo ve al aceptarlo.",
     defecto: false,
   },
+  club: {
+    grupo: "Clientes",
+    nombre: "Club de clientes",
+    descripcion:
+      "Los clientes se apuntan desde el QR o en la caja, suman puntos al pagar y los canjean por descuentos. Ficha con sus visitas y lo que más piden.",
+    defecto: false,
+  },
   resenas: {
     grupo: "Clientes",
     nombre: "Pedir una reseña",

@@ -39,6 +39,7 @@ import { CartaTpv } from "@/components/carta-tpv";
 import { buscarMesa, esParaLlevar } from "@/lib/dominio/selectores";
 import { Cobrar } from "./cobrar";
 import { PreciosYDescuentos } from "./precios";
+import { ClienteDeCuenta } from "./cliente";
 import { PedirResena, useEnlaceResena } from "@/components/qr-resena";
 
 const TEXTO_ESTADO: Record<EstadoLinea, string> = {
@@ -198,6 +199,7 @@ export function Comanda({ mesaId, alSalir }: { mesaId: string; alSalir?: () => v
             ` · ${estado.empleados.find((e) => e.id === cuenta.empleadoId)?.nombre ?? ""}`}
         </p>
         <div className="ml-auto flex flex-wrap gap-1">
+          <ClienteDeCuenta cuenta={cuenta} />
           {!cuenta.llevar && (
             <Boton tamano="pequeno" variante="fantasma" onClick={() => setDialogo("mover")}>
               <ArrowRightLeft aria-hidden className="size-4" /> Mover o juntar
@@ -304,7 +306,9 @@ export function Comanda({ mesaId, alSalir }: { mesaId: string; alSalir?: () => v
           </div>
 
           <footer className="border-t border-zinc-oscuro/50 p-3">
-            {(cuenta.descuento > 0 || Boolean(cuenta.descuentoImporte)) && (
+            {(cuenta.descuento > 0 ||
+              Boolean(cuenta.descuentoImporte) ||
+              Boolean(cuenta.canje)) && (
               <button
                 type="button"
                 onClick={() => abrirPrecios()}
@@ -316,6 +320,7 @@ export function Comanda({ mesaId, alSalir }: { mesaId: string; alSalir?: () => v
                   {[
                     cuenta.descuento ? `${cuenta.descuento} %` : "",
                     cuenta.descuentoImporte ? euros(cuenta.descuentoImporte) : "",
+                    cuenta.canje ? `premio ${euros(cuenta.canje.importe)}` : "",
                   ]
                     .filter(Boolean)
                     .join(" + ")}
@@ -390,7 +395,7 @@ export function Comanda({ mesaId, alSalir }: { mesaId: string; alSalir?: () => v
         abierto={dialogo === "cobrar"}
         lineas={lineasCobrables(cuenta)}
         descuento={cuenta.descuento}
-        descuentoImporte={cuenta.descuentoImporte ?? 0}
+        descuentoImporte={(cuenta.descuentoImporte ?? 0) + (cuenta.canje?.importe ?? 0)}
         alAjustar={() => {
           setDialogo(null);
           abrirPrecios();
