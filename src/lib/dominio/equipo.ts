@@ -290,3 +290,49 @@ export function fichaPersonal(
     },
   };
 }
+
+export type FilaReparto = { empleadoId: string; nombre: string; minutos: number; importe: number };
+
+/**
+ * Reparto de las propinas de un periodo entre quienes trabajaron, por las horas fichadas o a
+ * partes iguales. No se pierde ni un céntimo: lo que sobra al redondear va a quien más decimales
+ * tenía.
+ */
+export function repartoPropinas(
+  estado: Pick<Estado, "tickets" | "fichajes" | "empleados">,
+  rango: { desde: string; hasta: string },
+  ahora: string,
+  modo: "horas" | "iguales",
+): { total: number; filas: FilaReparto[] } {
+  const total = estado.tickets
+    .filter((t) => t.fecha >= rango.desde && t.fecha < rango.hasta)
+    .reduce((s, t) => s + (t.propina ?? 0), 0);
+  const minutos = new Map<string, number>();
+  for (const f of estado.fichajes)
+    if (f.entrada >= rango.desde && f.entrada < rango.hasta)
+      minutos.set(f.empleadoId, (minutos.get(f.empleadoId) ?? 0) + minutosTrabajados(f, ahora));
+  const quienes = [...minutos.entries()].filter(([, m]) => m > 0);
+  const pesoTotal = modo === "horas" ? quienes.reduce((s, [, m]) => s + m, 0) : quienes.length;
+  if (!total || !pesoTotal) return { total, filas: [] };
+  const exactos = quienes.map(([id, m]) => ({
+    id,
+    m,
+    exacto: (total * (modo === "horas" ? m : 1)) / pesoTotal,
+  }));
+  const filas = exactos.map(({ id, m, exacto }) => ({
+    empleadoId: id,
+    nombre: estado.empleados.find((e) => e.id === id)?.nombre ?? "—",
+    minutos: m,
+    importe: Math.floor(exacto),
+  }));
+  let sobra = total - filas.reduce((s, f) => s + f.importe, 0);
+  const porDecimales = exactos
+    .map((e, i) => ({ i, resto: e.exacto - Math.floor(e.exacto) }))
+    .sort((a, b) => b.resto - a.resto);
+  for (const { i } of porDecimales) {
+    if (sobra <= 0) break;
+    filas[i]!.importe += 1;
+    sobra -= 1;
+  }
+  return { total, filas: filas.sort((a, b) => b.importe - a.importe) };
+}

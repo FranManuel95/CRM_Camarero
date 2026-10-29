@@ -14,7 +14,13 @@ import type {
 import { formatearFechaHora, formatearHora } from "../fechas";
 import type { Bloque } from "./documento";
 
-const NOMBRE_METODO = { efectivo: "Efectivo", tarjeta: "Tarjeta", bizum: "Bizum", otro: "Otro" };
+const NOMBRE_METODO = {
+  efectivo: "Efectivo",
+  tarjeta: "Tarjeta",
+  bizum: "Bizum",
+  otro: "Otro",
+  fiado: "A deber",
+};
 
 function cabeceraLocal(ajustes: Ajustes): Bloque[] {
   const bloques: Bloque[] = [

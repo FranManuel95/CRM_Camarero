@@ -7,7 +7,7 @@ import { Boton, Campo, claseEntrada, Dialogo, Interruptor } from "@/components/u
 import { reducir } from "@/lib/cliente/subir-foto";
 import { euros, leerEuros } from "@/lib/dominio/importes";
 import { leerCantidad, type PedidoLeido } from "@/lib/dominio/stock";
-import type { Centimos, MetodoPago } from "@/lib/dominio/tipos";
+import type { Centimos, MetodoGasto } from "@/lib/dominio/tipos";
 
 export type PedidoInicial = {
   proveedor: string;
@@ -65,7 +65,7 @@ function Formulario({
   );
   const [apuntarGasto, setApuntarGasto] = useState(true);
   const [iva, setIva] = useState(10);
-  const [metodo, setMetodo] = useState<MetodoPago>("tarjeta");
+  const [metodo, setMetodo] = useState<MetodoGasto>("tarjeta");
   const [deCaja, setDeCaja] = useState(false);
   const [leyendo, setLeyendo] = useState(false);
   const [lectura, setLectura] = useState<{ error?: string; sinCasar?: string[] } | null>(null);
@@ -303,7 +303,7 @@ function Formulario({
               <select
                 className={claseEntrada}
                 value={metodo}
-                onChange={(e) => setMetodo(e.target.value as MetodoPago)}
+                onChange={(e) => setMetodo(e.target.value as MetodoGasto)}
               >
                 <option value="tarjeta">Tarjeta o transferencia</option>
                 <option value="efectivo">Efectivo</option>

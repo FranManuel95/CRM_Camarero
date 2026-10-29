@@ -13,6 +13,8 @@ const centimos = z.number().int().min(0).max(10_000_000);
 const texto = (max = 200) => z.string().trim().max(max);
 const iva = z.number().min(0).max(30);
 const metodo = z.enum(["efectivo", "tarjeta", "bizum", "otro"]);
+/** Al cobrar también se puede dejar a deber (fiado), si el bar lo usa. */
+const metodoCobro = z.enum(["efectivo", "tarjeta", "bizum", "otro", "fiado"]);
 /** Cantidad de stock: kilos, litros o unidades, con hasta tres decimales. */
 const cantidad = z.number().min(0).max(1_000_000);
 const dia = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Día no válido");
@@ -135,7 +137,7 @@ export const accionCamarero = z.discriminatedUnion("tipo", [
     tipo: z.literal("cobrar"),
     cuentaId: id,
     pagos: z
-      .array(z.object({ metodo, importe: centimos }))
+      .array(z.object({ metodo: metodoCobro, importe: centimos }))
       .min(1)
       .max(10),
     /** Cobrar solo estas líneas (y cuántas de cada una). Sin esto, se cobra todo lo pendiente. */
@@ -150,7 +152,7 @@ export const accionCamarero = z.discriminatedUnion("tipo", [
     tipo: z.literal("venta_rapida"),
     lineas: z.array(lineaPedida).min(1).max(50),
     pagos: z
-      .array(z.object({ metodo, importe: centimos }))
+      .array(z.object({ metodo: metodoCobro, importe: centimos }))
       .min(1)
       .max(10),
     propina: centimos.optional(),
@@ -233,6 +235,13 @@ export const accionCamarero = z.discriminatedUnion("tipo", [
     asignarA: id.optional(),
   }),
   z.object({ tipo: z.literal("asignar_cliente"), cuentaId: id, clienteId: id.nullable() }),
+  /** Un cliente paga (todo o parte de) lo que debía. */
+  z.object({
+    tipo: z.literal("saldar_deuda"),
+    clienteId: id,
+    importe: centimos.min(1),
+    metodo,
+  }),
   z.object({ tipo: z.literal("canjear_puntos"), cuentaId: id, canjear: z.boolean() }),
   // Registro de jornada: cada uno ficha lo suyo.
   z.object({ tipo: z.literal("fichar"), que: z.enum(["entrada", "pausa", "vuelta", "salida"]) }),

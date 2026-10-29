@@ -13,8 +13,15 @@ import { descargar } from "@/lib/cliente/descargar";
 import { diaLocal, formatearFechaHora } from "@/lib/fechas";
 import { DIAS_EN_PANTALLA } from "@/lib/constantes";
 import { PorCamarero } from "./por-camarero";
+import { RepartoPropinas } from "./propinas";
 
-const METODOS = { efectivo: "Efectivo", tarjeta: "Tarjeta", bizum: "Bizum", otro: "Otro" } as const;
+const METODOS = {
+  efectivo: "Efectivo",
+  tarjeta: "Tarjeta",
+  bizum: "Bizum",
+  otro: "Otro",
+  fiado: "A deber",
+} as const;
 
 export function Informes() {
   const { estado } = useDatos();
@@ -277,6 +284,7 @@ export function Informes() {
         </div>
       </div>
       <PorCamarero rango={rango} />
+      <RepartoPropinas rango={rango} />
       <p className="mt-4 text-xs text-tinta-suave">
         Cifras orientativas para llevar el negocio al día. La declaración de IVA y la contabilidad
         las cierra tu gestoría con estos CSV.

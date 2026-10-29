@@ -11,7 +11,13 @@ import { euros, leerEuros } from "@/lib/dominio/importes";
 import { formatearFechaHora, formatearHora } from "@/lib/fechas";
 import type { Ticket } from "@/lib/dominio/tipos";
 
-const METODOS = { efectivo: "Efectivo", tarjeta: "Tarjeta", bizum: "Bizum", otro: "Otro" } as const;
+const METODOS = {
+  efectivo: "Efectivo",
+  tarjeta: "Tarjeta",
+  bizum: "Bizum",
+  otro: "Otro",
+  fiado: "A deber",
+} as const;
 
 /** Monedas y billetes para contar el cajón al cerrar. */
 const VALORES = [5000, 2000, 1000, 500, 200, 100, 50, 20, 10, 5, 2, 1];

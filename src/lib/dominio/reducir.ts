@@ -338,6 +338,11 @@ function cobrarLineas(
   cerrarServidas: boolean,
 ) {
   if (!turnoAbierto(estado)) falla("Abre la caja antes de cobrar (Gestión → Caja).");
+  if (pagos.some((p) => p.metodo === "fiado")) {
+    apagada(estado, "fiado");
+    if (!cuenta.clienteId || !estado.clientes.some((c) => c.id === cuenta.clienteId))
+      falla("Para dejarlo a deber, primero di de quién es la cuenta (cliente del club).");
+  }
   // El descuento en euros se aplica en el pago que deja la cuenta saldada.
   const saldaLaCuenta = lineasCobrables(cuenta).every((l) => seleccion.includes(l));
   const descuentoImporte = saldaLaCuenta ? (cuenta.descuentoImporte ?? 0) : 0;
@@ -384,6 +389,12 @@ function cobrarLineas(
   for (const l of seleccion) l.ticketId = ticket.id;
   cuenta.ticketId = ticket.id;
   apuntarEnElClub(estado, cuenta, ticket, saldaLaCuenta);
+  const fiado = pagos.filter((p) => p.metodo === "fiado").reduce((s, p) => s + p.importe, 0);
+  if (fiado) {
+    const cliente = estado.clientes.find((c) => c.id === cuenta.clienteId)!;
+    cliente.deuda = (cliente.deuda ?? 0) + fiado;
+    apuntarDeuda(cliente, { fecha: ctx.ahora, importe: fiado, ticket: ticket.numero });
+  }
   if (lineasCobrables(cuenta).length === 0) {
     cuenta.estado = "cobrada";
     cuenta.cerradaEn = ctx.ahora;
@@ -1055,6 +1066,27 @@ function aplicarPersonal(
       cuenta.canje = { puntos: reglas.puntosPremio, importe: reglas.valorPremio };
       break;
     }
+    case "saldar_deuda": {
+      apagada(estado, "fiado");
+      const cliente = buscar(estado.clientes, accion.clienteId, "ese cliente");
+      const deuda = cliente.deuda ?? 0;
+      if (accion.importe > deuda)
+        falla(`${cliente.nombre} solo debe ${euros(deuda)}.`);
+      if (accion.metodo === "efectivo") {
+        const turno = turnoAbierto(estado) ?? falla("Abre la caja para cobrar en efectivo.");
+        turno.movimientos.push({
+          id: ctx.nuevoId(),
+          fecha: ctx.ahora,
+          tipo: "entrada",
+          importe: accion.importe,
+          motivo: `Cobro de lo que debía ${cliente.nombre}`,
+          empleadoId: empleado.id,
+        });
+      }
+      cliente.deuda = deuda - accion.importe;
+      apuntarDeuda(cliente, { fecha: ctx.ahora, importe: -accion.importe, metodo: accion.metodo });
+      break;
+    }
     case "fichar": {
       apagada(estado, "fichajes");
       const abierta = jornadaAbierta(estado.fichajes, empleado.id, ctx.ahora);
@@ -1489,6 +1521,12 @@ function reducirEncargado(
 /** El enlace para dejar una reseña, si el bar la pide. */
 export function enlaceResena(estado: Pick<Estado, "ajustes">): string | undefined {
   return activa(estado.ajustes, "resenas") ? estado.ajustes.enlaceResena : undefined;
+}
+
+const MAX_APUNTES_DEUDA = 50;
+
+function apuntarDeuda(cliente: ClienteClub, apunte: NonNullable<ClienteClub["apuntesDeuda"]>[number]) {
+  cliente.apuntesDeuda = [apunte, ...(cliente.apuntesDeuda ?? [])].slice(0, MAX_APUNTES_DEUDA);
 }
 
 /** Quita el premio del club de una cuenta (y su descuento). */

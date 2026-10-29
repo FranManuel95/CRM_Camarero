@@ -61,6 +61,9 @@ export function Comanda({ mesaId, alSalir }: { mesaId: string; alSalir?: () => v
   const paraDespues = useFuncion("paraDespues");
   const porPartes = useFuncion("cobrarPorPartes");
   const propinas = useFuncion("propinas");
+  const conFiado = useFuncion("fiado");
+  const conClub = useFuncion("club");
+  const fiado = conFiado && conClub;
   const router = useRouter();
   const salir = () => (alSalir ? alSalir() : router.push("/sala"));
   const mesa = buscarMesa(estado, mesaId);
@@ -403,6 +406,7 @@ export function Comanda({ mesaId, alSalir }: { mesaId: string; alSalir?: () => v
         comensales={cuenta.comensales}
         permitirPartes={porPartes}
         permitirPropina={propinas}
+        fiadoA={fiado ? estado.clientes.find((c) => c.id === cuenta.clienteId)?.nombre : undefined}
         alCerrar={() => setDialogo(null)}
         cobrar={async ({ pagos, propina, partes }, mensaje) => {
           const ok = await hacer(

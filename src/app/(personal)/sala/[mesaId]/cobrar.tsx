@@ -1,7 +1,7 @@
 "use client";
 
 import clsx from "clsx";
-import { Banknote, CreditCard, Minus, Percent, Plus, Smartphone } from "lucide-react";
+import { Banknote, CreditCard, Minus, NotebookPen, Percent, Plus, Smartphone } from "lucide-react";
 import { useState } from "react";
 import { Boton, claseEntrada, Dialogo } from "@/components/ui";
 import {
@@ -20,6 +20,7 @@ const METODOS: { metodo: MetodoPago; texto: string; icono: typeof Banknote }[] =
   { metodo: "tarjeta", texto: "Tarjeta", icono: CreditCard },
   { metodo: "bizum", texto: "Bizum", icono: Smartphone },
 ];
+const FIADO = { metodo: "fiado" as const, texto: "A deber", icono: NotebookPen };
 
 export type DatosCobro = {
   pagos: Pago[];
@@ -44,6 +45,7 @@ export function Cobrar({
   cobrar,
   permitirPartes = true,
   permitirPropina = true,
+  fiadoA,
 }: {
   abierto: boolean;
   /** Lo que queda por cobrar. */
@@ -58,6 +60,8 @@ export function Cobrar({
   cobrar: (datos: DatosCobro, mensajeOk: string) => Promise<boolean>;
   permitirPartes?: boolean;
   permitirPropina?: boolean;
+  /** Si se puede dejar a deber: a nombre de quién. */
+  fiadoA?: string;
 }) {
   const [modo, setModo] = useState<"todo" | "platos">("todo");
   const [cuantas, setCuantas] = useState<Record<string, number>>({});
@@ -228,31 +232,33 @@ export function Cobrar({
       )}
 
       <div
-        className="mt-3 mb-4 grid grid-cols-4 gap-2"
+        className={clsx("mt-3 mb-4 grid gap-2", fiadoA ? "grid-cols-5" : "grid-cols-4")}
         role="radiogroup"
         aria-label="Forma de pago"
       >
-        {[...METODOS, { metodo: "mixto" as const, texto: "Mixto", icono: CreditCard }].map(
-          ({ metodo: m, texto, icono: Icono }) => (
-            <button
-              key={m}
-              type="button"
-              role="radio"
-              aria-checked={metodo === m}
-              onClick={() => {
-                setMetodo(m);
-                setEntregado("");
-              }}
-              className={clsx(
-                "flex h-16 flex-col items-center justify-center gap-1 rounded-xl text-sm font-semibold ring-1",
-                metodo === m ? "bg-tinta text-white ring-tinta" : "bg-white ring-zinc-oscuro",
-              )}
-            >
-              <Icono aria-hidden className="size-5" />
-              {texto}
-            </button>
-          ),
-        )}
+        {[
+          ...METODOS,
+          { metodo: "mixto" as const, texto: "Mixto", icono: CreditCard },
+          ...(fiadoA ? [FIADO] : []),
+        ].map(({ metodo: m, texto, icono: Icono }) => (
+          <button
+            key={m}
+            type="button"
+            role="radio"
+            aria-checked={metodo === m}
+            onClick={() => {
+              setMetodo(m);
+              setEntregado("");
+            }}
+            className={clsx(
+              "flex h-16 flex-col items-center justify-center gap-1 rounded-xl text-sm font-semibold ring-1",
+              metodo === m ? "bg-tinta text-white ring-tinta" : "bg-white ring-zinc-oscuro",
+            )}
+          >
+            <Icono aria-hidden className="size-5" />
+            {texto}
+          </button>
+        ))}
       </div>
 
       {permitirPropina && (
@@ -326,6 +332,11 @@ export function Cobrar({
         </div>
       )}
 
+      {metodo === "fiado" && fiadoA && (
+        <p className="mb-3 rounded-lg bg-ocupada-claro p-3 text-center font-semibold">
+          Se apunta a {fiadoA}: lo pagará otro día.
+        </p>
+      )}
       <div className="mb-4 min-h-14 rounded-xl bg-zinc-claro p-3 text-center" aria-live="polite">
         {falta > 0 ? (
           <p className="font-semibold text-aviso">Faltan {euros(falta)}</p>

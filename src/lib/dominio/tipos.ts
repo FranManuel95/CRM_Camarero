@@ -88,6 +88,9 @@ export type ClienteClub = {
   ultimaVisita: FechaISO | null;
   /** Lo que más pide: producto → unidades (los 12 primeros). */
   favoritos: Record<string, number>;
+  /** Lo que debe (cuentas «a deber»), y sus apuntes. */
+  deuda?: Centimos;
+  apuntesDeuda?: { fecha: FechaISO; importe: Centimos; ticket?: string; metodo?: MetodoPago }[];
   /** Últimas visitas (como mucho 30). */
   historial: { fecha: FechaISO; ticket: string; total: Centimos; puntos: number }[];
   nota: string;
@@ -289,7 +292,10 @@ export type LineaCuenta = {
   motivoAnulacion?: string;
 };
 
-export type MetodoPago = "efectivo" | "tarjeta" | "bizum" | "otro";
+/** «fiado»: se lo queda a deber un cliente del club (ver su ficha). */
+export type MetodoPago = "efectivo" | "tarjeta" | "bizum" | "otro" | "fiado";
+/** Cómo se paga un gasto (o se cobra una deuda): todo menos «a deber». */
+export type MetodoGasto = Exclude<MetodoPago, "fiado">;
 
 export type Pago = {
   metodo: MetodoPago;
@@ -417,7 +423,7 @@ export type Gasto = {
   importe: Centimos;
   /** IVA soportado en %, para el resumen trimestral. */
   iva: number;
-  metodo: MetodoPago;
+  metodo: MetodoGasto;
   /** Si se pagó con dinero de la caja, sale como retirada en el arqueo. */
   deCaja: boolean;
   empleadoId: Id | null;

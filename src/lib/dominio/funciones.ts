@@ -69,6 +69,13 @@ export const FUNCIONES = {
       "Los clientes se apuntan desde el QR o en la caja, suman puntos al pagar y los canjean por descuentos. Ficha con sus visitas y lo que más piden.",
     defecto: false,
   },
+  fiado: {
+    grupo: "Clientes",
+    nombre: "Cuentas a deber (fiado)",
+    descripcion:
+      "Dejar a deber la cuenta de un cliente del club y cobrársela otro día. Su ficha dice cuánto debe.",
+    defecto: false,
+  },
   resenas: {
     grupo: "Clientes",
     nombre: "Pedir una reseña",

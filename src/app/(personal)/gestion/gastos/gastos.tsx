@@ -8,7 +8,7 @@ import { euros, leerEuros } from "@/lib/dominio/importes";
 import {
   type CategoriaGasto,
   type Gasto,
-  type MetodoPago,
+  type MetodoGasto,
   NOMBRE_CATEGORIA_GASTO,
 } from "@/lib/dominio/tipos";
 import { diaLocal, formatearFecha } from "@/lib/fechas";
@@ -22,7 +22,7 @@ type Borrador = {
   proveedor: string;
   importe: string;
   iva: number;
-  metodo: MetodoPago;
+  metodo: MetodoGasto;
   deCaja: boolean;
 };
 
@@ -245,7 +245,9 @@ export function Gastos() {
               <select
                 className={claseEntrada}
                 value={borrador.metodo}
-                onChange={(e) => setBorrador({ ...borrador, metodo: e.target.value as MetodoPago })}
+                onChange={(e) =>
+                  setBorrador({ ...borrador, metodo: e.target.value as MetodoGasto })
+                }
               >
                 <option value="tarjeta">Tarjeta o transferencia</option>
                 <option value="efectivo">Efectivo</option>

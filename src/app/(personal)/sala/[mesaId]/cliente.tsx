@@ -81,6 +81,11 @@ function Contenido({ cuenta, alCerrar }: { cuenta: Cuenta; alCerrar: () => void 
           </p>
         )}
         {cliente.nota && <p className="text-sm">«{cliente.nota}»</p>}
+        {Boolean(cliente.deuda) && (
+          <p className="rounded-lg bg-ocupada-claro p-2 font-semibold">
+            Debe {euros(cliente.deuda!)} de otras veces.
+          </p>
+        )}
         {cuenta.canje ? (
           <Boton
             className="w-full"

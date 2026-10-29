@@ -156,3 +156,37 @@ describe("club de clientes", () => {
     expect(t.estado.historial.at(-1)!.texto).not.toContain("Lucía");
   });
 });
+
+describe("cuentas a deber (fiado)", () => {
+  it("se deja a deber a un cliente del club y luego paga en efectivo, que entra en caja", () => {
+    const t = preparar();
+    t.hacer({ tipo: "anotar", cuentaId: t.cuenta().id, lineas: [croquetas(2)] });
+    t.hacer({ tipo: "enviar_comanda", cuentaId: t.cuenta().id });
+    const fiado = {
+      tipo: "cobrar" as const,
+      cuentaId: t.cuenta().id,
+      pagos: [{ metodo: "fiado" as const, importe: 1300 }],
+    };
+    expect(() => t.hacer(fiado)).toThrow(/Cuentas a deber/);
+    t.hacer({ tipo: "cambiar_funcion", funcion: "fiado", activa: true }, t.ana);
+    expect(() => t.hacer(fiado)).toThrow(/de quién es la cuenta/);
+    t.hacer({
+      tipo: "guardar_cliente",
+      cliente: lucia,
+      consentimiento: true,
+      asignarA: t.cuenta().id,
+    });
+    t.hacer(fiado);
+    const cliente = () => t.estado.clientes[0]!;
+    expect(cliente().deuda).toBe(1300);
+    expect(t.estado.tickets.at(-1)!.pagos).toEqual([{ metodo: "fiado", importe: 1300 }]);
+    expect(() =>
+      t.hacer({ tipo: "saldar_deuda", clienteId: cliente().id, importe: 2000, metodo: "efectivo" }),
+    ).toThrow(/solo debe/);
+    t.hacer({ tipo: "saldar_deuda", clienteId: cliente().id, importe: 1000, metodo: "efectivo" });
+    expect(cliente().deuda).toBe(300);
+    const turno = t.estado.turnos.find((x) => !x.cerradoEn)!;
+    expect(turno.movimientos.at(-1)).toMatchObject({ tipo: "entrada", importe: 1000 });
+    expect(cliente().apuntesDeuda!.map((a) => a.importe)).toEqual([-1000, 1300]);
+  });
+});

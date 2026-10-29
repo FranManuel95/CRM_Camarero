@@ -381,3 +381,36 @@ describe("lo que ve cada uno", () => {
     expect(deAna.fichajes).toHaveLength(2);
   });
 });
+
+describe("reparto de propinas", () => {
+  it("por horas fichadas o a partes iguales, sin perder céntimos", async () => {
+    const { repartoPropinas } = await import("@/lib/dominio/equipo");
+    const empleados = [
+      { id: "a", nombre: "Ana", pin: "", rol: "encargado" as const, activo: true },
+      { id: "b", nombre: "Luis", pin: "", rol: "camarero" as const, activo: true },
+    ];
+    const ticket = (propina: number) =>
+      ({ fecha: "2026-10-20T20:00:00.000Z", propina }) as never;
+    const fichaje = (empleadoId: string, horas: number) => ({
+      id: empleadoId,
+      empleadoId,
+      entrada: "2026-10-20T10:00:00.000Z",
+      salida: new Date(Date.parse("2026-10-20T10:00:00.000Z") + horas * 3_600_000).toISOString(),
+      pausas: [],
+    });
+    const estado = {
+      tickets: [ticket(700), ticket(301)],
+      fichajes: [fichaje("a", 6), fichaje("b", 3)],
+      empleados,
+    };
+    const rango = { desde: "2026-10-20T00:00:00.000Z", hasta: "2026-10-21T00:00:00.000Z" };
+    const horas = repartoPropinas(estado, rango, "2026-10-21T00:00:00.000Z", "horas");
+    expect(horas.total).toBe(1001);
+    expect(horas.filas.map((f) => [f.nombre, f.importe])).toEqual([
+      ["Ana", 667],
+      ["Luis", 334],
+    ]);
+    const iguales = repartoPropinas(estado, rango, "2026-10-21T00:00:00.000Z", "iguales");
+    expect(iguales.filas.reduce((s, f) => s + f.importe, 0)).toBe(1001);
+  });
+});

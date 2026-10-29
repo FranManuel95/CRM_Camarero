@@ -3,14 +3,14 @@
 import clsx from "clsx";
 import { Download, Search, Trash2, UserPlus } from "lucide-react";
 import { useState, useSyncExternalStore } from "react";
-import { useDatos } from "@/components/datos-personal";
+import { useDatos, useFuncion } from "@/components/datos-personal";
 import { QrResena } from "@/components/qr-resena";
 import { Boton, Campo, claseEntrada, Dialogo, Vacio } from "@/components/ui";
 import { descargar } from "@/lib/cliente/descargar";
 import { aCsv, importeCsv } from "@/lib/csv";
 import { buscarClientes, reglasClub, resumenClub } from "@/lib/dominio/club";
 import { euros, leerEuros } from "@/lib/dominio/importes";
-import { type ClienteClub, NOMBRE_ALERGENO } from "@/lib/dominio/tipos";
+import { type ClienteClub, type MetodoGasto, NOMBRE_ALERGENO } from "@/lib/dominio/tipos";
 import { formatearFecha, formatearFechaHora } from "@/lib/fechas";
 import { useAhora } from "@/lib/cliente/use-ahora";
 import { NuevoCliente } from "../../sala/[mesaId]/cliente";
@@ -18,6 +18,7 @@ import { NuevoCliente } from "../../sala/[mesaId]/cliente";
 /** El club de clientes: números, reglas de los puntos, la lista y la ficha de cada uno. */
 export function Clientes() {
   const { estado, hacer } = useDatos();
+  const fiado = useFuncion("fiado");
   const ahora = useAhora();
   const [busqueda, setBusqueda] = useState("");
   const [ficha, setFicha] = useState<ClienteClub | null>(null);
@@ -65,7 +66,7 @@ export function Clientes() {
         </Boton>
       </div>
 
-      <dl className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+      <dl className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-7">
         {[
           ["En el club", String(resumen.total)],
           ["Nuevos (30 días)", String(resumen.nuevos)],
@@ -73,6 +74,9 @@ export function Clientes() {
           ["Hace +60 días", String(resumen.dormidos)],
           ["Aceptan ofertas", String(resumen.conOfertas)],
           ["Gasto medio", euros(resumen.gastoMedio)],
+          ...(fiado
+            ? [["Os deben", euros(estado.clientes.reduce((s, c) => s + (c.deuda ?? 0), 0))]]
+            : []),
         ].map(([t, v]) => (
           <div key={t} className="rounded-xl bg-white p-3 ring-1 ring-zinc">
             <dt className="text-sm text-tinta-suave">{t}</dt>
@@ -92,7 +96,9 @@ export function Clientes() {
             puerta o Instagram.
           </p>
           <div className="flex flex-wrap items-center gap-4">
-            {origen && <QrResena enlace={enlaceAlta} className="w-32" etiqueta="QR para apuntarse al club" />}
+            {origen && (
+              <QrResena enlace={enlaceAlta} className="w-32" etiqueta="QR para apuntarse al club" />
+            )}
             <a href={enlaceAlta} className="min-w-0 flex-1 break-all text-cobalto underline">
               {enlaceAlta}
             </a>
@@ -160,6 +166,9 @@ export function Clientes() {
                     <span className="block text-xs text-tinta-suave">
                       {c.telefono}
                       {c.comunicaciones && " · acepta ofertas"}
+                      {Boolean(c.deuda) && (
+                        <span className="font-semibold text-aviso"> · debe {euros(c.deuda!)}</span>
+                      )}
                     </span>
                   </td>
                   <td className="p-3 text-right tabular-nums">{c.puntos}</td>
@@ -288,6 +297,7 @@ function Ficha({
           </ul>
         </div>
       )}
+      <Deuda cliente={cliente} />
       <p className="text-sm">
         Su tarjeta (código <strong>{cliente.codigo.slice(0, 6).toUpperCase()}</strong>):{" "}
         <a href={tarjeta} className="break-all text-cobalto underline">
@@ -327,6 +337,79 @@ function Ficha({
           </Boton>
         </span>
       </div>
+    </div>
+  );
+}
+
+/** Lo que debe un cliente (cuentas a deber) y cobrárselo. */
+function Deuda({ cliente }: { cliente: ClienteClub }) {
+  const { hacer } = useDatos();
+  const fiado = useFuncion("fiado");
+  const [importe, setImporte] = useState("");
+  const [metodo, setMetodo] = useState<MetodoGasto>("efectivo");
+  if (!fiado && !cliente.deuda) return null;
+  const valor = leerEuros(importe);
+  return (
+    <div className="rounded-xl bg-ocupada-claro p-3">
+      <h3 className="mb-1 font-semibold">
+        {cliente.deuda ? `Debe ${euros(cliente.deuda)}` : "No debe nada"}
+      </h3>
+      {Boolean(cliente.deuda) && (
+        <form
+          className="flex flex-wrap items-end gap-2"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (
+              valor &&
+              (await hacer(
+                { tipo: "saldar_deuda", clienteId: cliente.id, importe: valor, metodo },
+                `Cobrado ${euros(valor)}`,
+              ))
+            )
+              setImporte("");
+          }}
+        >
+          <Campo etiqueta="Paga ahora" className="w-32">
+            <input
+              className={claseEntrada}
+              inputMode="decimal"
+              value={importe}
+              placeholder={(cliente.deuda! / 100).toFixed(2).replace(".", ",")}
+              onChange={(e) => setImporte(e.target.value)}
+            />
+          </Campo>
+          <Campo etiqueta="Cómo" className="w-36">
+            <select
+              className={claseEntrada}
+              value={metodo}
+              onChange={(e) => setMetodo(e.target.value as MetodoGasto)}
+            >
+              <option value="efectivo">Efectivo</option>
+              <option value="tarjeta">Tarjeta</option>
+              <option value="bizum">Bizum</option>
+              <option value="otro">Otro</option>
+            </select>
+          </Campo>
+          <Boton type="submit" variante="primario" disabled={!valor}>
+            Cobrar
+          </Boton>
+          <Boton onClick={() => setImporte((cliente.deuda! / 100).toFixed(2).replace(".", ","))}>
+            Todo
+          </Boton>
+        </form>
+      )}
+      {(cliente.apuntesDeuda ?? []).length > 0 && (
+        <ul className="mt-2 max-h-32 overflow-y-auto text-sm">
+          {cliente.apuntesDeuda!.map((a, i) => (
+            <li key={i} className="flex justify-between gap-2">
+              <span>
+                {formatearFechaHora(a.fecha)} · {a.importe > 0 ? `A deber (${a.ticket})` : "Pagó"}
+              </span>
+              <span className="tabular-nums">{euros(a.importe)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

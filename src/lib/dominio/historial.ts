@@ -206,6 +206,10 @@ export function describir(accion: AccionPersonal, antes: Estado, despues: Estado
         ? `Canjeó el premio del club de ${cliente?.nombre ?? "un cliente"} en ${nombreMesa(antes, c.mesaId)}`
         : `Quitó el premio del club en ${nombreMesa(antes, c.mesaId)}`;
     }
+    case "saldar_deuda": {
+      const c = antes.clientes.find((x) => x.id === accion.clienteId);
+      return `Cobró ${euros(accion.importe)} de lo que debía ${c?.nombre ?? "un cliente"}`;
+    }
     case "baja_cliente":
       return "Dio de baja a un cliente del club y borró sus datos";
     case "reglas_club":
