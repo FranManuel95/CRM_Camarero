@@ -66,7 +66,7 @@ export const FUNCIONES = {
     grupo: "Clientes",
     nombre: "Pedir una reseña",
     descripcion:
-      "Al pagar, la carta y el ticket invitan a dejar una opinión (pon el enlace en Ajustes).",
+      "Al cobrar, un QR que lleva directo a poner las estrellas en Google; también en la carta, el ticket y carteles (Gestión → Reseñas).",
     defecto: false,
   },
   ticketCorreo: {

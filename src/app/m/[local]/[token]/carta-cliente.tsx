@@ -92,8 +92,6 @@ export function CartaCliente({
     vista.cuenta.lineas.every((l) => ["lista", "servida", "anulada"].includes(l.estado)),
   );
 
-
-
   function avisar(texto: string, error = false) {
     setMensaje({ texto, error });
     setTimeout(() => setMensaje(null), error ? 6000 : 3500);

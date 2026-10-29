@@ -39,6 +39,7 @@ import { CartaTpv } from "@/components/carta-tpv";
 import { buscarMesa, esParaLlevar } from "@/lib/dominio/selectores";
 import { Cobrar } from "./cobrar";
 import { PreciosYDescuentos } from "./precios";
+import { PedirResena, useEnlaceResena } from "@/components/qr-resena";
 
 const TEXTO_ESTADO: Record<EstadoLinea, string> = {
   por_confirmar: "Por aceptar",
@@ -69,6 +70,9 @@ export function Comanda({ mesaId, alSalir }: { mesaId: string; alSalir?: () => v
   );
   const [dialogo, setDialogo] = useState<null | "cobrar" | "mover" | "precios" | "anular">(null);
   const [preseleccion, setPreseleccion] = useState<string[]>([]);
+  const enlaceResena = useEnlaceResena();
+  /** Mensaje del cobro, mientras se enseña el QR de la reseña. */
+  const [cobrado, setCobrado] = useState<string | null>(null);
   const abrirPrecios = (lineaIds: string[] = []) => {
     setPreseleccion(lineaIds);
     setDialogo("precios");
@@ -91,6 +95,13 @@ export function Comanda({ mesaId, alSalir }: { mesaId: string; alSalir?: () => v
             Volver a la sala
           </Link>
         </Vacio>
+      </main>
+    );
+  // Recién cobrada: el QR de la reseña en grande antes de volver a la sala.
+  if (!cuenta && cobrado !== null)
+    return (
+      <main className="p-6">
+        <PedirResena abierto detalle={cobrado} alCerrar={salir} />
       </main>
     );
   if (!cuenta)
@@ -394,7 +405,10 @@ export function Comanda({ mesaId, alSalir }: { mesaId: string; alSalir?: () => v
             mensaje,
           );
           // Si queda algo por pagar, la mesa sigue abierta.
-          if (ok && !partes) salir();
+          if (ok && !partes) {
+            if (enlaceResena) setCobrado(mensaje);
+            else salir();
+          }
           return ok;
         }}
       />

@@ -199,3 +199,20 @@ describe("reserva en el plano", () => {
     expect(reservaCercana(reservas, mesa4, "2026-10-24T19:50:00.000Z")).toBeUndefined();
   });
 });
+
+describe("enlace de reseña", () => {
+  it("con el identificador de la ficha arma el enlace directo a las estrellas", async () => {
+    const { enlaceDeResena, esEnlaceDirecto } = await import("@/lib/dominio/resenas");
+    const directo = enlaceDeResena(" ChIJN1t_tDeuEmsRUsoyG83frY4 ")!;
+    expect(directo).toBe(
+      "https://search.google.com/local/writereview?placeid=ChIJN1t_tDeuEmsRUsoyG83frY4",
+    );
+    expect(esEnlaceDirecto(directo)).toBe(true);
+    expect(enlaceDeResena("https://g.page/r/ejemplo/review")).toBe(
+      "https://g.page/r/ejemplo/review",
+    );
+    expect(esEnlaceDirecto("https://www.tripadvisor.es/ejemplo")).toBe(false);
+    expect(enlaceDeResena("http://inseguro.example")).toBeNull();
+    expect(enlaceDeResena("hola")).toBeNull();
+  });
+});

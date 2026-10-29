@@ -13,6 +13,7 @@ import {
   Printer,
   Receipt,
   SlidersHorizontal,
+  Star,
   ToggleRight,
   Users,
 } from "lucide-react";
@@ -25,7 +26,7 @@ const SECCIONES: {
   href: string;
   texto: string;
   icono: typeof Home;
-  funcion?: "stock" | "historial" | "verifactu";
+  funcion?: "stock" | "historial" | "verifactu" | "resenas";
 }[] = [
   { href: "/gestion", texto: "Resumen", icono: Home },
   { href: "/gestion/informes", texto: "Informes", icono: BarChart3 },
@@ -35,6 +36,7 @@ const SECCIONES: {
   { href: "/gestion/mesas", texto: "Mesas y QR", icono: LayoutGrid },
   { href: "/gestion/equipo", texto: "Equipo", icono: Users },
   { href: "/gestion/impresoras", texto: "Impresoras", icono: Printer },
+  { href: "/gestion/resenas", texto: "Reseñas", icono: Star, funcion: "resenas" },
   { href: "/gestion/historial", texto: "Historial", icono: History, funcion: "historial" },
   { href: "/gestion/verifactu", texto: "VERI*FACTU", icono: Landmark, funcion: "verifactu" },
   { href: "/gestion/funciones", texto: "Funciones", icono: ToggleRight },
@@ -52,6 +54,7 @@ export function MenuGestion() {
     stock: useFuncion("stock"),
     historial: useFuncion("historial"),
     verifactu: useFuncion("verifactu"),
+    resenas: useFuncion("resenas"),
   };
   const secciones = SECCIONES.filter((s) => !s.funcion || encendidas[s.funcion]);
   const activa = (href: string) => (href === "/gestion" ? ruta === href : ruta.startsWith(href));

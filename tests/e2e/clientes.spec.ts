@@ -164,11 +164,16 @@ test("al pagar, la carta invita a dejar una reseña", async ({ page, browser }, 
   const mesa = info.project.name === "movil" ? "Barra 1" : "Barra 2";
   await entrar(page, "1234");
   await encender(page, "resenas");
-  await page.goto("/gestion/ajustes");
+  await page.goto("/gestion/resenas");
   await listo(page);
-  await page.getByLabel("Enlace para dejar una reseña").fill("https://example.com/resena");
-  await page.getByRole("button", { name: "Guardar ajustes" }).click();
-  await expect(page.getByText("Ajustes guardados")).toBeVisible();
+  // Con el identificador de la ficha se arma el enlace directo a las estrellas.
+  await page.getByLabel("Enlace para dejar una reseña").fill("ChIJEjemploFicticio1234567");
+  await page.getByRole("button", { name: "Guardar", exact: true }).click();
+  await expect(page.getByText("Enlace guardado")).toBeVisible();
+  await expect(page.getByRole("button", { name: /Imprimir \(4 por hoja\)/ })).toBeVisible();
+  const axe = await new AxeBuilder({ page }).analyze();
+  expect(axe.violations.map((v) => v.id)).toEqual([]);
+  const enlace = "https://search.google.com/local/writereview?placeid=ChIJEjemploFicticio1234567";
 
   // Se cobra la mesa (lo de cobrar ya tiene su propia prueba).
   const estado = async () =>
@@ -196,7 +201,22 @@ test("al pagar, la carta invita a dejar una reseña", async ({ page, browser }, 
   await expect(cliente.getByRole("heading", { name: "¡Gracias!" })).toBeVisible();
   await expect(cliente.getByRole("link", { name: "¿Qué tal? Déjanos tu opinión" })).toHaveAttribute(
     "href",
-    "https://example.com/resena",
+    enlace,
   );
   await contexto.close();
+
+  // Al cobrar en el TPV, el QR de la reseña sale en grande para enseñárselo al cliente.
+  await page.goto("/sala/rapida");
+  await listo(page);
+  await page.getByRole("tab", { name: "Cervezas" }).click();
+  await page.getByRole("button", { name: /^Caña/ }).click();
+  await page.getByRole("button", { name: "Cobrar", exact: true }).click();
+  await page.getByRole("radio", { name: /Tarjeta/ }).click();
+  await page.getByRole("button", { name: /Cobrar 2,00 € y sacar ticket/ }).click();
+  const dialogo = page.getByRole("dialog", { name: "Cobrado" });
+  await expect(dialogo.getByRole("img", { name: "QR para dejar una reseña" })).toBeVisible();
+  await dialogo.getByRole("button", { name: "Hecho" }).click();
+
+  // Se deja apagado para el resto de pruebas.
+  await accion(page, { tipo: "cambiar_funcion", funcion: "resenas", activa: false });
 });

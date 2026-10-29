@@ -10,7 +10,10 @@ test("mandar sin papel, descuento a un artículo y «cobrar justo» al cobrar", 
   await entrar(page);
   await page.getByRole("tab", { name: new RegExp(zona) }).click();
   await page.getByRole("button", { name: new RegExp(`^${mesa} ?,`) }).click();
-  await page.getByRole("button", { name: /^[1-4]$/ }).first().click();
+  await page
+    .getByRole("button", { name: /^[1-4]$/ })
+    .first()
+    .click();
   await expect(page.getByRole("heading", { name: mesa })).toBeVisible();
 
   await page.getByRole("tab", { name: "Cervezas" }).click();
@@ -21,7 +24,10 @@ test("mandar sin papel, descuento a un artículo y «cobrar justo» al cobrar", 
   // Esta vez, solo a la pantalla de cocina.
   await page.getByRole("button", { name: /Comanda en papel: sí/ }).click();
   await expect(page.getByRole("button", { name: /Comanda en papel: no/ })).toBeVisible();
-  await page.getByRole("button", { name: /Mandar \(2\)/ }).last().click();
+  await page
+    .getByRole("button", { name: /Mandar \(2\)/ })
+    .last()
+    .click();
   await expect(page.getByText("Mandada a pantalla (sin papel)")).toBeVisible();
 
   // Tocando el importe de la línea se abre con ella marcada.

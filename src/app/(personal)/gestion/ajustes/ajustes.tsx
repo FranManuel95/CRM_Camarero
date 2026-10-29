@@ -7,7 +7,6 @@ import { Boton, Campo, claseEntrada, Interruptor } from "@/components/ui";
 export function Ajustes() {
   const { estado, hacer, avisar } = useDatos();
   const [a, setA] = useState(estado.ajustes);
-  const resenas = useFuncion("resenas");
   const campo = (clave: keyof typeof a, etiqueta: string, ayuda?: string) => (
     <Campo etiqueta={etiqueta} ayuda={ayuda}>
       <input
@@ -30,7 +29,6 @@ export function Ajustes() {
               ajustes: {
                 ...a,
                 ivaPorDefecto: Number(a.ivaPorDefecto),
-                enlaceResena: a.enlaceResena?.trim() ?? "",
               },
             },
             "Ajustes guardados",
@@ -97,23 +95,6 @@ export function Ajustes() {
             ayuda="Si lo dejas abierto, cualquiera del equipo puede; queda apuntado quién en el historial."
           />
         </section>
-        {resenas && (
-          <section className="space-y-3 rounded-2xl bg-white p-4 ring-1 ring-zinc">
-            <h2 className="font-rotulo text-2xl font-bold">Reseñas</h2>
-            <Campo
-              etiqueta="Enlace para dejar una reseña"
-              ayuda="El de tu ficha de Google, TripAdvisor… Sale en la carta al pagar y con un QR al pie del ticket."
-            >
-              <input
-                type="url"
-                className={claseEntrada}
-                value={a.enlaceResena ?? ""}
-                placeholder="https://"
-                onChange={(e) => setA({ ...a, enlaceResena: e.target.value })}
-              />
-            </Campo>
-          </section>
-        )}
         <Boton type="submit" variante="primario" tamano="grande">
           Guardar ajustes
         </Boton>

@@ -11,6 +11,7 @@ import type { LineaPedida } from "@/lib/dominio/acciones";
 import { euros, importeLinea } from "@/lib/dominio/importes";
 import type { LineaCuenta, Producto } from "@/lib/dominio/tipos";
 import { Cobrar } from "../[mesaId]/cobrar";
+import { PedirResena, useEnlaceResena } from "@/components/qr-resena";
 
 type EnCesta = LineaPedida & { clave: string };
 
@@ -52,6 +53,8 @@ export function VentaRapida() {
   const activa = useFuncion("ventaRapida");
   const [cesta, setCesta] = useState<EnCesta[]>([]);
   const [cobrando, setCobrando] = useState(false);
+  const enlaceResena = useEnlaceResena();
+  const [cobrado, setCobrado] = useState<string | null>(null);
   const porId = new Map(estado.productos.map((p) => [p.id, p]));
   const lineas = cesta.flatMap((l) => {
     const p = porId.get(l.productoId);
@@ -192,9 +195,17 @@ export function VentaRapida() {
             },
             mensaje,
           );
-          if (ok) setCesta([]);
+          if (ok) {
+            setCesta([]);
+            if (enlaceResena) setCobrado(mensaje);
+          }
           return ok;
         }}
+      />
+      <PedirResena
+        abierto={cobrado !== null}
+        detalle={cobrado ?? undefined}
+        alCerrar={() => setCobrado(null)}
       />
     </main>
   );

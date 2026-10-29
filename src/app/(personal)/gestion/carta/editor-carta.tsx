@@ -1,15 +1,7 @@
 "use client";
 
 import clsx from "clsx";
-import {
-  ArrowDown,
-  ArrowUp,
-  Clock,
-  ImagePlus,
-  Pencil,
-  Plus,
-  Trash2,
-} from "lucide-react";
+import { ArrowDown, ArrowUp, Clock, ImagePlus, Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useDatos, useFuncion } from "@/components/datos-personal";
 import { Boton, Campo, claseEntrada, Dialogo, Interruptor, Vacio } from "@/components/ui";
