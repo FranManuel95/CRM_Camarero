@@ -29,6 +29,8 @@ import { descontar, devolver, redondear, revisarAgotados } from "./stock";
 import { activa, type Funcion, FUNCIONES } from "./funciones";
 import { describir } from "./historial";
 import { apuntarCompra, reglasClub, telefonoLimpio } from "./club";
+import { precioConTarifa } from "./tarifas";
+import { apuntarTiempos } from "./tiempos";
 import { diasDeSemana, instante, jornadaAbierta, lunesDe } from "./equipo";
 import { sumarDias } from "./informes";
 import { diaLocal, formatearHora } from "../fechas";
@@ -122,7 +124,10 @@ function crearLineas(
   datos: Pick<LineaCuenta, "estado" | "origen" | "empleadoId" | "ronda" | "enviadaEn">,
   /** «qr»: lo pide un cliente. «encargado»: puede anotar lo agotado o lo oculto. */
   quien: "qr" | "camarero" | "encargado",
+  /** Zona de la mesa, para los precios por zona (null: barra, venta rápida, para llevar). */
+  zonaId: string | null,
 ): LineaCuenta[] {
+  const conTarifas = activa(estado.ajustes, "tarifas");
   const soloVisiblesEnQR = quien === "qr";
   return pedidas.map((p) => {
     const producto = buscar(estado.productos, p.productoId, "ese producto");
@@ -135,11 +140,15 @@ function crearLineas(
       falla(`${producto.nombre} no se puede pedir desde aquí.`);
     if (soloVisiblesEnQR && categoria && !dentroDeHorario(categoria.horario, ctx.ahora))
       falla(`${producto.nombre} no se sirve a esta hora.`);
+    const { precio, tarifa } = conTarifas
+      ? precioConTarifa(estado, producto, zonaId, ctx.ahora)
+      : { precio: producto.precio, tarifa: undefined };
     return {
       id: ctx.nuevoId(),
       productoId: producto.id,
       nombre: producto.nombre,
-      precioUnitario: producto.precio,
+      precioUnitario: precio,
+      ...(tarifa ? { tarifa } : {}),
       iva: producto.iva,
       destino: categoria?.destino ?? "cocina",
       cantidad: p.cantidad,
@@ -561,6 +570,7 @@ function aplicarPersonal(
           enviadaEn: null,
         },
         empleado.rol,
+        zonaDe(estado, cuenta.mesaId),
       );
       for (const nueva of nuevas) {
         // Tocar dos veces la caña suma una a la línea sin mandar, no hace otra.
@@ -568,6 +578,7 @@ function aplicarPersonal(
           (l) =>
             l.estado === "anotada" &&
             l.productoId === nueva.productoId &&
+            l.precioUnitario === nueva.precioUnitario &&
             l.nota === nueva.nota &&
             Boolean(l.despues) === Boolean(nueva.despues) &&
             JSON.stringify(l.opciones) === JSON.stringify(nueva.opciones),
@@ -657,6 +668,7 @@ function aplicarPersonal(
         if (accion.tipo === "marcar_lista" && l.estado === "enviada") {
           l.estado = "lista";
           l.listaEn = ctx.ahora;
+          apuntarTiempos(estado, [l], ctx.ahora);
         } else if (accion.tipo === "volver_a_preparar" && l.estado === "lista") {
           l.estado = "enviada";
           l.listaEn = null;
@@ -820,6 +832,7 @@ function aplicarPersonal(
             enviadaEn: null,
           },
           empleado.rol,
+          null,
         ),
         descuento: 0,
         rondas: 0,
@@ -1070,8 +1083,7 @@ function aplicarPersonal(
       apagada(estado, "fiado");
       const cliente = buscar(estado.clientes, accion.clienteId, "ese cliente");
       const deuda = cliente.deuda ?? 0;
-      if (accion.importe > deuda)
-        falla(`${cliente.nombre} solo debe ${euros(deuda)}.`);
+      if (accion.importe > deuda) falla(`${cliente.nombre} solo debe ${euros(deuda)}.`);
       if (accion.metodo === "efectivo") {
         const turno = turnoAbierto(estado) ?? falla("Abre la caja para cobrar en efectivo.");
         turno.movimientos.push({
@@ -1467,6 +1479,9 @@ function reducirEncargado(
         }
       break;
     }
+    case "guardar_tarifas":
+      estado.ajustes.tarifas = accion.tarifas;
+      break;
     case "reglas_club":
       estado.ajustes.club = accion.reglas;
       break;
@@ -1525,8 +1540,16 @@ export function enlaceResena(estado: Pick<Estado, "ajustes">): string | undefine
 
 const MAX_APUNTES_DEUDA = 50;
 
-function apuntarDeuda(cliente: ClienteClub, apunte: NonNullable<ClienteClub["apuntesDeuda"]>[number]) {
+function apuntarDeuda(
+  cliente: ClienteClub,
+  apunte: NonNullable<ClienteClub["apuntesDeuda"]>[number],
+) {
   cliente.apuntesDeuda = [apunte, ...(cliente.apuntesDeuda ?? [])].slice(0, MAX_APUNTES_DEUDA);
+}
+
+/** La zona de una mesa (las de mentira, como la venta rápida, no tienen). */
+function zonaDe(estado: Estado, mesaId: string): string | null {
+  return estado.mesas.find((m) => m.id === mesaId)?.zonaId ?? null;
 }
 
 /** Quita el premio del club de una cuenta (y su descuento). */
@@ -1726,6 +1749,7 @@ export function reducirCliente(
         ctx,
         { estado: "por_confirmar", origen: "qr", empleadoId: null, ronda: 0, enviadaEn: null },
         "qr",
+        zonaDe(estado, mesaId),
       );
       cuenta.lineas.push(...lineas);
       if (confirmar) {

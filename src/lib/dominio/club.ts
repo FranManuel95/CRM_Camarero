@@ -65,9 +65,9 @@ export function puedeCanjear(
 ): boolean {
   return Boolean(
     cliente &&
-      !cuenta.canje &&
-      cliente.puntos >= reglas.puntosPremio &&
-      totalCuenta(cuenta) >= reglas.valorPremio,
+    !cuenta.canje &&
+    cliente.puntos >= reglas.puntosPremio &&
+    totalCuenta(cuenta) >= reglas.valorPremio,
   );
 }
 

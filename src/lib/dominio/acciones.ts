@@ -467,6 +467,28 @@ export const accionEncargado = z.discriminatedUnion("tipo", [
       bienvenida: z.number().int().min(0).max(10_000),
     }),
   }),
+  z.object({
+    tipo: z.literal("guardar_tarifas"),
+    tarifas: z
+      .array(
+        z.object({
+          id,
+          nombre: texto(40).min(1, "Pon un nombre a cada precio especial"),
+          porcentaje: z.number().min(-100).max(200),
+          horario: z
+            .object({
+              desde: hora,
+              hasta: hora,
+              dias: z.array(z.number().int().min(0).max(6)).max(7),
+            })
+            .optional(),
+          categoriaIds: z.array(id).max(100),
+          zonaIds: z.array(id).max(50),
+          activa: z.boolean(),
+        }),
+      )
+      .max(30),
+  }),
   /** Copia los turnos de una semana en otra (los lunes de cada una). */
   z.object({ tipo: z.literal("copiar_semana"), desde: dia, hacia: dia }),
 ]);

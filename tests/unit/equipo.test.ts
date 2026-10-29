@@ -389,8 +389,7 @@ describe("reparto de propinas", () => {
       { id: "a", nombre: "Ana", pin: "", rol: "encargado" as const, activo: true },
       { id: "b", nombre: "Luis", pin: "", rol: "camarero" as const, activo: true },
     ];
-    const ticket = (propina: number) =>
-      ({ fecha: "2026-10-20T20:00:00.000Z", propina }) as never;
+    const ticket = (propina: number) => ({ fecha: "2026-10-20T20:00:00.000Z", propina }) as never;
     const fichaje = (empleadoId: string, horas: number) => ({
       id: empleadoId,
       empleadoId,

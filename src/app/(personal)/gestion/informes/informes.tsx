@@ -14,6 +14,7 @@ import { diaLocal, formatearFechaHora } from "@/lib/fechas";
 import { DIAS_EN_PANTALLA } from "@/lib/constantes";
 import { PorCamarero } from "./por-camarero";
 import { RepartoPropinas } from "./propinas";
+import { TiemposCocina } from "./tiempos";
 
 const METODOS = {
   efectivo: "Efectivo",
@@ -285,6 +286,7 @@ export function Informes() {
       </div>
       <PorCamarero rango={rango} />
       <RepartoPropinas rango={rango} />
+      <TiemposCocina rango={rango} />
       <p className="mt-4 text-xs text-tinta-suave">
         Cifras orientativas para llevar el negocio al día. La declaración de IVA y la contabilidad
         las cierra tu gestoría con estos CSV.

@@ -28,7 +28,13 @@ export function informe(
     return d;
   };
   const porHora = Array.from({ length: 24 }, () => 0);
-  const porMetodo: Record<MetodoPago, Centimos> = { efectivo: 0, tarjeta: 0, bizum: 0, otro: 0, fiado: 0 };
+  const porMetodo: Record<MetodoPago, Centimos> = {
+    efectivo: 0,
+    tarjeta: 0,
+    bizum: 0,
+    otro: 0,
+    fiado: 0,
+  };
   const porEmpleado = new Map<string, { ventas: Centimos; tickets: number; propinas: Centimos }>();
   const porProducto = new Map<string, { unidades: number; ventas: Centimos }>();
   let ventas = 0;

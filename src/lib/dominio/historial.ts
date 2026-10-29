@@ -212,6 +212,8 @@ export function describir(accion: AccionPersonal, antes: Estado, despues: Estado
     }
     case "baja_cliente":
       return "Dio de baja a un cliente del club y borró sus datos";
+    case "guardar_tarifas":
+      return `Cambió los precios por horario y zona (${accion.tarifas.filter((t) => t.activa).length} activos)`;
     case "reglas_club":
       return `Cambió los puntos del club: ${accion.reglas.puntosPremio} puntos = ${euros(accion.reglas.valorPremio)}`;
     case "copiar_semana":

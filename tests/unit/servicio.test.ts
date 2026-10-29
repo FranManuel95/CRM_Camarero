@@ -196,3 +196,53 @@ describe("productos ocultos y agotados", () => {
     expect(t.estado.historial.at(-1)!.texto).toBe("Ocultó Croquetas de jamón (4 uds.) de la carta");
   });
 });
+
+describe("precios por horario y zona", () => {
+  it("happy hour en cervezas y recargo de terraza, al anotar y en la carta del QR", () => {
+    const t = preparar();
+    const terraza = t.estado.zonas.find((z) => z.nombre === "Terraza")!;
+    const cervezas = t.estado.productos.find((p) => p.id === CAÑA)!.categoriaId;
+    // Son las 21:00 en Madrid (ver ayuda.ts).
+    t.hacer(
+      {
+        tipo: "guardar_tarifas",
+        tarifas: [
+          {
+            id: "t1",
+            nombre: "Happy hour",
+            porcentaje: -25,
+            horario: { desde: "20:00", hasta: "22:00", dias: [] },
+            categoriaIds: [cervezas],
+            zonaIds: [],
+            activa: true,
+          },
+          {
+            id: "t2",
+            nombre: "Terraza",
+            porcentaje: 10,
+            categoriaIds: [],
+            zonaIds: [terraza.id],
+            activa: true,
+          },
+        ],
+      },
+      t.ana,
+    );
+    // En el salón: solo el happy hour (2,00 → 1,50).
+    t.hacer({ tipo: "anotar", cuentaId: t.cuenta().id, lineas: [linea(CAÑA)] });
+    expect(t.lineaDe(CAÑA)).toMatchObject({ precioUnitario: 150, tarifa: "Happy hour" });
+    // En la terraza: happy hour y recargo (2,00 → 1,50 → 1,65), también en el QR.
+    const mesaTerraza = t.estado.mesas.find(
+      (m) => m.zonaId === terraza.id && !cuentaDeMesa(t.estado, m.id),
+    )!;
+    const caña = vistaCliente(t.estado, mesaTerraza.token, ctx.ahora)!.productos.find(
+      (p) => p.id === CAÑA,
+    )!;
+    expect(caña).toMatchObject({ precio: 165, precioCarta: 200, tarifa: "Happy hour + Terraza" });
+    t.hacer({ tipo: "abrir_cuenta", mesaId: mesaTerraza.id, comensales: 1 });
+    const cuenta = cuentaDeMesa(t.estado, mesaTerraza.id)!;
+    t.hacer({ tipo: "anotar", cuentaId: cuenta.id, lineas: [linea(CROQUETAS)] });
+    // Croquetas no son cerveza: solo la terraza (6,50 → 7,15).
+    expect(cuentaDeMesa(t.estado, mesaTerraza.id)!.lineas[0]!.precioUnitario).toBe(715);
+  });
+});

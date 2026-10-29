@@ -31,6 +31,13 @@ export const FUNCIONES = {
     descripcion: "Apuntar la propina al cobrar; sale en el cierre y en los informes.",
     defecto: true,
   },
+  tarifas: {
+    grupo: "Servicio",
+    nombre: "Precios por horario y zona",
+    descripcion:
+      "Happy hour, recargo de terraza…: el precio cambia solo según la hora y la zona (Gestión → Carta).",
+    defecto: true,
+  },
   paraLlevar: {
     grupo: "Servicio",
     nombre: "Pedidos para llevar",

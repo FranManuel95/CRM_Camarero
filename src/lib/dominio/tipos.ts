@@ -46,10 +46,38 @@ export type Ajustes = {
   preciosSoloEncargado?: boolean;
   /** Funciones encendidas o apagadas (ver funciones.ts). Lo que no está, va por defecto. */
   funciones?: Partial<Record<string, boolean>>;
+  /** Precios por horario y zona: happy hour, recargo de terraza… (ver tarifas.ts). */
+  tarifas?: Tarifa[];
   /** El programa de puntos del club de clientes (ver club.ts). */
   club?: ReglasClub;
   /** Dónde dejar una reseña (Google, TripAdvisor…). Sale al pagar si «Reseñas» está encendido. */
   enlaceResena?: string;
+};
+
+/**
+ * Un cambio de precio automático: un % de descuento o de recargo, a unas horas, en unas
+ * categorías y en unas zonas. Lo que está vacío vale para todo.
+ */
+export type Tarifa = {
+  id: Id;
+  nombre: string;
+  /** Negativo: descuento (−20 = 20 % menos). Positivo: recargo. */
+  porcentaje: number;
+  /** Sin horario: siempre. */
+  horario?: Horario;
+  categoriaIds: Id[];
+  zonaIds: Id[];
+  activa: boolean;
+};
+
+/** Lo que tardó un producto en salir un día: cuántos, minutos en total y el que más. */
+export type TiempoCocina = {
+  dia: string;
+  producto: string;
+  destino: Destino;
+  veces: number;
+  minutos: number;
+  maximo: number;
 };
 
 /** Cómo se ganan y se canjean los puntos del club. */
@@ -289,6 +317,8 @@ export type LineaCuenta = {
   precioCambiado?: Centimos;
   /** Descuento de esta línea, en %. */
   descuentoLinea?: number;
+  /** Precio especial aplicado al anotarla (happy hour, terraza…). */
+  tarifa?: string;
   motivoAnulacion?: string;
 };
 
@@ -675,6 +705,8 @@ export type Estado = {
   historial: EntradaHistorial[];
   reservas: Reserva[];
   clientes: ClienteClub[];
+  /** Tiempos de cocina y barra por día y producto (los últimos meses). Ver tiempos.ts. */
+  tiemposCocina?: TiempoCocina[];
   /** VERI*FACTU: registros por mandar a la AEAT y los últimos mandados. */
   verifactu?: {
     registros: RegistroAeat[];

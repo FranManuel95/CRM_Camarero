@@ -3,6 +3,7 @@ import { servicios } from "./servicios";
 import { activa, disponible } from "../dominio/funciones";
 import { cuentaDeMesa } from "../dominio/reducir";
 import { reglasClub } from "../dominio/club";
+import { precioConTarifa } from "../dominio/tarifas";
 import { cuentaEnJuego, nombreLlevar } from "../dominio/selectores";
 import { pagadoCuenta, totalCuenta } from "../dominio/importes";
 import { dentroDeHorario } from "../dominio/horario";
@@ -82,6 +83,7 @@ export function vistaCliente(estado: Estado, token: string, ahora = new Date().t
     : undefined;
   const { ajustes } = estado;
   const servidor = servicios();
+  const zonaId = mesaQR?.zonaId ?? null;
   const lineas: LineaCliente[] = (cuenta?.lineas ?? [])
     .filter((l) => l.estado !== "anulada")
     .map(
@@ -142,19 +144,26 @@ export function vistaCliente(estado: Estado, token: string, ahora = new Date().t
           alergenos,
           disponible,
           grupos,
-        }) => ({
-          id,
-          categoriaId,
-          nombre,
-          descripcion,
-          nombreEn,
-          descripcionEn,
-          foto,
-          precio,
-          alergenos,
-          disponible,
-          grupos,
-        }),
+        }) => {
+          // El precio de ahora en esta mesa (happy hour, terraza…).
+          const especial = activa(ajustes, "tarifas")
+            ? precioConTarifa(estado, { precio, categoriaId }, zonaId, ahora)
+            : { precio };
+          return {
+            id,
+            categoriaId,
+            nombre,
+            descripcion,
+            nombreEn,
+            descripcionEn,
+            foto,
+            precio: especial.precio,
+            ...(especial.precio !== precio ? { precioCarta: precio, tarifa: especial.tarifa } : {}),
+            alergenos,
+            disponible,
+            grupos,
+          };
+        },
       ),
     cuenta: cuenta
       ? {

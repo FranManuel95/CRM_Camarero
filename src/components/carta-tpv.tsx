@@ -3,7 +3,9 @@
 import clsx from "clsx";
 import { Minus, MoreHorizontal, Plus, Search } from "lucide-react";
 import { useMemo, useState } from "react";
-import { useDatos } from "@/components/datos-personal";
+import { useDatos, useFuncion } from "@/components/datos-personal";
+import { useAhora } from "@/lib/cliente/use-ahora";
+import { precioConTarifa } from "@/lib/dominio/tarifas";
 import { Boton, Campo, claseEntrada, Dialogo, Interruptor, Vacio } from "@/components/ui";
 import type { LineaPedida } from "@/lib/dominio/acciones";
 import { euros } from "@/lib/dominio/importes";
@@ -20,11 +22,18 @@ export type Anotar = (linea: LineaPedida) => Promise<boolean>;
 export function CartaTpv({
   alAnotar,
   permitirDespues = false,
+  zonaId = null,
 }: {
   alAnotar: Anotar;
   permitirDespues?: boolean;
+  /** Zona de la mesa, para enseñar los precios especiales que tocan (terraza…). */
+  zonaId?: string | null;
 }) {
   const { estado, empleado } = useDatos();
+  const conTarifas = useFuncion("tarifas");
+  const ahora = useAhora(60_000);
+  const precioDe = (p: Producto) =>
+    conTarifas ? precioConTarifa(estado, p, zonaId, ahora) : { precio: p.precio };
   const encargado = empleado.rol === "encargado";
   const categorias = useMemo(
     () => [...estado.categorias].sort((a, b) => a.orden - b.orden),
@@ -101,10 +110,15 @@ export function CartaTpv({
                 <span className="line-clamp-2 pr-7 leading-tight font-semibold">{p.nombre}</span>
                 <span className="text-sm text-tinta-suave">
                   {p.oculto ? (
-                    <span className="font-semibold">Oculto · {euros(p.precio)}</span>
+                    <span className="font-semibold">Oculto · {euros(precioDe(p).precio)}</span>
                   ) : !p.disponible ? (
                     <span className="font-semibold">
-                      Agotado{encargado ? ` · ${euros(p.precio)}` : ""}
+                      Agotado{encargado ? ` · ${euros(precioDe(p).precio)}` : ""}
+                    </span>
+                  ) : precioDe(p).tarifa ? (
+                    <span>
+                      <span className="font-semibold text-cuenta">{euros(precioDe(p).precio)}</span>{" "}
+                      <span className="line-through">{euros(p.precio)}</span>
                     </span>
                   ) : (
                     euros(p.precio)

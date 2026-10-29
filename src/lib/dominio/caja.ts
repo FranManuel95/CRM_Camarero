@@ -26,7 +26,13 @@ export type ResumenTurno = {
 
 export function resumenTurno(estado: Pick<Estado, "tickets">, turno: TurnoCaja): ResumenTurno {
   const tickets = ticketsDelTurno(estado, turno);
-  const porMetodo: Record<MetodoPago, Centimos> = { efectivo: 0, tarjeta: 0, bizum: 0, otro: 0, fiado: 0 };
+  const porMetodo: Record<MetodoPago, Centimos> = {
+    efectivo: 0,
+    tarjeta: 0,
+    bizum: 0,
+    otro: 0,
+    fiado: 0,
+  };
   const iva = new Map<number, { base: Centimos; cuota: Centimos; total: Centimos }>();
   let ventas = 0;
   let propinas = 0;

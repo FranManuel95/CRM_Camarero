@@ -5,6 +5,7 @@ import { type Contexto, cuentaDeMesa, reducirPersonal } from "./reducir";
 import { diasDeSemana, instante, lunesDe } from "./equipo";
 import { totalCuenta } from "./importes";
 import { sumarDias } from "./informes";
+import { apuntarTiempos } from "./tiempos";
 import type {
   Alergeno,
   Categoria,
@@ -608,6 +609,12 @@ function conHistorial(inicial: Estado, ctx: Contexto): Estado {
       });
       hacer({ tipo: "anotar", cuentaId: cuenta.id, lineas }, hora, quien);
       hacer({ tipo: "enviar_comanda", cuentaId: cuenta.id }, hora, quien);
+      // Lo que tardó cada plato, para el informe de tiempos de cocina.
+      for (const l of estado.cuentas.find((c) => c.id === cuenta.id)!.lineas) {
+        const tarda =
+          (l.destino === "cocina" ? 8 : 2) + Math.floor(azar() * (l.destino === "cocina" ? 14 : 5));
+        apuntarTiempos(estado, [l], new Date(hora.getTime() + tarda * 60_000).toISOString());
+      }
       // De vez en cuando se invita a algo o se cae un plato.
       const lineasAhora = estado.cuentas.find((c) => c.id === cuenta.id)!.lineas;
       const primera = lineasAhora[0]!;

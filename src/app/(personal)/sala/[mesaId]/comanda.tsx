@@ -247,6 +247,7 @@ export function Comanda({ mesaId, alSalir }: { mesaId: string; alSalir?: () => v
         >
           <CartaTpv
             permitirDespues={paraDespues}
+            zonaId={estado.mesas.find((m) => m.id === mesaId)?.zonaId ?? null}
             alAnotar={(linea) => hacer({ tipo: "anotar", cuentaId: cuenta.id, lineas: [linea] })}
           />
           <div className="sticky bottom-0 -mx-3 mt-3 grid grid-cols-2 gap-2 border-t border-zinc-oscuro/50 bg-zinc-claro p-3 lg:hidden">
@@ -516,6 +517,7 @@ function Lineas({
                     {l.precioCambiado !== undefined && (
                       <span className="font-semibold">Precio cambiado</span>
                     )}
+                    {l.tarifa && <span className="font-semibold text-cuenta">{l.tarifa}</span>}
                     {l.motivoAnulacion && <span>{l.motivoAnulacion}</span>}
                   </p>
                 </div>

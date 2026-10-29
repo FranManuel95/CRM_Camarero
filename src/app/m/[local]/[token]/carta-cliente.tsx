@@ -313,7 +313,17 @@ export function CartaCliente({
                         )}
                       </div>
                       <div className="flex shrink-0 flex-col items-end gap-1.5">
-                        <span className="font-rotulo text-xl font-bold">{euros(p.precio)}</span>
+                        <span className="text-right">
+                          <span className="block font-rotulo text-xl font-bold">
+                            {euros(p.precio)}
+                          </span>
+                          {p.precioCarta !== undefined && (
+                            <span className="block text-xs text-tinta-suave">
+                              <span className="line-through">{euros(p.precioCarta)}</span>{" "}
+                              {p.tarifa}
+                            </span>
+                          )}
+                        </span>
                         {!p.disponible ? (
                           <span className="text-sm font-semibold">{t.agotado}</span>
                         ) : pedir ? (
