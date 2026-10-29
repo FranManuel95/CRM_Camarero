@@ -46,6 +46,7 @@ import type {
   Gasto,
   Incidencia,
   LineaCuenta,
+  Decoracion,
   Mesa,
   MovimientoStock,
   OpcionElegida,
@@ -345,6 +346,7 @@ function cobrarLineas(
   propina: Centimos,
   empleado: Empleado,
   cerrarServidas: boolean,
+  imprimir = true,
 ) {
   if (!turnoAbierto(estado)) falla("Abre la caja antes de cobrar (Gestión → Caja).");
   if (pagos.some((p) => p.metodo === "fiado")) {
@@ -413,13 +415,13 @@ function cobrarLineas(
           l.estado = "servida";
     atenderAvisos(estado, cuenta.mesaId, ["llamar", "cuenta", "listo", "pedido_qr"]);
   }
-  imprimirTicket(
-    estado,
-    ctx,
-    trabajos,
-    ticket,
-    pagos.some((p) => p.metodo === "efectivo"),
-  );
+  const conEfectivo = pagos.some((p) => p.metodo === "efectivo");
+  if (imprimir) imprimirTicket(estado, ctx, trabajos, ticket, conEfectivo);
+  // Sin papel, el cajón se abre igual si se paga en efectivo.
+  else if (conEfectivo && estado.impresoras.some((i) => i.activa && i.abreCajon))
+    encolar(estado, ctx, trabajos, "ticket", `Cajón · ${ticket.mesaNombre}`, [{ tipo: "cajon" }], {
+      impresoraId: estado.impresoras.find((i) => i.activa && i.abreCajon)!.id,
+    });
   return ticket;
 }
 
@@ -806,6 +808,7 @@ function aplicarPersonal(
         accion.propina ?? 0,
         empleado,
         true,
+        accion.imprimir ?? !estado.mesas.find((m) => m.id === cuenta.mesaId)?.sinTicket,
       );
       break;
     }
@@ -851,6 +854,7 @@ function aplicarPersonal(
         accion.propina ?? 0,
         empleado,
         false,
+        accion.imprimir ?? true,
       );
       break;
     }
@@ -1352,6 +1356,22 @@ function reducirEncargado(
       if (estado.mesas.some((m) => m.zonaId === accion.zonaId))
         falla("Esta zona tiene mesas. Muévelas o bórralas antes.");
       estado.zonas = estado.zonas.filter((z) => z.id !== accion.zonaId);
+      estado.decoraciones = (estado.decoraciones ?? []).filter((d) => d.zonaId !== accion.zonaId);
+      break;
+    case "guardar_decoracion": {
+      const { id, ...datos } = accion.decoracion;
+      buscar(estado.zonas, datos.zonaId, "esa zona");
+      const decoraciones = (estado.decoraciones ??= []);
+      if (id) {
+        const previa = buscar(decoraciones, id, "eso del plano");
+        // Al cambiar de tipo no se arrastra el texto anterior si no viene.
+        delete previa.texto;
+        Object.assign(previa, datos);
+      } else decoraciones.push({ id: ctx.nuevoId(), ...datos } satisfies Decoracion);
+      break;
+    }
+    case "borrar_decoracion":
+      estado.decoraciones = (estado.decoraciones ?? []).filter((d) => d.id !== accion.decoracionId);
       break;
     case "guardar_mesa": {
       const { id, ...datos } = accion.mesa;

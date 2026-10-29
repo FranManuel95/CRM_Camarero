@@ -9,7 +9,9 @@ import { apuntarTiempos } from "./tiempos";
 import type {
   Alergeno,
   Categoria,
+  Decoracion,
   Estado,
+  Id,
   Ingrediente,
   Mesa,
   Producto,
@@ -351,6 +353,7 @@ export function estadoDeEjemplo(ctx: Contexto, opciones: { conHistorial?: boolea
     historial: [],
     reservas: reservasDeEjemplo(ctx.ahora, mesas),
     clientes: [],
+    decoraciones: decoracionesDeEjemplo(),
   };
 
   estado.cuadrante = cuadranteDeEjemplo(
@@ -759,3 +762,33 @@ function reservasDeEjemplo(ahora: string, mesas: Mesa[]): Reserva[] {
 }
 
 type AccionGasto = Extract<AccionPersonal, { tipo: "guardar_gasto" }>["gasto"];
+
+/** El mostrador, puertas, ventanas y plantas del bar de ejemplo. */
+function decoracionesDeEjemplo(): Decoracion[] {
+  const d: [Id, Decoracion["tipo"], number, number, number, number, string?][] = [
+    ["zona-1", "mostrador", 4, 50, 92, 7, "Barra"],
+    ["zona-1", "puerta", 44, 96, 10, 2.5],
+    ["zona-1", "planta", 2, 88, 5, 5],
+    ["zona-2", "ventana", 10, 0, 14, 1.5],
+    ["zona-2", "ventana", 60, 0, 14, 1.5],
+    ["zona-2", "puerta", 45, 96, 10, 2.5, "Entrada"],
+    ["zona-2", "planta", 94, 2, 5, 5],
+    ["zona-2", "planta", 1, 88, 5, 5],
+    ["zona-2", "aseos", 84, 80, 14, 12, "Aseos"],
+    ["zona-3", "planta", 5, 90, 5, 5],
+    ["zona-3", "planta", 25, 90, 5, 5],
+    ["zona-3", "texto", 43, 92, 14, 4, "Calle"],
+    ["zona-3", "planta", 70, 90, 5, 5],
+    ["zona-3", "planta", 90, 90, 5, 5],
+  ];
+  return d.map(([zonaId, tipo, x, y, ancho, alto, texto], i) => ({
+    id: `deco-${i + 1}`,
+    zonaId,
+    tipo,
+    x,
+    y,
+    ancho,
+    alto,
+    ...(texto ? { texto } : {}),
+  }));
+}

@@ -409,9 +409,10 @@ export function Comanda({ mesaId, alSalir }: { mesaId: string; alSalir?: () => v
         permitirPropina={propinas}
         fiadoA={fiado ? estado.clientes.find((c) => c.id === cuenta.clienteId)?.nombre : undefined}
         alCerrar={() => setDialogo(null)}
-        cobrar={async ({ pagos, propina, partes }, mensaje) => {
+        ticketPapel={!estado.mesas.find((m) => m.id === cuenta.mesaId)?.sinTicket}
+        cobrar={async ({ pagos, propina, partes, imprimir }, mensaje) => {
           const ok = await hacer(
-            { tipo: "cobrar", cuentaId: cuenta.id, pagos, propina, partes },
+            { tipo: "cobrar", cuentaId: cuenta.id, pagos, propina, partes, imprimir },
             mensaje,
           );
           // Si queda algo por pagar, la mesa sigue abierta.

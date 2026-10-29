@@ -246,3 +246,104 @@ describe("precios por horario y zona", () => {
     expect(cuentaDeMesa(t.estado, mesaTerraza.id)!.lineas[0]!.precioUnitario).toBe(715);
   });
 });
+
+describe("mesas sin ticket en papel", () => {
+  it("la mesa marcada cobra sin imprimir, pero el ticket queda y el cajón se abre", () => {
+    const t = preparar();
+    const { token: _t, ...mesa } = t.mesa;
+    void _t;
+    t.hacer({ tipo: "guardar_mesa", mesa: { ...mesa, sinTicket: true } }, t.ana);
+    t.hacer(
+      {
+        tipo: "guardar_impresora",
+        impresora: {
+          nombre: "Caja",
+          conexion: "red",
+          ip: "192.168.1.50",
+          puerto: 9100,
+          columnas: 48,
+          imprimeCocina: false,
+          imprimeBarra: false,
+          imprimeTickets: true,
+          abreCajon: true,
+          activa: true,
+        },
+      },
+      t.ana,
+    );
+    t.hacer({ tipo: "anotar", cuentaId: t.cuenta().id, lineas: [linea(CAÑA)] });
+    t.hacer({ tipo: "enviar_comanda", cuentaId: t.cuenta().id, imprimir: false });
+    const tickets = t.estado.tickets.length;
+    const r = t.hacer({
+      tipo: "cobrar",
+      cuentaId: t.cuenta().id,
+      pagos: [{ metodo: "efectivo", importe: 200 }],
+    });
+    expect(t.estado.tickets).toHaveLength(tickets + 1);
+    expect(r.trabajos).toHaveLength(1);
+    expect(r.trabajos[0]!.documento).toEqual([{ tipo: "cajon" }]);
+
+    // Si el cliente lo pide en el momento, se saca igual.
+    t.hacer({ tipo: "abrir_cuenta", mesaId: t.mesa.id, comensales: 1 });
+    t.hacer({ tipo: "anotar", cuentaId: t.cuenta().id, lineas: [linea(CAÑA)] });
+    t.hacer({ tipo: "enviar_comanda", cuentaId: t.cuenta().id, imprimir: false });
+    const conPapel = t.hacer({
+      tipo: "cobrar",
+      cuentaId: t.cuenta().id,
+      pagos: [{ metodo: "tarjeta", importe: 200 }],
+      imprimir: true,
+    });
+    expect(conPapel.trabajos.length).toBeGreaterThan(0);
+    expect(conPapel.trabajos.every((j) => j.tipo === "ticket" && j.documento.length > 1)).toBe(
+      true,
+    );
+  });
+});
+
+describe("decoraciones del plano", () => {
+  it("se añaden, se cambian y se van con su zona", () => {
+    const t = preparar();
+    const antes = t.estado.decoraciones?.length ?? 0;
+    t.hacer(
+      {
+        tipo: "guardar_decoracion",
+        decoracion: {
+          zonaId: "zona-3",
+          tipo: "mostrador",
+          x: 10,
+          y: 10,
+          ancho: 30,
+          alto: 6,
+          texto: "Barra",
+        },
+      },
+      t.ana,
+    );
+    const nueva = t.estado.decoraciones!.at(-1)!;
+    expect(t.estado.decoraciones).toHaveLength(antes + 1);
+    t.hacer(
+      { tipo: "guardar_decoracion", decoracion: { ...nueva, tipo: "pared", texto: undefined } },
+      t.ana,
+    );
+    expect(t.estado.decoraciones!.at(-1)).toMatchObject({ tipo: "pared" });
+    expect(t.estado.decoraciones!.at(-1)!.texto).toBeUndefined();
+    // El camarero no puede tocar el plano.
+    expect(() =>
+      reducirPersonal(t.estado, { tipo: "borrar_decoracion", decoracionId: nueva.id }, t.luis, ctx),
+    ).toThrow();
+    t.hacer({ tipo: "borrar_decoracion", decoracionId: nueva.id }, t.ana);
+    expect(t.estado.decoraciones).toHaveLength(antes);
+
+    t.hacer({ tipo: "guardar_zona", zona: { nombre: "Reservado", orden: 9 } }, t.ana);
+    const zona = t.estado.zonas.at(-1)!;
+    t.hacer(
+      {
+        tipo: "guardar_decoracion",
+        decoracion: { zonaId: zona.id, tipo: "planta", x: 1, y: 1, ancho: 5, alto: 5 },
+      },
+      t.ana,
+    );
+    t.hacer({ tipo: "borrar_zona", zonaId: zona.id }, t.ana);
+    expect(t.estado.decoraciones!.some((d) => d.zonaId === zona.id)).toBe(false);
+  });
+});

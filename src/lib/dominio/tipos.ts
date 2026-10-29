@@ -141,6 +141,36 @@ export type Mesa = {
   plazas: number;
   /** Código del QR de la mesa. Se puede regenerar si alguien se lleva la foto del QR. */
   token: string;
+  /**
+   * Al cobrar, el ticket no sale en papel (se guarda igual y se puede reimprimir). Para la barra
+   * o mesas de clientes habituales que nunca lo quieren.
+   */
+  sinTicket?: boolean;
+};
+
+/** Lo que se dibuja en el plano además de las mesas. */
+export type TipoDecoracion =
+  | "mostrador"
+  | "pared"
+  | "puerta"
+  | "ventana"
+  | "planta"
+  | "columna"
+  | "aseos"
+  | "cocina"
+  | "texto";
+
+export type Decoracion = {
+  id: Id;
+  zonaId: Id;
+  tipo: TipoDecoracion;
+  /** Misma rejilla que las mesas. */
+  x: number;
+  y: number;
+  ancho: number;
+  alto: number;
+  /** Lo que pone encima («Barra», «Entrada»…). */
+  texto?: string;
 };
 
 /** A qué pantalla e impresora va un plato. */
@@ -705,6 +735,8 @@ export type Estado = {
   historial: EntradaHistorial[];
   reservas: Reserva[];
   clientes: ClienteClub[];
+  /** Mostrador, paredes, puertas, plantas… del plano. */
+  decoraciones?: Decoracion[];
   /** Tiempos de cocina y barra por día y producto (los últimos meses). Ver tiempos.ts. */
   tiemposCocina?: TiempoCocina[];
   /** VERI*FACTU: registros por mandar a la AEAT y los últimos mandados. */

@@ -20,6 +20,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useDatos, useFuncion } from "@/components/datos-personal";
+import { DecoracionesPlano } from "@/components/decoracion-plano";
 import { Comanda } from "./[mesaId]/comanda";
 import { Boton, Dialogo } from "@/components/ui";
 import { euros } from "@/lib/dominio/importes";
@@ -220,6 +221,9 @@ export function Sala() {
 
         {vista === "plano" ? (
           <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-zinc ring-1 ring-zinc-oscuro sm:aspect-[16/9]">
+            <DecoracionesPlano
+              decoraciones={(estado.decoraciones ?? []).filter((d) => d.zonaId === zonaId)}
+            />
             {mesas.map((m) => (
               <FichaMesa key={m.id} mesa={m} ahora={ahora} alTocar={() => tocarMesa(m)} enPlano />
             ))}

@@ -1,7 +1,17 @@
 "use client";
 
 import clsx from "clsx";
-import { Banknote, CreditCard, Minus, NotebookPen, Percent, Plus, Smartphone } from "lucide-react";
+import {
+  Banknote,
+  CreditCard,
+  FileX,
+  Minus,
+  NotebookPen,
+  Percent,
+  Plus,
+  Printer,
+  Smartphone,
+} from "lucide-react";
 import { useState } from "react";
 import { Boton, claseEntrada, Dialogo } from "@/components/ui";
 import {
@@ -27,6 +37,8 @@ export type DatosCobro = {
   propina?: Centimos;
   /** Solo si se cobra una parte de la cuenta. */
   partes?: { lineaId: string; cantidad: number }[];
+  /** Sacar el ticket en papel. */
+  imprimir: boolean;
 };
 
 /**
@@ -46,6 +58,7 @@ export function Cobrar({
   permitirPartes = true,
   permitirPropina = true,
   fiadoA,
+  ticketPapel = true,
 }: {
   abierto: boolean;
   /** Lo que queda por cobrar. */
@@ -62,6 +75,8 @@ export function Cobrar({
   permitirPropina?: boolean;
   /** Si se puede dejar a deber: a nombre de quién. */
   fiadoA?: string;
+  /** Si el ticket sale en papel de entrada (hay mesas que nunca lo quieren). */
+  ticketPapel?: boolean;
 }) {
   const [modo, setModo] = useState<"todo" | "platos">("todo");
   const [cuantas, setCuantas] = useState<Record<string, number>>({});
@@ -70,6 +85,7 @@ export function Cobrar({
   const [conTarjeta, setConTarjeta] = useState("");
   const [propinaTexto, setPropinaTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
+  const [papel, setPapel] = useState(ticketPapel);
 
   const seleccion = modo === "todo" ? lineas : lineas.filter((l) => (cuantas[l.id] ?? 0) > 0);
   // El descuento en euros va en el cobro que salda la cuenta.
@@ -108,6 +124,7 @@ export function Cobrar({
     setEntregado("");
     setConTarjeta("");
     setPropinaTexto("");
+    setPapel(ticketPapel);
   }
 
   async function confirmar() {
@@ -115,6 +132,7 @@ export function Cobrar({
     const ok = await cobrar(
       {
         pagos,
+        imprimir: papel,
         ...(propina ? { propina } : {}),
         ...(modo === "platos"
           ? { partes: seleccion.map((l) => ({ lineaId: l.id, cantidad: cuantas[l.id] ?? 0 })) }
@@ -348,6 +366,20 @@ export function Cobrar({
           <p className="text-tinta-suave">Pago justo</p>
         )}
       </div>
+      <button
+        type="button"
+        aria-pressed={papel}
+        onClick={() => setPapel((v) => !v)}
+        className="mb-2 flex min-h-10 items-center gap-2 text-sm font-semibold text-tinta-suave"
+      >
+        {papel ? (
+          <Printer aria-hidden className="size-4" />
+        ) : (
+          <FileX aria-hidden className="size-4" />
+        )}
+        Ticket en papel: {papel ? "sí" : "no (queda guardado)"}
+        <span className="font-normal underline">cambiar</span>
+      </button>
       <Boton
         variante="exito"
         tamano="grande"
@@ -355,7 +387,7 @@ export function Cobrar({
         disabled={falta > 0 || enviando || (modo === "platos" && seleccion.length === 0)}
         onClick={confirmar}
       >
-        Cobrar {euros(total)} y sacar ticket
+        {papel ? `Cobrar ${euros(total)} y sacar ticket` : `Cobrar ${euros(total)} sin ticket`}
       </Boton>
     </Dialogo>
   );

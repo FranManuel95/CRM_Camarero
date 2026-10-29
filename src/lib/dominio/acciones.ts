@@ -146,6 +146,8 @@ export const accionCamarero = z.discriminatedUnion("tipo", [
       .max(100)
       .optional(),
     propina: centimos.optional(),
+    /** Sacar el ticket en papel. Sin esto, lo que diga la mesa. */
+    imprimir: z.boolean().optional(),
   }),
   /** Cobrar sin abrir mesa (barra, para llevar): anota, manda y cobra de una vez. */
   z.object({
@@ -156,6 +158,7 @@ export const accionCamarero = z.discriminatedUnion("tipo", [
       .min(1)
       .max(10),
     propina: centimos.optional(),
+    imprimir: z.boolean().optional(),
   }),
   z.object({ tipo: z.literal("anular_cuenta"), cuentaId: id }),
   z.object({ tipo: z.literal("reimprimir_ticket"), ticketId: id }),
@@ -369,9 +372,34 @@ export const accionEncargado = z.discriminatedUnion("tipo", [
       alto: z.number().min(4).max(60),
       forma: z.enum(["cuadrada", "redonda", "alargada"]),
       plazas: z.number().int().min(1).max(40),
+      sinTicket: z.boolean().optional(),
     }),
   }),
   z.object({ tipo: z.literal("borrar_mesa"), mesaId: id }),
+  z.object({
+    tipo: z.literal("guardar_decoracion"),
+    decoracion: z.object({
+      id: id.optional(),
+      zonaId: id,
+      tipo: z.enum([
+        "mostrador",
+        "pared",
+        "puerta",
+        "ventana",
+        "planta",
+        "columna",
+        "aseos",
+        "cocina",
+        "texto",
+      ]),
+      x: z.number().min(0).max(100),
+      y: z.number().min(0).max(100),
+      ancho: z.number().min(1).max(100),
+      alto: z.number().min(1).max(62),
+      texto: texto(30).optional(),
+    }),
+  }),
+  z.object({ tipo: z.literal("borrar_decoracion"), decoracionId: id }),
   z.object({ tipo: z.literal("regenerar_qr"), mesaId: id }),
   z.object({
     tipo: z.literal("guardar_empleado"),

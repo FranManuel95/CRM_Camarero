@@ -180,7 +180,7 @@ export function VentaRapida() {
         permitirPartes={false}
         permitirPropina={propinas}
         alCerrar={() => setCobrando(false)}
-        cobrar={async ({ pagos, propina }, mensaje) => {
+        cobrar={async ({ pagos, propina, imprimir }, mensaje) => {
           const ok = await hacer(
             {
               tipo: "venta_rapida",
@@ -192,6 +192,7 @@ export function VentaRapida() {
               })),
               pagos,
               propina,
+              imprimir,
             },
             mensaje,
           );

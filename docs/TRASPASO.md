@@ -219,6 +219,12 @@ Estado en versión 7 (`clientes`; fuera `pagosOnline`). Todo con pruebas unitari
 - **Pantalla de pedidos** (`/pedidos`): para una tele de cara al público, los encargos para
   llevar «Preparando» y «¡Listo!», con el nombre y la inicial.
 - El menú del día ya existía: plantilla en el editor de la carta.
+- **Mesas sin ticket en papel** (`mesa.sinTicket`, en Gestión → Mesas): al cobrar no se
+  imprime (el cobro lleva `imprimir`; el camarero puede cambiarlo en ese cobro). El ticket se
+  genera y se encadena igual, y si se paga en efectivo se abre el cajón.
+- **Decoraciones del plano** (`estado.decoraciones`, `components/decoracion-plano.tsx`):
+  mostrador, pared, puerta, ventana, planta, columna, aseos, cocina y rótulo. Se arrastran como
+  las mesas, con ancho, alto, girar y duplicar. En la sala se ven debajo de las mesas, sin tocar.
 
 ## Pendiente (por orden)
 

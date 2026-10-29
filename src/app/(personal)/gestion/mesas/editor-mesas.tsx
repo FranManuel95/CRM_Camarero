@@ -1,16 +1,28 @@
 "use client";
 
 import clsx from "clsx";
-import { Plus, QrCode, RefreshCw, Trash2 } from "lucide-react";
+import { Copy, Plus, QrCode, RefreshCw, RotateCw, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { useDatos } from "@/components/datos-personal";
+import {
+  DibujoDecoracion,
+  estiloEnPlano,
+  LISTA_DECORACIONES,
+  TIPOS_DECORACION,
+} from "@/components/decoracion-plano";
 import { Boton, Campo, claseEntrada } from "@/components/ui";
-import type { FormaMesa, Mesa } from "@/lib/dominio/tipos";
+import type { Decoracion, FormaMesa, Mesa, TipoDecoracion } from "@/lib/dominio/tipos";
+
+/** Lo que se puede mover en el plano: una mesa o una decoración. */
+type Pieza = { id: string; x: number; y: number; ancho: number; alto: number };
 
 const limitar = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
 
-/** Editor del plano: se arrastran las mesas y se cambian sus datos en el panel de al lado. */
+/**
+ * Editor del plano: se arrastran las mesas y las decoraciones (mostrador, paredes, puertas…) y
+ * se cambian sus datos en el panel de al lado.
+ */
 export function EditorMesas() {
   const { estado, hacer } = useDatos();
   const zonas = [...estado.zonas].sort((a, b) => a.orden - b.orden);
@@ -21,20 +33,29 @@ export function EditorMesas() {
   const inicio = useRef<{ px: number; py: number; x: number; y: number } | null>(null);
   const zona = zonas.find((z) => z.id === zonaId);
   const mesas = estado.mesas.filter((m) => m.zonaId === zonaId);
+  const decoraciones = (estado.decoraciones ?? []).filter((d) => d.zonaId === zonaId);
   const elegida = estado.mesas.find((m) => m.id === elegidaId);
+  const elegidaDeco = decoraciones.find((d) => d.id === elegidaId);
 
   const guardar = (m: Mesa, cambios: Partial<Mesa>) => {
     const { token: _t, ...datos } = { ...m, ...cambios };
     void _t;
     return hacer({ tipo: "guardar_mesa", mesa: datos });
   };
+  const guardarDeco = (d: Decoracion, cambios: Partial<Decoracion>) => {
+    const { texto, ...resto } = { ...d, ...cambios };
+    return hacer({
+      tipo: "guardar_decoracion",
+      decoracion: { ...resto, ...(texto?.trim() ? { texto: texto.trim() } : {}) },
+    });
+  };
 
-  function empezar(e: React.PointerEvent, m: Mesa) {
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  function empezar(e: React.PointerEvent, m: Pieza) {
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     inicio.current = { px: e.clientX, py: e.clientY, x: m.x, y: m.y };
     setElegidaId(m.id);
   }
-  function mover(e: React.PointerEvent, m: Mesa) {
+  function mover(e: React.PointerEvent, m: Pieza) {
     const caja = plano.current?.getBoundingClientRect();
     if (!inicio.current || !caja) return;
     const x = limitar(
@@ -49,13 +70,20 @@ export function EditorMesas() {
     );
     setArrastre({ id: m.id, x: Math.round(x), y: Math.round(y) });
   }
-  async function soltar(m: Mesa) {
+  async function soltar<T extends Pieza>(
+    m: T,
+    alGuardar: (m: T, c: Partial<Pieza>) => Promise<boolean>,
+  ) {
     inicio.current = null;
     if (arrastre?.id === m.id && (arrastre.x !== m.x || arrastre.y !== m.y))
-      await guardar(m, { x: arrastre.x, y: arrastre.y });
+      await alGuardar(m, { x: arrastre.x, y: arrastre.y });
     setArrastre(null);
   }
-  function teclas(e: React.KeyboardEvent, m: Mesa) {
+  function teclas<T extends Pieza>(
+    e: React.KeyboardEvent,
+    m: T,
+    alGuardar: (m: T, c: Partial<Pieza>) => Promise<boolean>,
+  ) {
     const paso = e.shiftKey ? 5 : 1;
     const d = {
       ArrowLeft: [-paso, 0],
@@ -65,7 +93,30 @@ export function EditorMesas() {
     }[e.key];
     if (!d) return;
     e.preventDefault();
-    void guardar(m, { x: limitar(m.x + d[0]!, 0, 100 - m.ancho), y: limitar(m.y + d[1]!, 0, 100) });
+    void alGuardar(m, {
+      x: limitar(m.x + d[0]!, 0, 100 - m.ancho),
+      y: limitar(m.y + d[1]!, 0, 100 - m.alto * 1.6),
+    });
+  }
+
+  async function nuevaDecoracion(tipo: TipoDecoracion) {
+    if (!zona) return;
+    const t = TIPOS_DECORACION[tipo];
+    await hacer(
+      {
+        tipo: "guardar_decoracion",
+        decoracion: {
+          zonaId: zona.id,
+          tipo,
+          x: Math.round(50 - t.ancho / 2),
+          y: 40,
+          ancho: t.ancho,
+          alto: t.alto,
+          ...(t.texto ? { texto: t.texto } : {}),
+        },
+      },
+      `${t.nombre} añadido al plano. Arrástralo a su sitio.`,
+    );
   }
 
   async function nuevaMesa() {
@@ -154,6 +205,26 @@ export function EditorMesas() {
           </>
         )}
       </div>
+      {zona && (
+        <div
+          className="mb-3 flex flex-wrap items-center gap-1"
+          role="group"
+          aria-label="Añadir al plano"
+        >
+          <span className="mr-1 text-sm font-semibold text-tinta-suave">Añadir al plano:</span>
+          {LISTA_DECORACIONES.map((tipo) => (
+            <Boton key={tipo} tamano="pequeno" onClick={() => nuevaDecoracion(tipo)}>
+              <span aria-hidden className="block h-3 w-5 overflow-hidden rounded-sm">
+                <DibujoDecoracion
+                  decoracion={{ tipo, ancho: 5, alto: 2 }}
+                  className="[&>svg]:hidden"
+                />
+              </span>
+              {TIPOS_DECORACION[tipo].nombre}
+            </Boton>
+          ))}
+        </div>
+      )}
 
       <div className="grid gap-4 xl:grid-cols-[1fr_18rem]">
         <div>
@@ -165,6 +236,28 @@ export function EditorMesas() {
               backgroundSize: "5% 8.9%",
             }}
           >
+            {decoraciones.map((d) => {
+              const pos = arrastre?.id === d.id ? { ...d, ...arrastre } : d;
+              return (
+                <button
+                  key={d.id}
+                  type="button"
+                  onPointerDown={(e) => empezar(e, d)}
+                  onPointerMove={(e) => mover(e, d)}
+                  onPointerUp={() => soltar(d, guardarDeco)}
+                  onKeyDown={(e) => teclas(e, d, guardarDeco)}
+                  onFocus={() => setElegidaId(d.id)}
+                  aria-label={`${TIPOS_DECORACION[d.tipo].nombre}${d.texto ? `: ${d.texto}` : ""}. Muévelo con las flechas.`}
+                  style={estiloEnPlano(pos)}
+                  className={clsx(
+                    "absolute cursor-grab select-none active:cursor-grabbing",
+                    d.id === elegidaId && "outline-2 outline-offset-2 outline-cobalto",
+                  )}
+                >
+                  <DibujoDecoracion decoracion={d} />
+                </button>
+              );
+            })}
             {mesas.map((m) => {
               const pos = arrastre?.id === m.id ? arrastre : m;
               return (
@@ -173,8 +266,8 @@ export function EditorMesas() {
                   type="button"
                   onPointerDown={(e) => empezar(e, m)}
                   onPointerMove={(e) => mover(e, m)}
-                  onPointerUp={() => soltar(m)}
-                  onKeyDown={(e) => teclas(e, m)}
+                  onPointerUp={() => soltar(m, guardar)}
+                  onKeyDown={(e) => teclas(e, m, guardar)}
                   onFocus={() => setElegidaId(m.id)}
                   aria-label={`${m.nombre}. Muévela con las flechas.`}
                   style={{
@@ -195,15 +288,26 @@ export function EditorMesas() {
             })}
           </div>
           <p className="mt-2 text-sm text-tinta-suave">
-            Arrastra las mesas para colocarlas como en tu local. Con el teclado: flechas (con
-            Mayúsculas, más rápido).
+            Arrastra las mesas, el mostrador, las puertas… para dibujar tu local. Con el teclado:
+            flechas (con Mayúsculas, más rápido).
           </p>
         </div>
 
-        <aside aria-label="Datos de la mesa" className="rounded-2xl bg-white p-4 ring-1 ring-zinc">
-          {!elegida ? (
+        <aside
+          aria-label="Datos de lo elegido"
+          className="rounded-2xl bg-white p-4 ring-1 ring-zinc"
+        >
+          {elegidaDeco ? (
+            <FormularioDecoracion
+              key={elegidaDeco.id}
+              decoracion={elegidaDeco}
+              alGuardar={guardarDeco}
+              alBorrar={() => setElegidaId(null)}
+            />
+          ) : !elegida ? (
             <p className="text-sm text-tinta-suave">
-              Toca una mesa para cambiar su nombre, forma o plazas.
+              Toca una mesa para cambiar su nombre, forma o plazas, o algo del plano para cambiar su
+              tamaño.
             </p>
           ) : (
             <FormularioMesa
@@ -230,6 +334,7 @@ function FormularioMesa({
 }) {
   const { estado, hacer } = useDatos();
   const [nombre, setNombre] = useState(mesa.nombre);
+  const [sinTicket, setSinTicket] = useState(Boolean(mesa.sinTicket));
   return (
     <div className="space-y-3">
       <Campo etiqueta="Nombre">
@@ -298,6 +403,24 @@ function FormularioMesa({
           className="w-full"
         />
       </Campo>
+      <label className="flex items-start gap-2 text-sm">
+        <input
+          type="checkbox"
+          className="mt-0.5 size-5 shrink-0"
+          checked={sinTicket}
+          onChange={async (e) => {
+            const valor = e.target.checked;
+            setSinTicket(valor);
+            if (!(await alGuardar(mesa, { sinTicket: valor }))) setSinTicket(!valor);
+          }}
+        />
+        <span>
+          <span className="font-semibold">Sin ticket en papel</span>
+          <span className="block text-tinta-suave">
+            Al cobrar no se imprime. Queda guardado y se puede sacar si lo piden.
+          </span>
+        </span>
+      </label>
       <div className="flex flex-wrap gap-2 border-t border-zinc pt-3">
         <Boton
           tamano="pequeno"
@@ -329,6 +452,120 @@ function FormularioMesa({
       <p className="text-xs text-tinta-suave">
         Haz un QR nuevo si alguien se lleva una foto del QR y pide desde fuera.
       </p>
+    </div>
+  );
+}
+
+function FormularioDecoracion({
+  decoracion,
+  alGuardar,
+  alBorrar,
+}: {
+  decoracion: Decoracion;
+  alGuardar: (d: Decoracion, c: Partial<Decoracion>) => Promise<boolean>;
+  alBorrar: () => void;
+}) {
+  const { hacer } = useDatos();
+  const [texto, setTexto] = useState(decoracion.texto ?? "");
+  const nombre = TIPOS_DECORACION[decoracion.tipo].nombre;
+  return (
+    <div className="space-y-3">
+      <h2 className="font-rotulo text-2xl font-bold">{nombre}</h2>
+      <Campo etiqueta="Lo que pone (opcional)">
+        <input
+          className={claseEntrada}
+          value={texto}
+          maxLength={30}
+          placeholder="Por ejemplo, Entrada"
+          onChange={(e) => setTexto(e.target.value)}
+          onBlur={() => texto !== (decoracion.texto ?? "") && alGuardar(decoracion, { texto })}
+        />
+      </Campo>
+      <Campo etiqueta="Ancho">
+        <input
+          type="range"
+          min={1}
+          max={100}
+          value={decoracion.ancho}
+          onChange={(e) =>
+            alGuardar(decoracion, {
+              ancho: Number(e.target.value),
+              x: Math.min(decoracion.x, 100 - Number(e.target.value)),
+            })
+          }
+          className="w-full"
+        />
+      </Campo>
+      <Campo etiqueta="Alto">
+        <input
+          type="range"
+          min={1}
+          max={62}
+          step={0.5}
+          value={decoracion.alto}
+          onChange={(e) =>
+            alGuardar(decoracion, {
+              alto: Number(e.target.value),
+              y: Math.max(0, Math.min(decoracion.y, 100 - Number(e.target.value) * 1.6)),
+            })
+          }
+          className="w-full"
+        />
+      </Campo>
+      <div className="flex flex-wrap gap-2 border-t border-zinc pt-3">
+        <Boton
+          tamano="pequeno"
+          onClick={() => {
+            // Girar: lo ancho pasa a alto (las paredes y ventanas, de horizontal a vertical).
+            const alto = limitar(Math.round(decoracion.ancho / 1.6), 1, 62);
+            const ancho = limitar(Math.round(decoracion.alto * 1.6), 1, 100);
+            void alGuardar(decoracion, {
+              ancho,
+              alto,
+              x: Math.min(decoracion.x, 100 - ancho),
+              y: Math.max(0, Math.min(decoracion.y, 100 - alto * 1.6)),
+            });
+          }}
+        >
+          <RotateCw aria-hidden className="size-4" /> Girar
+        </Boton>
+        <Boton
+          tamano="pequeno"
+          onClick={() => {
+            const { id: _id, texto: t, ...resto } = decoracion;
+            void _id;
+            void hacer(
+              {
+                tipo: "guardar_decoracion",
+                decoracion: {
+                  ...resto,
+                  x: Math.min(resto.x + 3, 100 - resto.ancho),
+                  y: Math.min(resto.y + 3, 100 - resto.alto * 1.6),
+                  ...(t ? { texto: t } : {}),
+                },
+              },
+              `${nombre} duplicado`,
+            );
+          }}
+        >
+          <Copy aria-hidden className="size-4" /> Duplicar
+        </Boton>
+        <Boton
+          tamano="pequeno"
+          variante="peligro"
+          onClick={async () => {
+            if (
+              await hacer(
+                { tipo: "borrar_decoracion", decoracionId: decoracion.id },
+                `${nombre} quitado del plano`,
+              )
+            )
+              alBorrar();
+          }}
+        >
+          <Trash2 aria-hidden className="size-4" /> Quitar
+        </Boton>
+      </div>
     </div>
   );
 }
