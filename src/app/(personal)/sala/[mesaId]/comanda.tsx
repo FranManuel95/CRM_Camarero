@@ -21,7 +21,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { useDatos, useFuncion } from "@/components/datos-personal";
+import { useDatos, useFuncion, usePuede } from "@/components/datos-personal";
 import { Boton, Campo, claseEntrada, Dialogo, Vacio } from "@/components/ui";
 import {
   euros,
@@ -77,6 +77,9 @@ export function Comanda({ mesaId, alSalir }: { mesaId: string; alSalir?: () => v
   const enlaceResena = useEnlaceResena();
   /** Mensaje del cobro, mientras se enseña el QR de la reseña. */
   const [cobrado, setCobrado] = useState<string | null>(null);
+  const puedeCobrar = usePuede("cobrar");
+  const puedePrecios = usePuede("descuentos");
+  const puedeAnular = usePuede("anular");
   const abrirPrecios = (lineaIds: string[] = []) => {
     setPreseleccion(lineaIds);
     setDialogo("precios");
@@ -208,13 +211,17 @@ export function Comanda({ mesaId, alSalir }: { mesaId: string; alSalir?: () => v
               <ArrowRightLeft aria-hidden className="size-4" /> Mover o juntar
             </Boton>
           )}
-          <Boton tamano="pequeno" variante="fantasma" onClick={() => abrirPrecios()}>
-            <Percent aria-hidden className="size-4" /> Precios y descuentos
-          </Boton>
-          <Boton tamano="pequeno" variante="fantasma" onClick={() => setDialogo("anular")}>
-            <Ban aria-hidden className="size-4" />{" "}
-            {cuenta.llevar ? "Anular encargo" : "Anular mesa"}
-          </Boton>
+          {puedePrecios && (
+            <Boton tamano="pequeno" variante="fantasma" onClick={() => abrirPrecios()}>
+              <Percent aria-hidden className="size-4" /> Precios y descuentos
+            </Boton>
+          )}
+          {puedeAnular && (
+            <Boton tamano="pequeno" variante="fantasma" onClick={() => setDialogo("anular")}>
+              <Ban aria-hidden className="size-4" />{" "}
+              {cuenta.llevar ? "Anular encargo" : "Anular mesa"}
+            </Boton>
+          )}
         </div>
       </header>
 
@@ -304,7 +311,7 @@ export function Comanda({ mesaId, alSalir }: { mesaId: string; alSalir?: () => v
               <Lineas
                 cuenta={cuenta}
                 lineas={cuenta.lineas.filter((l) => l.estado !== "por_confirmar")}
-                alTocarPrecio={(id) => abrirPrecios([id])}
+                alTocarPrecio={puedePrecios ? (id) => abrirPrecios([id]) : undefined}
               />
             )}
           </div>
@@ -315,6 +322,7 @@ export function Comanda({ mesaId, alSalir }: { mesaId: string; alSalir?: () => v
               Boolean(cuenta.canje)) && (
               <button
                 type="button"
+                disabled={!puedePrecios}
                 onClick={() => abrirPrecios()}
                 className="flex w-full justify-between text-sm text-tinta-suave hover:underline"
               >
@@ -387,9 +395,15 @@ export function Comanda({ mesaId, alSalir }: { mesaId: string; alSalir?: () => v
                 <ChefHat aria-hidden className="size-5" />
                 Mandar{sinMandar.length ? ` (${unidades(sinMandar)})` : ""}
               </Boton>
-              <Boton variante="exito" tamano="grande" onClick={() => setDialogo("cobrar")}>
-                Cobrar
-              </Boton>
+              {puedeCobrar ? (
+                <Boton variante="exito" tamano="grande" onClick={() => setDialogo("cobrar")}>
+                  Cobrar
+                </Boton>
+              ) : (
+                <Boton variante="exito" tamano="grande" disabled>
+                  Cobra el encargado
+                </Boton>
+              )}
             </div>
           </footer>
         </section>
@@ -400,10 +414,14 @@ export function Comanda({ mesaId, alSalir }: { mesaId: string; alSalir?: () => v
         lineas={lineasCobrables(cuenta)}
         descuento={cuenta.descuento}
         descuentoImporte={(cuenta.descuentoImporte ?? 0) + (cuenta.canje?.importe ?? 0)}
-        alAjustar={() => {
-          setDialogo(null);
-          abrirPrecios();
-        }}
+        alAjustar={
+          puedePrecios
+            ? () => {
+                setDialogo(null);
+                abrirPrecios();
+              }
+            : undefined
+        }
         comensales={cuenta.comensales}
         permitirPartes={porPartes}
         permitirPropina={propinas}
@@ -468,6 +486,8 @@ function Lineas({
 }) {
   const { hacer } = useDatos();
   const paraDespues = useFuncion("paraDespues");
+  const puedeAnular = usePuede("anular");
+  const puedeInvitar = usePuede("invitar");
   const ahora = useAhora();
   const [anulando, setAnulando] = useState<LineaCuenta | null>(null);
   const [motivo, setMotivo] = useState("");
@@ -621,26 +641,30 @@ function Lineas({
                           Servido
                         </Boton>
                       )}
-                      <Boton tamano="pequeno" variante="fantasma" onClick={() => setAnulando(l)}>
-                        Anular
-                      </Boton>
+                      {puedeAnular && (
+                        <Boton tamano="pequeno" variante="fantasma" onClick={() => setAnulando(l)}>
+                          Anular
+                        </Boton>
+                      )}
                     </>
                   )}
-                  <Boton
-                    tamano="pequeno"
-                    variante="fantasma"
-                    aria-pressed={l.invitacion}
-                    onClick={() =>
-                      hacer({
-                        tipo: "invitar_linea",
-                        cuentaId: cuenta.id,
-                        lineaId: l.id,
-                        invitacion: !l.invitacion,
-                      })
-                    }
-                  >
-                    <Gift aria-hidden className="size-4" /> {l.invitacion ? "Cobrar" : "Invitar"}
-                  </Boton>
+                  {puedeInvitar && (
+                    <Boton
+                      tamano="pequeno"
+                      variante="fantasma"
+                      aria-pressed={l.invitacion}
+                      onClick={() =>
+                        hacer({
+                          tipo: "invitar_linea",
+                          cuentaId: cuenta.id,
+                          lineaId: l.id,
+                          invitacion: !l.invitacion,
+                        })
+                      }
+                    >
+                      <Gift aria-hidden className="size-4" /> {l.invitacion ? "Cobrar" : "Invitar"}
+                    </Boton>
+                  )}
                 </div>
               )}
             </li>

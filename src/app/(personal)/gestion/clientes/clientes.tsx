@@ -16,12 +16,15 @@ import { useAhora } from "@/lib/cliente/use-ahora";
 import { NuevoCliente } from "../../sala/[mesaId]/cliente";
 
 /** El club de clientes: números, reglas de los puntos, la lista y la ficha de cada uno. */
-export function Clientes() {
+export function Clientes({ abrirCliente }: { abrirCliente?: string }) {
   const { estado, hacer } = useDatos();
   const fiado = useFuncion("fiado");
   const ahora = useAhora();
   const [busqueda, setBusqueda] = useState("");
-  const [ficha, setFicha] = useState<ClienteClub | null>(null);
+  // Desde el buscador de Gestión se llega con la ficha ya abierta.
+  const [ficha, setFicha] = useState<ClienteClub | null>(
+    () => estado.clientes.find((c) => c.id === abrirCliente) ?? null,
+  );
   const [alta, setAlta] = useState(false);
   const origen = useSyncExternalStore(
     () => () => {},

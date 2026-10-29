@@ -4,7 +4,7 @@ import { ArrowLeft, Minus, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { CartaTpv } from "@/components/carta-tpv";
-import { useDatos, useFuncion } from "@/components/datos-personal";
+import { useDatos, useFuncion, usePuede } from "@/components/datos-personal";
 import { FuncionApagada } from "@/components/funcion-apagada";
 import { Boton, Vacio } from "@/components/ui";
 import type { LineaPedida } from "@/lib/dominio/acciones";
@@ -49,6 +49,7 @@ function comoLinea(l: EnCesta, producto: Producto): LineaCuenta {
  */
 export function VentaRapida() {
   const { estado, hacer } = useDatos();
+  const puedeCobrar = usePuede("cobrar");
   const propinas = useFuncion("propinas");
   const activa = useFuncion("ventaRapida");
   const [cesta, setCesta] = useState<EnCesta[]>([]);
@@ -163,10 +164,10 @@ export function VentaRapida() {
               <Boton
                 variante="exito"
                 tamano="grande"
-                disabled={!cesta.length}
+                disabled={!cesta.length || !puedeCobrar}
                 onClick={() => setCobrando(true)}
               >
-                Cobrar
+                {puedeCobrar ? "Cobrar" : "Cobra el encargado"}
               </Boton>
             </div>
           </footer>

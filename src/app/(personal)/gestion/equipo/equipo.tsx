@@ -6,9 +6,17 @@ import { useAhora } from "@/lib/cliente/use-ahora";
 import { formatearHora } from "@/lib/fechas";
 import { useDatos } from "@/components/datos-personal";
 import { Boton, Campo, claseEntrada, Dialogo, Interruptor } from "@/components/ui";
-import type { Rol } from "@/lib/dominio/tipos";
+import { LISTA_PERMISOS, NOMBRE_PERMISO, puede } from "@/lib/dominio/permisos";
+import type { Permiso, Rol } from "@/lib/dominio/tipos";
 
-type Borrador = { id?: string; nombre: string; pin: string; rol: Rol; activo: boolean };
+type Borrador = {
+  id?: string;
+  nombre: string;
+  pin: string;
+  rol: Rol;
+  activo: boolean;
+  permisos?: Partial<Record<Permiso, boolean>>;
+};
 
 export function Equipo({ nube }: { nube: boolean }) {
   const { estado, hacer } = useDatos();
@@ -41,7 +49,12 @@ export function Equipo({ nube }: { nube: boolean }) {
               <span className="block text-sm text-tinta-suave">
                 {e.rol === "encargado"
                   ? "Encargado: puede tocar la carta, los gastos y los ajustes"
-                  : "Camarero"}
+                  : `Camarero${(() => {
+                      const sin = LISTA_PERMISOS.filter((p) => !puede(estado.ajustes, e, p));
+                      return sin.length
+                        ? ` · sin ${sin.map((p) => NOMBRE_PERMISO[p].nombre.toLowerCase()).join(", ")}`
+                        : "";
+                    })()}`}
                 {!e.activo && " · desactivado"}
               </span>
             </span>
@@ -92,7 +105,7 @@ export function Equipo({ nube }: { nube: boolean }) {
               />
             </Campo>
             <fieldset>
-              <legend className="mb-1 text-sm font-semibold">Permisos</legend>
+              <legend className="mb-1 text-sm font-semibold">Papel</legend>
               <div className="flex gap-2">
                 {(["camarero", "encargado"] as const).map((r) => (
                   <Boton
@@ -105,6 +118,36 @@ export function Equipo({ nube }: { nube: boolean }) {
                 ))}
               </div>
             </fieldset>
+            {borrador.rol === "camarero" && (
+              <fieldset>
+                <legend className="mb-1 text-sm font-semibold">Qué puede hacer</legend>
+                <ul className="space-y-2">
+                  {LISTA_PERMISOS.map((p) => (
+                    <li key={p}>
+                      <label className="flex items-start gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          className="mt-0.5 size-5 shrink-0"
+                          checked={puede(estado.ajustes, borrador, p)}
+                          onChange={(e) =>
+                            setBorrador({
+                              ...borrador,
+                              permisos: { ...borrador.permisos, [p]: e.target.checked },
+                            })
+                          }
+                        />
+                        <span>
+                          <span className="font-semibold">{NOMBRE_PERMISO[p].nombre}</span>
+                          <span className="block text-tinta-suave">
+                            {NOMBRE_PERMISO[p].detalle}
+                          </span>
+                        </span>
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+              </fieldset>
+            )}
             <Interruptor
               activo={borrador.activo}
               alCambiar={(v) => setBorrador({ ...borrador, activo: v })}

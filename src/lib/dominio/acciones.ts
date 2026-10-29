@@ -400,6 +400,45 @@ export const accionEncargado = z.discriminatedUnion("tipo", [
     }),
   }),
   z.object({ tipo: z.literal("borrar_decoracion"), decoracionId: id }),
+  /** Guarda cómo están ahora las mesas y decoraciones (si ya hay uno con ese nombre, lo pisa). */
+  z.object({ tipo: z.literal("guardar_plano"), nombre: texto(30).min(1) }),
+  /** Alta de golpe de lo leído de una foto de la carta (ya revisado por el encargado). */
+  z.object({
+    tipo: z.literal("importar_carta"),
+    categorias: z
+      .array(
+        z.object({
+          nombre: texto(60).min(1),
+          destino: z.enum(["cocina", "barra"]),
+          productos: z
+            .array(
+              z.object({
+                nombre: texto(80).min(1),
+                descripcion: texto(300),
+                precio: centimos,
+                alergenos: z.array(z.enum(ALERGENOS)).max(14),
+              }),
+            )
+            .max(200),
+        }),
+      )
+      .min(1)
+      .max(40),
+  }),
+  z.object({
+    tipo: z.literal("guardar_resumen_diario"),
+    correo: z.union([z.literal(""), z.email("Ese correo no parece bien escrito.").max(200)]),
+    activo: z.boolean(),
+  }),
+  z.object({ tipo: z.literal("usar_plano"), planoId: id }),
+  z.object({ tipo: z.literal("borrar_plano"), planoId: id }),
+  /** Subir o bajar de golpe los precios de unas categorías (o de toda la carta). */
+  z.object({
+    tipo: z.literal("subir_precios"),
+    categoriaIds: z.array(id).max(100),
+    porcentaje: z.number().min(-50).max(100),
+    redondeo: z.union([z.literal(0), z.literal(5), z.literal(10), z.literal(50)]),
+  }),
   z.object({ tipo: z.literal("regenerar_qr"), mesaId: id }),
   z.object({
     tipo: z.literal("guardar_empleado"),
@@ -410,6 +449,16 @@ export const accionEncargado = z.discriminatedUnion("tipo", [
       pin: z.union([z.literal(""), z.string().regex(/^\d{4,6}$/, "El PIN son de 4 a 6 cifras")]),
       rol: z.enum(["camarero", "encargado"]),
       activo: z.boolean(),
+      permisos: z
+        .object({
+          cobrar: z.boolean(),
+          anular: z.boolean(),
+          invitar: z.boolean(),
+          descuentos: z.boolean(),
+          caja: z.boolean(),
+        })
+        .partial()
+        .optional(),
     }),
   }),
   z.object({

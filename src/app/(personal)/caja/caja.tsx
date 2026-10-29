@@ -3,10 +3,12 @@
 import clsx from "clsx";
 import { ArrowDownLeft, ArrowUpRight, Lock, Printer, Unlock } from "lucide-react";
 import { useState } from "react";
-import { useDatos, useFuncion } from "@/components/datos-personal";
+import { useAlertas } from "@/components/alertas";
+import { useDatos, useFuncion, usePuede } from "@/components/datos-personal";
 import { TicketPorCorreo } from "@/components/ticket-correo";
 import { Boton, Campo, claseEntrada, Dialogo, Vacio } from "@/components/ui";
-import { resumenTurno, turnoAbierto, ticketsDelTurno } from "@/lib/dominio/caja";
+import { extrasDelTurno, resumenTurno, turnoAbierto, ticketsDelTurno } from "@/lib/dominio/caja";
+import { buscarMesa } from "@/lib/dominio/selectores";
 import { euros, leerEuros } from "@/lib/dominio/importes";
 import { formatearFechaHora, formatearHora } from "@/lib/fechas";
 import type { Ticket } from "@/lib/dominio/tipos";
@@ -24,6 +26,7 @@ const VALORES = [5000, 2000, 1000, 500, 200, 100, 50, 20, 10, 5, 2, 1];
 
 export function Caja() {
   const { estado, hacer, empleado } = useDatos();
+  const puedeCaja = usePuede("caja");
   const turno = turnoAbierto(estado);
   const porCorreo = useFuncion("ticketCorreo");
   const [fondo, setFondo] = useState("150");
@@ -52,11 +55,14 @@ export function Caja() {
                 onChange={(e) => setFondo(e.target.value)}
               />
             </Campo>
+            {!puedeCaja && (
+              <p className="mb-3 text-sm text-tinta-suave">La caja la abre el encargado.</p>
+            )}
             <Boton
               variante="primario"
               tamano="grande"
               className="w-full"
-              disabled={leerEuros(fondo) === null}
+              disabled={leerEuros(fondo) === null || !puedeCaja}
               onClick={() =>
                 hacer({ tipo: "abrir_caja", fondoInicial: leerEuros(fondo) ?? 0 }, "Caja abierta")
               }
@@ -184,6 +190,7 @@ function TurnoAbierto({
   alVerTicket: (t: Ticket) => void;
 }) {
   const { estado } = useDatos();
+  const puedeCaja = usePuede("caja");
   const turno = turnoAbierto(estado)!;
   const r = resumenTurno(estado, turno);
   const tickets = ticketsDelTurno(estado, turno).slice().reverse();
@@ -213,17 +220,19 @@ function TurnoAbierto({
           {r.entradas > 0 && <Dato titulo="Entradas" valor={euros(r.entradas)} />}
           {r.salidas > 0 && <Dato titulo="Salidas" valor={`−${euros(r.salidas)}`} />}
         </dl>
-        <div className="mt-5 flex flex-wrap gap-2">
-          <Boton onClick={() => alMovimiento("entrada")}>
-            <ArrowDownLeft aria-hidden className="size-4" /> Meter dinero
-          </Boton>
-          <Boton onClick={() => alMovimiento("salida")}>
-            <ArrowUpRight aria-hidden className="size-4" /> Sacar dinero
-          </Boton>
-          <Boton variante="primario" className="ml-auto" onClick={alCerrar}>
-            <Lock aria-hidden className="size-4" /> Cerrar caja (Z)
-          </Boton>
-        </div>
+        {puedeCaja && (
+          <div className="mt-5 flex flex-wrap gap-2">
+            <Boton onClick={() => alMovimiento("entrada")}>
+              <ArrowDownLeft aria-hidden className="size-4" /> Meter dinero
+            </Boton>
+            <Boton onClick={() => alMovimiento("salida")}>
+              <ArrowUpRight aria-hidden className="size-4" /> Sacar dinero
+            </Boton>
+            <Boton variante="primario" className="ml-auto" onClick={alCerrar}>
+              <Lock aria-hidden className="size-4" /> Cerrar caja (Z)
+            </Boton>
+          </div>
+        )}
         {abiertas > 0 && (
           <p className="mt-3 text-sm text-tinta-suave">
             Quedan {abiertas} {abiertas === 1 ? "mesa abierta" : "mesas abiertas"}. Puedes cerrar
@@ -363,72 +372,224 @@ function Movimiento({
   );
 }
 
+/**
+ * Cierre guiado en tres pasos: lo que queda pendiente, contar el cajón y el resumen del turno
+ * antes de sacar el Z.
+ */
 function Cierre({ abierto, alCerrar }: { abierto: boolean; alCerrar: () => void }) {
   const { estado, hacer } = useDatos();
+  const alertas = useAlertas();
   const turno = turnoAbierto(estado)!;
   const r = resumenTurno(estado, turno);
+  const extras = extrasDelTurno(estado, turno);
+  const [paso, setPaso] = useState<1 | 2 | 3>(1);
   const [cuenta, setCuenta] = useState<Record<number, string>>({});
-  const contado = VALORES.reduce((s, v) => s + v * (Number(cuenta[v]) || 0), 0);
+  const [deGolpe, setDeGolpe] = useState("");
+  const porMonedas = VALORES.reduce((s, v) => s + v * (Number(cuenta[v]) || 0), 0);
+  const contado = deGolpe.trim() ? (leerEuros(deGolpe) ?? 0) : porMonedas;
   const diferencia = contado - r.efectivoEsperado;
+  const abiertas = estado.cuentas.filter((c) => c.estado === "abierta" && c.lineas.length);
+  const avisos = estado.avisos.filter((a) => !a.atendido && a.tipo !== "listo");
+  const pendientes = alertas.filter((a) => !a.clave.startsWith("descuadre-"));
+
+  function cerrarDialogo() {
+    setPaso(1);
+    setCuenta({});
+    setDeGolpe("");
+    alCerrar();
+  }
 
   return (
-    <Dialogo abierto={abierto} alCerrar={alCerrar} titulo="Cerrar caja" ancho="max-w-2xl">
-      <p className="mb-3">
-        Cuenta lo que hay en el cajón. Debería haber {euros(r.efectivoEsperado)}.
-      </p>
-      <div className="mb-4 grid grid-cols-3 gap-2 sm:grid-cols-4">
-        {VALORES.map((v) => (
-          <label key={v} className="flex items-center gap-2 rounded-lg bg-zinc-claro p-2">
-            <span className="w-14 text-right text-sm font-semibold">
-              {v >= 100 ? `${v / 100} €` : `${v} cts`}
-            </span>
-            <span aria-hidden>×</span>
-            <input
-              inputMode="numeric"
-              className="h-9 w-full min-w-0 rounded border border-zinc-oscuro bg-white px-2"
-              value={cuenta[v] ?? ""}
-              onChange={(e) => setCuenta((c) => ({ ...c, [v]: e.target.value.replace(/\D/g, "") }))}
-              aria-label={`Cuántos de ${v >= 100 ? `${v / 100} euros` : `${v} céntimos`}`}
-            />
-          </label>
+    <Dialogo abierto={abierto} alCerrar={cerrarDialogo} titulo="Cerrar caja" ancho="max-w-2xl">
+      <ol className="mb-4 flex gap-1 text-sm" aria-label="Pasos del cierre">
+        {["Pendiente", "Contar", "Resumen"].map((t, i) => (
+          <li
+            key={t}
+            aria-current={paso === i + 1 ? "step" : undefined}
+            className={clsx(
+              "flex-1 rounded-lg px-2 py-1.5 text-center font-semibold",
+              paso === i + 1 ? "bg-cobalto text-white" : "bg-zinc-claro text-tinta-suave",
+            )}
+          >
+            {i + 1}. {t}
+          </li>
         ))}
-      </div>
-      <div
-        className="mb-4 flex items-baseline justify-between rounded-xl bg-zinc-claro p-3"
-        aria-live="polite"
-      >
-        <span>
-          Contado: <b>{euros(contado)}</b>
-        </span>
-        <span
-          className={clsx(
-            "font-semibold",
-            diferencia < 0 ? "text-aviso" : diferencia > 0 ? "text-ocupada" : "text-cuenta",
+      </ol>
+
+      {paso === 1 && (
+        <>
+          {abiertas.length === 0 && avisos.length === 0 && pendientes.length === 0 ? (
+            <p className="mb-4 rounded-xl bg-cuenta-claro p-3 font-semibold">
+              Todo en orden: no queda nada pendiente.
+            </p>
+          ) : (
+            <ul className="mb-4 space-y-2">
+              {abiertas.length > 0 && (
+                <li className="rounded-xl bg-ocupada-claro p-3">
+                  <p className="font-semibold">
+                    {abiertas.length === 1
+                      ? "Queda 1 mesa abierta"
+                      : `Quedan ${abiertas.length} mesas abiertas`}
+                    : {abiertas.map((c) => buscarMesa(estado, c.mesaId)?.nombre ?? "—").join(", ")}
+                  </p>
+                  <p className="text-sm">
+                    Puedes cerrar igual: seguirán abiertas para el turno siguiente.
+                  </p>
+                </li>
+              )}
+              {avisos.length > 0 && (
+                <li className="rounded-xl bg-ocupada-claro p-3 font-semibold">
+                  {avisos.length === 1
+                    ? "Hay 1 aviso sin atender en la sala."
+                    : `Hay ${avisos.length} avisos sin atender en la sala.`}
+                </li>
+              )}
+              {pendientes.map((a) => (
+                <li key={a.clave} className="rounded-xl bg-zinc-claro p-3">
+                  {a.texto}
+                </li>
+              ))}
+            </ul>
           )}
-        >
-          {diferencia === 0
-            ? "Cuadra"
-            : diferencia < 0
-              ? `Faltan ${euros(-diferencia)}`
-              : `Sobran ${euros(diferencia)}`}
-        </span>
-      </div>
-      <Boton
-        variante="primario"
-        tamano="grande"
-        className="w-full"
-        onClick={async () => {
-          if (
-            await hacer(
-              { tipo: "cerrar_caja", efectivoContado: contado },
-              "Caja cerrada. Sale el informe Z.",
-            )
-          )
-            alCerrar();
-        }}
-      >
-        Cerrar caja y sacar el Z
-      </Boton>
+          <Boton variante="primario" tamano="grande" className="w-full" onClick={() => setPaso(2)}>
+            Seguir: contar el cajón
+          </Boton>
+        </>
+      )}
+
+      {paso === 2 && (
+        <>
+          <p className="mb-3">
+            Cuenta lo que hay en el cajón. Debería haber <b>{euros(r.efectivoEsperado)}</b>.
+          </p>
+          <div className="mb-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
+            {VALORES.map((v) => (
+              <label key={v} className="flex items-center gap-2 rounded-lg bg-zinc-claro p-2">
+                <span className="w-14 text-right text-sm font-semibold">
+                  {v >= 100 ? `${v / 100} €` : `${v} cts`}
+                </span>
+                <span aria-hidden>×</span>
+                <input
+                  inputMode="numeric"
+                  disabled={Boolean(deGolpe.trim())}
+                  className="h-9 w-full min-w-0 rounded border border-zinc-oscuro bg-white px-2"
+                  value={cuenta[v] ?? ""}
+                  onChange={(e) =>
+                    setCuenta((c) => ({ ...c, [v]: e.target.value.replace(/\D/g, "") }))
+                  }
+                  aria-label={`Cuántos de ${v >= 100 ? `${v / 100} euros` : `${v} céntimos`}`}
+                />
+              </label>
+            ))}
+          </div>
+          <Campo
+            etiqueta="O, si ya lo tienes contado, el total"
+            ayuda="Si lo escribes aquí, no hace falta rellenar los billetes."
+            className="mb-4"
+          >
+            <input
+              className={claseEntrada}
+              inputMode="decimal"
+              placeholder="Por ejemplo, 412,50"
+              value={deGolpe}
+              onChange={(e) => setDeGolpe(e.target.value)}
+            />
+          </Campo>
+          <div
+            className="mb-4 flex items-baseline justify-between rounded-xl bg-zinc-claro p-3"
+            aria-live="polite"
+          >
+            <span>
+              Contado: <b>{euros(contado)}</b>
+            </span>
+            <TextoDescuadre diferencia={diferencia} />
+          </div>
+          <div className="grid grid-cols-[auto_1fr] gap-2">
+            <Boton tamano="grande" onClick={() => setPaso(1)}>
+              Atrás
+            </Boton>
+            <Boton variante="primario" tamano="grande" onClick={() => setPaso(3)}>
+              Seguir: ver el resumen
+            </Boton>
+          </div>
+        </>
+      )}
+
+      {paso === 3 && (
+        <>
+          <dl className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <Dato titulo="Ventas" valor={euros(r.ventas)} grande />
+            <Dato titulo="Tickets" valor={String(r.tickets)} />
+            <Dato
+              titulo="Ticket medio"
+              valor={r.tickets ? euros(Math.round(r.ventas / r.tickets)) : "—"}
+            />
+            {(Object.keys(METODOS) as (keyof typeof METODOS)[]).map((m) =>
+              r.porMetodo[m] ? (
+                <Dato key={m} titulo={METODOS[m]} valor={euros(r.porMetodo[m])} />
+              ) : null,
+            )}
+            {r.propinas > 0 && <Dato titulo="Propinas" valor={euros(r.propinas)} />}
+          </dl>
+          <ul className="mb-4 space-y-1 text-sm">
+            <li>
+              Cajón: contado {euros(contado)} · <TextoDescuadre diferencia={diferencia} />
+            </li>
+            {r.porMetodo.tarjeta > 0 && (
+              <li>
+                Comprueba que el cierre del datáfono da <b>{euros(r.porMetodo.tarjeta)}</b>.
+              </li>
+            )}
+            <li>
+              Anulado: {extras.anulaciones.cantidad} ({euros(extras.anulaciones.importe)}) ·
+              Invitado: {extras.invitaciones.cantidad} ({euros(extras.invitaciones.importe)})
+            </li>
+            {extras.masVendido.length > 0 && (
+              <li>
+                Lo más vendido:{" "}
+                {extras.masVendido.map((p) => `${p.nombre} (${p.unidades})`).join(", ")}
+              </li>
+            )}
+          </ul>
+          <div className="grid grid-cols-[auto_1fr] gap-2">
+            <Boton tamano="grande" onClick={() => setPaso(2)}>
+              Atrás
+            </Boton>
+            <Boton
+              variante="primario"
+              tamano="grande"
+              onClick={async () => {
+                if (
+                  await hacer(
+                    { tipo: "cerrar_caja", efectivoContado: contado },
+                    "Caja cerrada. Sale el informe Z.",
+                  )
+                )
+                  cerrarDialogo();
+              }}
+            >
+              Cerrar caja y sacar el Z
+            </Boton>
+          </div>
+        </>
+      )}
     </Dialogo>
+  );
+}
+
+function TextoDescuadre({ diferencia }: { diferencia: number }) {
+  return (
+    <span
+      className={clsx(
+        "font-semibold",
+        diferencia < 0 ? "text-aviso" : diferencia > 0 ? "text-tinta" : "text-cuenta",
+      )}
+    >
+      {diferencia === 0
+        ? "Cuadra"
+        : diferencia < 0
+          ? `Faltan ${euros(-diferencia)}`
+          : `Sobran ${euros(diferencia)}`}
+    </span>
   );
 }

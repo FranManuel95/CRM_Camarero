@@ -1,5 +1,6 @@
 import "server-only";
 import { enlaceResena, ErrorAccion } from "../dominio/reducir";
+import { resumenDelDia, resumenEnTexto } from "../dominio/resumen-diario";
 import type { Estado, Ticket } from "../dominio/tipos";
 import { aTexto } from "../impresion/documento";
 import { plantillaTicket } from "../impresion/plantillas";
@@ -34,8 +35,29 @@ ${resena ? `<p style="font:15px system-ui,sans-serif;text-align:center;margin:20
   };
 }
 
-export async function mandarTicket(estado: Estado, ticket: Ticket, para: string) {
-  const correo = correoDeTicket(estado, ticket);
+/** Resumen de un día («2026-10-27») para el dueño. */
+export function correoDeResumen(estado: Estado, dia: string) {
+  const resumen = resumenDelDia(estado, dia);
+  const html = `<!doctype html><html lang="es"><body style="margin:0;padding:24px;background:#f4f4f5;font:15px/1.5 system-ui,sans-serif;color:#13212e">
+<div style="max-width:520px;margin:0 auto;background:#fff;padding:24px;border-radius:12px">
+${resumen.apartados
+  .map(
+    (a) =>
+      `<h2 style="font-size:17px;margin:16px 0 4px">${escapar(a.titulo)}</h2><ul style="margin:0;padding-left:20px">${a.lineas.map((l) => `<li>${escapar(l)}</li>`).join("")}</ul>`,
+  )
+  .join("\n")}
+<p style="margin:24px 0 0;font-size:13px;color:#5b6670">Resumen automático de Comanda. Se apaga en Gestión → Ajustes.</p>
+</div></body></html>`;
+  return { asunto: resumen.asunto, texto: resumenEnTexto(resumen), html };
+}
+
+export const mandarResumen = (estado: Estado, dia: string, para: string) =>
+  enviar(para, correoDeResumen(estado, dia));
+
+export const mandarTicket = (estado: Estado, ticket: Ticket, para: string) =>
+  enviar(para, correoDeTicket(estado, ticket));
+
+async function enviar(para: string, correo: { asunto: string; texto: string; html: string }) {
   const r = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {

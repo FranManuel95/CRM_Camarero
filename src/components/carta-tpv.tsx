@@ -1,7 +1,7 @@
 "use client";
 
 import clsx from "clsx";
-import { Minus, MoreHorizontal, Plus, Search } from "lucide-react";
+import { Minus, MoreHorizontal, Plus, Search, Zap } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useDatos, useFuncion } from "@/components/datos-personal";
 import { useAhora } from "@/lib/cliente/use-ahora";
@@ -9,6 +9,7 @@ import { precioConTarifa } from "@/lib/dominio/tarifas";
 import { Boton, Campo, claseEntrada, Dialogo, Interruptor, Vacio } from "@/components/ui";
 import type { LineaPedida } from "@/lib/dominio/acciones";
 import { euros } from "@/lib/dominio/importes";
+import { masPedidos } from "@/lib/dominio/rapidos";
 import type { Producto } from "@/lib/dominio/tipos";
 
 export type Anotar = (linea: LineaPedida) => Promise<boolean>;
@@ -19,6 +20,8 @@ export type Anotar = (linea: LineaPedida) => Promise<boolean>;
  * Lo oculto no lo ve el camarero; el encargado ve lo oculto y lo agotado (en gris) y puede
  * anotarlo igualmente, sin tener que ir a cambiar la carta.
  */
+const RAPIDOS = "rapidos";
+
 export function CartaTpv({
   alAnotar,
   permitirDespues = false,
@@ -39,17 +42,28 @@ export function CartaTpv({
     () => [...estado.categorias].sort((a, b) => a.orden - b.orden),
     [estado.categorias],
   );
-  const [categoriaId, setCategoriaId] = useState(categorias[0]?.id ?? "");
+  // «Rápidos»: lo que más se pide a esta hora, a un toque (si hay historia suficiente).
+  const rapidos = useMemo(() => {
+    const nombres = masPedidos(estado.tickets, ahora);
+    return nombres
+      .map((n) => estado.productos.find((p) => p.nombre === n))
+      .filter((p): p is Producto => Boolean(p && !p.oculto && p.disponible));
+  }, [estado.tickets, estado.productos, ahora]);
+  const hayRapidos = rapidos.length >= 4;
+  const [categoriaId, setCategoriaId] = useState(hayRapidos ? RAPIDOS : (categorias[0]?.id ?? ""));
   const [busqueda, setBusqueda] = useState("");
   const [detalle, setDetalle] = useState<Producto | null>(null);
 
   const termino = busqueda.trim().toLowerCase();
-  const productos = estado.productos
-    .filter((p) => encargado || !p.oculto)
-    .filter((p) =>
-      termino ? p.nombre.toLowerCase().includes(termino) : p.categoriaId === categoriaId,
-    )
-    .sort((a, b) => a.orden - b.orden);
+  const productos =
+    !termino && categoriaId === RAPIDOS
+      ? rapidos
+      : estado.productos
+          .filter((p) => encargado || !p.oculto)
+          .filter((p) =>
+            termino ? p.nombre.toLowerCase().includes(termino) : p.categoriaId === categoriaId,
+          )
+          .sort((a, b) => a.orden - b.orden);
 
   function tocar(p: Producto) {
     if (p.grupos.length) setDetalle(p);
@@ -74,6 +88,23 @@ export function CartaTpv({
       </div>
       {!termino && (
         <div className="mb-3 flex flex-wrap gap-1.5" role="tablist" aria-label="Categorías">
+          {hayRapidos && (
+            <button
+              role="tab"
+              type="button"
+              aria-selected={categoriaId === RAPIDOS}
+              onClick={() => setCategoriaId(RAPIDOS)}
+              title="Lo que más se pide a esta hora"
+              className={clsx(
+                "inline-flex h-10 items-center gap-1 rounded-full px-4 text-sm font-semibold",
+                categoriaId === RAPIDOS
+                  ? "bg-cobalto text-white"
+                  : "bg-cobalto-claro text-cobalto-oscuro ring-1 ring-cobalto",
+              )}
+            >
+              <Zap aria-hidden className="size-4" /> Rápidos
+            </button>
+          )}
           {categorias.map((c) => (
             <button
               key={c.id}

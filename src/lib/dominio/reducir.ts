@@ -31,6 +31,8 @@ import { describir } from "./historial";
 import { apuntarCompra, reglasClub, telefonoLimpio } from "./club";
 import { precioConTarifa } from "./tarifas";
 import { apuntarTiempos } from "./tiempos";
+import { propuestaPrecios } from "./precios-carta";
+import { NOMBRE_PERMISO, puede } from "./permisos";
 import { diasDeSemana, instante, jornadaAbierta, lunesDe } from "./equipo";
 import { sumarDias } from "./informes";
 import { diaLocal, formatearHora } from "../fechas";
@@ -48,6 +50,8 @@ import type {
   LineaCuenta,
   Decoracion,
   Mesa,
+  Permiso,
+  PlanoGuardado,
   MovimientoStock,
   OpcionElegida,
   Pago,
@@ -613,6 +617,7 @@ function aplicarPersonal(
         "esa línea",
       );
       if (linea.estado === "anulada") falla("Esta línea ya estaba anulada.");
+      if (mandada(linea)) permiso(estado, empleado, "anular");
       if (mandada(linea))
         apuntarIncidencia(estado, ctx, "anulacion", linea, empleado, accion.motivo);
       linea.estado = "anulada";
@@ -626,6 +631,7 @@ function aplicarPersonal(
         accion.lineaId,
         "esa línea",
       );
+      permiso(estado, empleado, "invitar");
       linea.invitacion = accion.invitacion;
       estado.incidencias = estado.incidencias.filter(
         (i) => !(i.tipo === "invitacion" && i.lineaId === linea.id),
@@ -695,7 +701,7 @@ function aplicarPersonal(
       cuentaAbierta(estado, accion.cuentaId).comensales = accion.comensales;
       break;
     case "aplicar_descuento": {
-      soloQuienPuede(estado, empleado);
+      permiso(estado, empleado, "descuentos");
       const cuenta = cuentaAbierta(estado, accion.cuentaId);
       cuenta.descuento = accion.descuento;
       if (accion.importe !== undefined) {
@@ -712,7 +718,7 @@ function aplicarPersonal(
       break;
     }
     case "ajustar_lineas": {
-      soloQuienPuede(estado, empleado);
+      permiso(estado, empleado, "descuentos");
       const cuenta = cuentaAbierta(estado, accion.cuentaId);
       const lineas = lineasCobrables(cuenta).filter((l) => accion.lineaIds.includes(l.id));
       if (lineas.length !== accion.lineaIds.length)
@@ -773,6 +779,7 @@ function aplicarPersonal(
       break;
     }
     case "cobrar": {
+      permiso(estado, empleado, "cobrar");
       const cuenta = cuentaAbierta(estado, accion.cuentaId);
       if (cuenta.lineas.some((l) => l.estado === "por_confirmar"))
         falla("Hay un pedido del QR sin aceptar. Acéptalo o recházalo antes de cobrar.");
@@ -813,6 +820,7 @@ function aplicarPersonal(
       break;
     }
     case "venta_rapida": {
+      permiso(estado, empleado, "cobrar");
       apagada(estado, "ventaRapida");
       if (accion.propina) apagada(estado, "propinas");
       const cuenta: Cuenta = {
@@ -886,6 +894,7 @@ function aplicarPersonal(
       const mandadas = cuenta.lineas.some(
         (l) => !["anotada", "anulada", "por_confirmar"].includes(l.estado),
       );
+      if (mandadas) permiso(estado, empleado, "anular");
       if (mandadas && empleado.rol !== "encargado")
         falla("Esta mesa ya tiene cosas en cocina o barra. Solo un encargado puede anularla.");
       for (const l of cuenta.lineas) {
@@ -1084,6 +1093,7 @@ function aplicarPersonal(
       break;
     }
     case "saldar_deuda": {
+      permiso(estado, empleado, "cobrar");
       apagada(estado, "fiado");
       const cliente = buscar(estado.clientes, accion.clienteId, "ese cliente");
       const deuda = cliente.deuda ?? 0;
@@ -1150,6 +1160,7 @@ function aplicarPersonal(
       break;
     }
     case "abrir_caja": {
+      permiso(estado, empleado, "caja");
       if (turnoAbierto(estado)) falla("La caja ya está abierta.");
       estado.turnos.push({
         id: ctx.nuevoId(),
@@ -1165,6 +1176,7 @@ function aplicarPersonal(
       break;
     }
     case "movimiento_caja": {
+      permiso(estado, empleado, "caja");
       const turno = turnoAbierto(estado) ?? falla("La caja está cerrada.");
       turno.movimientos.push({
         id: ctx.nuevoId(),
@@ -1177,6 +1189,7 @@ function aplicarPersonal(
       break;
     }
     case "cerrar_caja": {
+      permiso(estado, empleado, "caja");
       const turno = turnoAbierto(estado) ?? falla("La caja ya está cerrada.");
       turno.cerradoEn = ctx.ahora;
       turno.cerradoPor = empleado.id;
@@ -1368,6 +1381,97 @@ function reducirEncargado(
         delete previa.texto;
         Object.assign(previa, datos);
       } else decoraciones.push({ id: ctx.nuevoId(), ...datos } satisfies Decoracion);
+      break;
+    }
+    case "guardar_resumen_diario":
+      if (accion.activo && !accion.correo) falla("Pon el correo al que lo mandamos.");
+      estado.ajustes.resumenDiario = { correo: accion.correo, activo: accion.activo };
+      break;
+    case "importar_carta": {
+      const igual = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+      let nuevos = 0;
+      for (const c of accion.categorias) {
+        let categoria = estado.categorias.find((x) => igual(x.nombre, c.nombre));
+        if (!categoria) {
+          categoria = {
+            id: ctx.nuevoId(),
+            nombre: c.nombre.trim(),
+            orden: estado.categorias.reduce((m, x) => Math.max(m, x.orden), -1) + 1,
+            destino: c.destino,
+            visibleEnQR: true,
+          };
+          estado.categorias.push(categoria);
+        }
+        const deLaCategoria = estado.productos.filter((p) => p.categoriaId === categoria.id);
+        let orden = deLaCategoria.reduce((m, p) => Math.max(m, p.orden), -1) + 1;
+        for (const p of c.productos) {
+          // Lo que ya está en la carta no se toca.
+          if (deLaCategoria.some((x) => igual(x.nombre, p.nombre))) continue;
+          estado.productos.push({
+            id: ctx.nuevoId(),
+            categoriaId: categoria.id,
+            nombre: p.nombre.trim(),
+            descripcion: p.descripcion.trim(),
+            precio: p.precio,
+            iva: estado.ajustes.ivaPorDefecto,
+            alergenos: p.alergenos,
+            disponible: true,
+            orden: orden++,
+            grupos: [],
+          });
+          nuevos++;
+        }
+      }
+      if (!nuevos) falla("Todo eso ya estaba en la carta.");
+      break;
+    }
+    case "guardar_plano": {
+      const planos = (estado.planos ??= []);
+      const previo = planos.find((p) => p.nombre.toLowerCase() === accion.nombre.toLowerCase());
+      if (!previo && planos.length >= MAX_PLANOS)
+        falla(`Como mucho ${MAX_PLANOS} distribuciones guardadas. Borra alguna antes.`);
+      const foto: PlanoGuardado = {
+        id: previo?.id ?? ctx.nuevoId(),
+        nombre: accion.nombre,
+        guardadoEn: ctx.ahora,
+        mesas: estado.mesas.map(({ id, zonaId, x, y, ancho, alto, forma }) => ({
+          id,
+          zonaId,
+          x,
+          y,
+          ancho,
+          alto,
+          forma,
+        })),
+        decoraciones: structuredClone(estado.decoraciones ?? []),
+      };
+      if (previo) Object.assign(previo, foto);
+      else planos.push(foto);
+      break;
+    }
+    case "usar_plano": {
+      const plano = buscar(estado.planos ?? [], accion.planoId, "esa distribución");
+      const zonas = new Set(estado.zonas.map((z) => z.id));
+      // Las mesas que ya no existen se saltan; las nuevas se quedan donde están.
+      for (const m of plano.mesas) {
+        const mesa = estado.mesas.find((x) => x.id === m.id);
+        if (mesa && zonas.has(m.zonaId)) Object.assign(mesa, m);
+      }
+      estado.decoraciones = structuredClone(plano.decoraciones).filter((d) => zonas.has(d.zonaId));
+      break;
+    }
+    case "borrar_plano":
+      estado.planos = (estado.planos ?? []).filter((p) => p.id !== accion.planoId);
+      break;
+    case "subir_precios": {
+      const cambios = propuestaPrecios(
+        estado,
+        accion.categoriaIds,
+        accion.porcentaje,
+        accion.redondeo,
+      );
+      if (!cambios.length) falla("Con eso no cambia ningún precio.");
+      for (const c of cambios) c.producto.precio = c.despues;
       break;
     }
     case "borrar_decoracion":
@@ -1600,10 +1704,21 @@ function nuevoCliente(
   };
 }
 
-/** Si el bar lo ha decidido así, solo el encargado cambia precios y hace descuentos. */
-function soloQuienPuede(estado: Estado, empleado: Empleado) {
-  if (estado.ajustes.preciosSoloEncargado && empleado.rol !== "encargado")
+/** Distribuciones del plano que se pueden guardar. */
+const MAX_PLANOS = 10;
+
+/** Corta si el encargado no le ha dado ese permiso (ver permisos.ts). */
+function permiso(estado: Estado, empleado: Empleado, cual: Permiso) {
+  if (puede(estado.ajustes, empleado, cual)) return;
+  if (
+    cual === "descuentos" &&
+    estado.ajustes.preciosSoloEncargado &&
+    !empleado.permisos?.descuentos
+  )
     falla("En este bar, los precios y descuentos los cambia el encargado.");
+  falla(
+    `${empleado.nombre}, esto no lo tienes permitido (${NOMBRE_PERMISO[cual].nombre.toLowerCase()}). Pídeselo al encargado.`,
+  );
 }
 
 /** Corta la acción si la función está apagada en este bar. */

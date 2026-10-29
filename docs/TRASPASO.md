@@ -226,6 +226,27 @@ Estado en versión 7 (`clientes`; fuera `pagosOnline`). Todo con pruebas unitari
   mostrador, pared, puerta, ventana, planta, columna, aseos, cocina y rótulo. Se arrastran como
   las mesas, con ancho, alto, girar y duplicar. En la sala se ven debajo de las mesas, sin tocar.
 
+## Herramientas del encargado (29/10/2026)
+
+- **Subir precios de golpe** (`precios-carta.ts`, acción `subir_precios`): % por categorías con
+  redondeo a 0,05/0,10/0,50 y vista previa en Gestión → Carta. Los suplementos no cambian.
+- **Cierre guiado** (Caja → Cerrar caja): pendiente (mesas, avisos, alertas) → contar (por
+  billetes o el total) → resumen (métodos, datáfono, anulaciones, lo más vendido) → Z.
+- **Resumen diario por correo** (`resumen-diario.ts`, `/api/resumen-diario`, cron en
+  `vercel.json` a las 6:17 UTC): Gestión → Ajustes, con vista previa. Para mandarlo hacen falta
+  `RESEND_API_KEY`, `CORREO_REMITENTE` y `CRON_SECRET` en Vercel (sin `CRON_SECRET` el cron no
+  hace nada).
+- **Permisos por persona** (`permisos.ts`, `empleado.permisos`): cobrar, anular, invitar,
+  precios y descuentos, caja. El encargado siempre puede todo; el reductor lo comprueba y las
+  pantallas esconden lo que no se puede.
+- **Rápidos** (`rapidos.ts`): primera pestaña de la carta del camarero con lo más pedido a esa
+  hora en las últimas 4 semanas (sale si hay al menos 4).
+- **Distribuciones guardadas** (`estado.planos`, hasta 10): guardar/usar/borrar en Mesas y QR.
+- **Carta desde una foto** (`src/lib/servidor/carta-foto.ts`, `/api/carta-foto`): con
+  `ANTHROPIC_API_KEY`; se revisa antes de `importar_carta`, que no duplica lo que ya hay.
+- **Buscador de Gestión** (`buscador.ts`, Ctrl+K): carta, tickets (se abren y se reimprimen),
+  clientes, mesas, equipo, gastos, stock y secciones. `?producto=` y `?cliente=` abren la ficha.
+
 ## Pendiente (por orden)
 
 1. **VERI\*FACTU**: probarlo con la AEAT de pruebas y un certificado real, y la declaración

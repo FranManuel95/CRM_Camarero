@@ -22,9 +22,16 @@ export type Empleado = {
   pin: string;
   rol: Rol;
   activo: boolean;
+  /** Lo que puede hacer un camarero (sin marcar, lo de siempre). Ver permisos.ts. */
+  permisos?: Partial<Record<Permiso, boolean>>;
 };
 
+/** Lo que el encargado puede quitar o dar a cada camarero. */
+export type Permiso = "cobrar" | "anular" | "invitar" | "descuentos" | "caja";
+
 export type Ajustes = {
+  /** Resumen del día anterior por correo al dueño, cada mañana. */
+  resumenDiario?: { correo: string; activo: boolean };
   nombreLocal: string;
   razonSocial: string;
   nif: string;
@@ -146,6 +153,15 @@ export type Mesa = {
    * o mesas de clientes habituales que nunca lo quieren.
    */
   sinTicket?: boolean;
+};
+
+/** Una distribución del local guardada («Verano», «Evento») para volver a ella con un toque. */
+export type PlanoGuardado = {
+  id: Id;
+  nombre: string;
+  guardadoEn: FechaISO;
+  mesas: Pick<Mesa, "id" | "zonaId" | "x" | "y" | "ancho" | "alto" | "forma">[];
+  decoraciones: Decoracion[];
 };
 
 /** Lo que se dibuja en el plano además de las mesas. */
@@ -737,6 +753,8 @@ export type Estado = {
   clientes: ClienteClub[];
   /** Mostrador, paredes, puertas, plantas… del plano. */
   decoraciones?: Decoracion[];
+  /** Distribuciones guardadas del plano. */
+  planos?: PlanoGuardado[];
   /** Tiempos de cocina y barra por día y producto (los últimos meses). Ver tiempos.ts. */
   tiemposCocina?: TiempoCocina[];
   /** VERI*FACTU: registros por mandar a la AEAT y los últimos mandados. */

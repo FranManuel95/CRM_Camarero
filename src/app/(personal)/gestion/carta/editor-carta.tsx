@@ -96,14 +96,41 @@ function menuDelDia(categoriaId: string, orden: number): BorradorProducto {
   };
 }
 
-export function EditorCarta({ clavePublica }: { clavePublica: string }) {
+/** El producto como se edita en el formulario (importes en texto). */
+function borradorDe(p: Producto): BorradorProducto {
+  return {
+    ...p,
+    precio: aTexto(p.precio),
+    coste: p.coste === undefined ? "" : aTexto(p.coste),
+    receta: aBorrador(p.receta),
+    grupos: p.grupos.map((g) => ({
+      ...g,
+      opciones: g.opciones.map((o) => ({
+        ...o,
+        suplemento: o.suplemento ? aTexto(o.suplemento) : "",
+      })),
+    })),
+  };
+}
+
+export function EditorCarta({
+  clavePublica,
+  abrirProducto,
+}: {
+  clavePublica: string;
+  /** Desde el buscador de Gestión: se abre con este producto en edición. */
+  abrirProducto?: string;
+}) {
   const { estado, hacer, avisar } = useDatos();
   const conStock = useFuncion("stock");
   const [subiendo, setSubiendo] = useState(false);
   const categorias = [...estado.categorias].sort((a, b) => a.orden - b.orden);
-  const [categoriaId, setCategoriaId] = useState(categorias[0]?.id ?? "");
+  const deEntrada = estado.productos.find((p) => p.id === abrirProducto);
+  const [categoriaId, setCategoriaId] = useState(deEntrada?.categoriaId ?? categorias[0]?.id ?? "");
   const [cat, setCat] = useState<(Omit<Categoria, "id"> & { id?: string }) | null>(null);
-  const [prod, setProd] = useState<BorradorProducto | null>(null);
+  const [prod, setProd] = useState<BorradorProducto | null>(() =>
+    deEntrada ? borradorDe(deEntrada) : null,
+  );
   const actual = categorias.find((c) => c.id === categoriaId);
   const productos = estado.productos
     .filter((p) => p.categoriaId === categoriaId)
@@ -126,19 +153,7 @@ export function EditorCarta({ clavePublica }: { clavePublica: string }) {
   }
 
   function editarProducto(p: Producto) {
-    setProd({
-      ...p,
-      precio: aTexto(p.precio),
-      coste: p.coste === undefined ? "" : aTexto(p.coste),
-      receta: aBorrador(p.receta),
-      grupos: p.grupos.map((g) => ({
-        ...g,
-        opciones: g.opciones.map((o) => ({
-          ...o,
-          suplemento: o.suplemento ? aTexto(o.suplemento) : "",
-        })),
-      })),
-    });
+    setProd(borradorDe(p));
   }
 
   async function guardarProducto() {

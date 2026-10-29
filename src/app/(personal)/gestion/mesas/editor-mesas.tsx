@@ -1,7 +1,16 @@
 "use client";
 
 import clsx from "clsx";
-import { Copy, Plus, QrCode, RefreshCw, RotateCw, Trash2 } from "lucide-react";
+import {
+  Copy,
+  LayoutTemplate,
+  Plus,
+  QrCode,
+  RefreshCw,
+  RotateCw,
+  Save,
+  Trash2,
+} from "lucide-react";
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { useDatos } from "@/components/datos-personal";
@@ -12,6 +21,7 @@ import {
   TIPOS_DECORACION,
 } from "@/components/decoracion-plano";
 import { Boton, Campo, claseEntrada } from "@/components/ui";
+import { formatearFecha } from "@/lib/fechas";
 import type { Decoracion, FormaMesa, Mesa, TipoDecoracion } from "@/lib/dominio/tipos";
 
 /** Lo que se puede mover en el plano: una mesa o una decoración. */
@@ -291,6 +301,7 @@ export function EditorMesas() {
             Arrastra las mesas, el mostrador, las puertas… para dibujar tu local. Con el teclado:
             flechas (con Mayúsculas, más rápido).
           </p>
+          <PlanosGuardados />
         </div>
 
         <aside
@@ -567,5 +578,88 @@ function FormularioDecoracion({
         </Boton>
       </div>
     </div>
+  );
+}
+
+/** Distribuciones guardadas («Invierno», «Verano con terraza», «Evento») para cambiar de golpe. */
+function PlanosGuardados() {
+  const { estado, hacer } = useDatos();
+  const planos = estado.planos ?? [];
+  return (
+    <section aria-labelledby="t-planos" className="mt-4 rounded-2xl bg-white p-4 ring-1 ring-zinc">
+      <div className="mb-1 flex flex-wrap items-center gap-2">
+        <h2 id="t-planos" className="mr-auto font-rotulo text-2xl font-bold">
+          Distribuciones guardadas
+        </h2>
+        <Boton
+          tamano="pequeno"
+          onClick={async () => {
+            const nombre = prompt(
+              "Nombre para esta distribución (por ejemplo, Verano o Evento):",
+            )?.trim();
+            if (nombre)
+              await hacer({ tipo: "guardar_plano", nombre }, `Distribución «${nombre}» guardada`);
+          }}
+        >
+          <Save aria-hidden className="size-4" /> Guardar la de ahora
+        </Boton>
+      </div>
+      <p className="mb-2 text-sm text-tinta-suave">
+        Guarda cómo están colocadas las mesas y lo demás para volver a ello con un toque: por
+        ejemplo, una para invierno y otra para el verano con la terraza.
+      </p>
+      {planos.length === 0 ? (
+        <p className="text-sm text-tinta-suave">Ninguna todavía.</p>
+      ) : (
+        <ul className="divide-y divide-zinc">
+          {planos.map((p) => (
+            <li key={p.id} className="flex flex-wrap items-center gap-2 py-2">
+              <span className="min-w-0 flex-1">
+                <span className="block font-semibold">{p.nombre}</span>
+                <span className="block text-sm text-tinta-suave">
+                  Guardada el {formatearFecha(p.guardadoEn)}
+                </span>
+              </span>
+              <Boton
+                tamano="pequeno"
+                variante="primario"
+                aria-label={`Usar la distribución ${p.nombre}`}
+                onClick={() => {
+                  if (confirm(`¿Colocar las mesas como en «${p.nombre}»?`))
+                    void hacer(
+                      { tipo: "usar_plano", planoId: p.id },
+                      `Plano cambiado a «${p.nombre}»`,
+                    );
+                }}
+              >
+                <LayoutTemplate aria-hidden className="size-4" /> Usar
+              </Boton>
+              <Boton
+                tamano="pequeno"
+                variante="fantasma"
+                aria-label={`Guardar lo de ahora en ${p.nombre}`}
+                onClick={() => {
+                  if (confirm(`¿Guardar cómo está ahora el plano en «${p.nombre}»?`))
+                    void hacer({ tipo: "guardar_plano", nombre: p.nombre }, "Guardada");
+                }}
+              >
+                <Save aria-hidden className="size-4" />
+              </Boton>
+              <Boton
+                tamano="pequeno"
+                variante="fantasma"
+                aria-label={`Borrar la distribución ${p.nombre}`}
+                onClick={() => {
+                  if (confirm(`¿Borrar la distribución «${p.nombre}»?`))
+                    void hacer({ tipo: "borrar_plano", planoId: p.id }, "Borrada");
+                }}
+              >
+                <Trash2 aria-hidden className="size-4" />
+              </Boton>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }

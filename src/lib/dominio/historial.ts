@@ -216,6 +216,20 @@ export function describir(accion: AccionPersonal, antes: Estado, despues: Estado
       return `Cambió los precios por horario y zona (${accion.tarifas.filter((t) => t.activa).length} activos)`;
     case "reglas_club":
       return `Cambió los puntos del club: ${accion.reglas.puntosPremio} puntos = ${euros(accion.reglas.valorPremio)}`;
+    case "subir_precios": {
+      const donde = accion.categoriaIds.length
+        ? accion.categoriaIds.map((id) => nombreDe(antes.categorias, id)).join(", ")
+        : "toda la carta";
+      const signo = accion.porcentaje > 0 ? "+" : "";
+      const cuantos = despues.productos.filter(
+        (p) => p.precio !== antes.productos.find((x) => x.id === p.id)?.precio,
+      ).length;
+      return `Cambió los precios de ${donde}: ${signo}${accion.porcentaje} % (${cuantos} productos)`;
+    }
+    case "usar_plano":
+      return `Cambió el plano a «${antes.planos?.find((p) => p.id === accion.planoId)?.nombre ?? "otra distribución"}»`;
+    case "importar_carta":
+      return `Dio de alta la carta desde una foto (${despues.productos.length - antes.productos.length} productos)`;
     case "copiar_semana":
       return "Copió los turnos de una semana a otra";
     default:

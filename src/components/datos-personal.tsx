@@ -12,7 +12,8 @@ import {
 } from "react";
 import type { AccionPersonal } from "@/lib/dominio/acciones";
 import { disponible, type Funcion } from "@/lib/dominio/funciones";
-import type { Rol } from "@/lib/dominio/tipos";
+import type { Permiso, Rol } from "@/lib/dominio/tipos";
+import { puede } from "@/lib/dominio/permisos";
 import { enviarAccion, type RespuestaAccion } from "@/lib/cliente/api";
 import { imprimirTrabajos, imprimirUno, tocaAqui } from "@/lib/cliente/impresion-local";
 import { useEnDirecto } from "@/lib/cliente/use-en-directo";
@@ -219,6 +220,13 @@ export function DatosPersonal({
 export function useFuncion(funcion: Funcion): boolean {
   const { estado } = useDatos();
   return disponible(estado.ajustes, estado.servicios, funcion);
+}
+
+/** ¿Puede la persona que está usando la app hacer esto? (cobrar, anular, invitar…) */
+export function usePuede(permiso: Permiso): boolean {
+  const { estado, empleado } = useDatos();
+  const yo = estado.empleados.find((e) => e.id === empleado.id) ?? { ...empleado };
+  return puede(estado.ajustes, yo, permiso);
 }
 
 const SIN_PENDIENTES: Pendiente[] = [];

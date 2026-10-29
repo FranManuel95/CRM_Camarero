@@ -72,3 +72,31 @@ export function resumenTurno(estado: Pick<Estado, "tickets">, turno: TurnoCaja):
     desglose: [...iva.entries()].sort(([a], [b]) => a - b).map(([tipo, v]) => ({ tipo, ...v })),
   };
 }
+
+/** Lo que conviene mirar al cerrar: anulaciones, invitaciones y lo más vendido del turno. */
+export function extrasDelTurno(
+  estado: Pick<Estado, "tickets" | "incidencias">,
+  turno: TurnoCaja,
+): {
+  anulaciones: { cantidad: number; importe: Centimos };
+  invitaciones: { cantidad: number; importe: Centimos };
+  masVendido: { nombre: string; unidades: number }[];
+} {
+  const fin = turno.cerradoEn ?? "9999";
+  const suma = (tipo: "anulacion" | "invitacion") =>
+    estado.incidencias
+      .filter((i) => i.tipo === tipo && i.fecha >= turno.abiertoEn && i.fecha <= fin)
+      .reduce((s, i) => ({ cantidad: s.cantidad + i.cantidad, importe: s.importe + i.importe }), {
+        cantidad: 0,
+        importe: 0,
+      });
+  const unidades = new Map<string, number>();
+  for (const t of ticketsDelTurno(estado, turno))
+    for (const l of t.lineas)
+      if (l.cantidad > 0) unidades.set(l.producto, (unidades.get(l.producto) ?? 0) + l.cantidad);
+  const masVendido = [...unidades.entries()]
+    .map(([nombre, u]) => ({ nombre, unidades: u }))
+    .sort((a, b) => b.unidades - a.unidades)
+    .slice(0, 3);
+  return { anulaciones: suma("anulacion"), invitaciones: suma("invitacion"), masVendido };
+}
