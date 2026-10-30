@@ -9,7 +9,6 @@ import { precioConTarifa } from "@/lib/dominio/tarifas";
 import { Boton, Campo, claseEntrada, Dialogo, Interruptor, Vacio } from "@/components/ui";
 import type { LineaPedida } from "@/lib/dominio/acciones";
 import { euros } from "@/lib/dominio/importes";
-import { masPedidos } from "@/lib/dominio/rapidos";
 import type { Producto } from "@/lib/dominio/tipos";
 
 export type Anotar = (linea: LineaPedida) => Promise<boolean>;
@@ -44,11 +43,12 @@ export function CartaTpv({
   );
   // «Rápidos»: lo que más se pide a esta hora, a un toque (si hay historia suficiente).
   const rapidos = useMemo(() => {
-    const nombres = masPedidos(estado.tickets, ahora);
+    // Lo calcula el servidor con las últimas semanas (aquí solo llegan los tickets de hoy).
+    const nombres = estado.rapidos ?? [];
     return nombres
       .map((n) => estado.productos.find((p) => p.nombre === n))
       .filter((p): p is Producto => Boolean(p && !p.oculto && p.disponible));
-  }, [estado.tickets, estado.productos, ahora]);
+  }, [estado.rapidos, estado.productos]);
   const hayRapidos = rapidos.length >= 4;
   const [categoriaId, setCategoriaId] = useState(hayRapidos ? RAPIDOS : (categorias[0]?.id ?? ""));
   const [busqueda, setBusqueda] = useState("");

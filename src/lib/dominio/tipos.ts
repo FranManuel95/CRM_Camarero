@@ -676,6 +676,11 @@ export type TurnoCaja = {
   efectivoContado: Centimos | null;
   abiertoPor: Id | null;
   cerradoPor: Id | null;
+  /**
+   * Solo en lo que se manda a las pantallas: las cifras del cierre ya calculadas, para no tener
+   * que mandar todos sus tickets. No se guarda.
+   */
+  cifras?: { ventas: Centimos; tickets: number; descuadre: Centimos | null };
 };
 
 export type TipoAviso = "llamar" | "cuenta" | "pedido_qr" | "listo";

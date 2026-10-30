@@ -2,7 +2,7 @@ import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import type { Empleado } from "../dominio/tipos";
-import { enLaNube, LOCAL_ARCHIVO, leerEstado, secreto } from "./almacen";
+import { enLaNube, equipoDe, LOCAL_ARCHIVO, secreto } from "./almacen";
 
 /**
  * Tres cookies firmadas (nadie puede fabricarlas sin el secreto del servidor):
@@ -71,7 +71,7 @@ export async function sesionActual(): Promise<Sesion | null> {
   if (!partes) return null;
   const [local, id] = partes as [string, string];
   try {
-    const empleado = (await leerEstado(local)).empleados.find((e) => e.id === id && e.activo);
+    const empleado = (await equipoDe(local)).find((e) => e.id === id && e.activo);
     return empleado ? { local, empleado } : null;
   } catch {
     return null;

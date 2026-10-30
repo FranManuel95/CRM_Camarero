@@ -88,6 +88,8 @@ export function almacenSupabase(local: string, esDemo: boolean): Almacen {
     },
     fichajesEntre: (desde, hasta) =>
       rpc<Fichaje[]>("tpv_fichajes", { p_desde: desde, p_hasta: hasta }),
+    ticketsEntre: (desde, hasta) =>
+      rpc<Ticket[]>("tpv_tickets", { p_desde: desde, p_hasta: hasta }),
     async cambiar(aplicar) {
       for (let intento = 0; intento < 6; intento++) {
         const { revision, estado, ids, previos } = await cargar();

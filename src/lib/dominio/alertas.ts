@@ -34,7 +34,7 @@ export function alertasEncargado(estado: Estado, ahora: string): Alerta[] {
     .filter((t) => t.cerradoEn)
     .sort((a, b) => b.cerradoEn!.localeCompare(a.cerradoEn!))[0];
   if (cerrado && diaLocal(cerrado.cerradoEn!) >= sumarDias(hoy, -1)) {
-    const { descuadre } = resumenTurno(estado, cerrado);
+    const descuadre = (cerrado.cifras ?? resumenTurno(estado, cerrado)).descuadre;
     if (descuadre !== null && Math.abs(descuadre) >= DESCUADRE_PARA_AVISAR)
       alertas.push({
         clave: `descuadre-${cerrado.id}`,

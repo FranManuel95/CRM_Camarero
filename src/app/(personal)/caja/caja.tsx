@@ -88,7 +88,8 @@ export function Caja() {
         ) : (
           <ul className="space-y-2">
             {cerrados.slice(0, 20).map((t) => {
-              const r = resumenTurno(estado, t);
+              // Las cifras de los cierres vienen calculadas: sus tickets no viajan a la pantalla.
+              const r = t.cifras ?? resumenTurno(estado, t);
               return (
                 <li key={t.id} className="rounded-xl bg-white p-3 ring-1 ring-zinc">
                   <div className="flex items-baseline justify-between">

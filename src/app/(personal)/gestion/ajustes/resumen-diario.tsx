@@ -5,7 +5,8 @@ import { useState } from "react";
 import { useDatos } from "@/components/datos-personal";
 import { Boton, Campo, claseEntrada, Interruptor } from "@/components/ui";
 import { useAhora } from "@/lib/cliente/use-ahora";
-import { sumarDias } from "@/lib/dominio/informes";
+import { useConTickets } from "@/lib/cliente/use-tickets";
+import { rangoDeDias, sumarDias } from "@/lib/dominio/informes";
 import { fechaLarga, resumenDelDia } from "@/lib/dominio/resumen-diario";
 import { diaLocal } from "@/lib/fechas";
 
@@ -18,7 +19,9 @@ export function ResumenDiario() {
   const [mandando, setMandando] = useState(false);
   const conCorreo = estado.servicios.correo;
   const ayer = sumarDias(diaLocal(ahora), -1);
-  const vista = resumenDelDia(estado, ayer);
+  // Ayer y el mismo día de la semana anterior (para comparar).
+  const { estado: conTickets } = useConTickets(rangoDeDias(sumarDias(ayer, -7), ayer));
+  const vista = resumenDelDia(conTickets, ayer);
 
   const guardar = (activo: boolean) =>
     hacer(

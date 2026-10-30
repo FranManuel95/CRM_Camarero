@@ -1,6 +1,6 @@
 "use client";
 
-import { useDatos } from "@/components/datos-personal";
+import { useConTickets } from "@/lib/cliente/use-tickets";
 import { useAhora } from "@/lib/cliente/use-ahora";
 import { formatearMinutos, informePorCamarero } from "@/lib/dominio/equipo";
 import { euros } from "@/lib/dominio/importes";
@@ -8,7 +8,7 @@ import type { Rango } from "@/lib/dominio/informes";
 
 /** Ventas, propinas, anulaciones, invitaciones y horas de cada persona en el periodo. */
 export function PorCamarero({ rango }: { rango: Rango }) {
-  const { estado } = useDatos();
+  const { estado } = useConTickets(rango);
   const ahora = useAhora(60_000);
   const filas = informePorCamarero(estado, rango, ahora);
   return (

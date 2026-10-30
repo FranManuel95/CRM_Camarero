@@ -17,8 +17,9 @@ import {
   reducirPersonal,
   reducirReservaOnline,
   usarCodigoVinculo,
+  ErrorAccion,
 } from "../dominio/reducir";
-import type { Empleado, Estado, Fichaje, TrabajoImpresion } from "../dominio/tipos";
+import type { Empleado, Estado, Fichaje, Ticket, TrabajoImpresion } from "../dominio/tipos";
 import { almacenArchivo } from "./almacen-archivo";
 import { almacenSupabase } from "./almacen-supabase";
 
@@ -40,6 +41,8 @@ export type Almacen = {
   restaurar?(estado: Estado): Promise<void>;
   /** Los fichajes que empezaron entre dos instantes (el registro de jornada completo). */
   fichajesEntre(desde: string, hasta: string): Promise<Fichaje[]>;
+  /** Los tickets entre dos instantes (para informes: no viajan con los datos en directo). */
+  ticketsEntre(desde: string, hasta: string): Promise<Ticket[]>;
   /** Solo en la nube: guarda el estado inicial de un bar recién creado. */
   iniciar?(estado: Estado): Promise<void>;
   /** Solo en modo archivo: avisos de cambios para el flujo SSE. */
@@ -111,6 +114,27 @@ export function secreto(): string {
 
 export const leerEstado = (local: string) => almacen(local).leer();
 
+/**
+ * El equipo de cada bar, recordado unos segundos en este servidor: comprobar la sesión en cada
+ * petición no necesita leer todo el bar. Las acciones vuelven a comprobar a la persona con los
+ * datos frescos (ver ejecutarPersonal).
+ */
+const equipos = new Map<string, { empleados: Empleado[]; hasta: number }>();
+const RECUERDO_EQUIPO_MS = 20_000;
+
+export function recordarEquipo(local: string, empleados: Empleado[]) {
+  if (equipos.size > 2000) equipos.clear();
+  equipos.set(local, { empleados, hasta: Date.now() + RECUERDO_EQUIPO_MS });
+}
+
+export async function equipoDe(local: string): Promise<Empleado[]> {
+  const recordado = equipos.get(local);
+  if (recordado && recordado.hasta > Date.now()) return recordado.empleados;
+  const { empleados } = await leerEstado(local);
+  recordarEquipo(local, empleados);
+  return empleados;
+}
+
 function resumir(trabajos: TrabajoImpresion[]): TrabajoResumen[] {
   return trabajos.map(({ id, estado, titulo, impresoraId, destino, tipo }) => ({
     id,
@@ -128,12 +152,26 @@ async function tras(a: Almacen, resultado: Promise<Resultado>) {
   return resumir(r.trabajos);
 }
 
-export function ejecutarPersonal(local: string, accion: AccionPersonal, empleado: Empleado) {
+/**
+ * Aplica una acción del personal. La persona se vuelve a mirar en los datos recién leídos (así
+ * un permiso quitado o una baja cuentan al momento). Devuelve los trabajos de impresión y el
+ * estado ya cambiado (para contestar con la vista nueva sin otra lectura).
+ */
+export async function ejecutarPersonal(local: string, accion: AccionPersonal, empleado: Empleado) {
   const a = almacen(local);
-  return tras(
+  let despues: Estado | null = null;
+  const trabajos = await tras(
     a,
-    a.cambiar((e) => reducirPersonal(e, accion, empleado, contexto())),
+    a.cambiar((e) => {
+      const yo = e.empleados.find((x) => x.id === empleado.id && x.activo);
+      if (!yo) throw new ErrorAccion("Tu usuario ya no está activo en este bar.");
+      const r = reducirPersonal(e, accion, yo, contexto());
+      despues = r.estado;
+      return r;
+    }),
   );
+  if (despues) recordarEquipo(local, (despues as Estado).empleados);
+  return { trabajos, estado: despues as Estado | null };
 }
 
 export function ejecutarCliente(local: string, token: string, accion: AccionCliente) {

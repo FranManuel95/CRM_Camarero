@@ -249,12 +249,21 @@ Estado en versión 7 (`clientes`; fuera `pagosOnline`). Todo con pruebas unitari
 
 ## Pendiente (por orden)
 
-1. **VERI\*FACTU**: probarlo con la AEAT de pruebas y un certificado real, y la declaración
-   responsable, antes de usarlo como TPV fiscal real.
-2. Probar con una **impresora térmica real** de red (solo se ha probado el formato de los bytes y
-   la vista previa; aquí no hay impresora).
-3. Datáfono integrado (hace falta elegir proveedor).
-4. Clave de Resend en Vercel cuando el bar tenga cuenta.
+1. **Planes de pago**: Vercel Pro (Hobby no permite uso comercial) y Supabase Pro (copias y sin
+   pausas).
+2. **Supabase Auth**: desactivar «Confirm email» y poner la Site URL / Redirect URLs.
+3. **Papeles**: contrato con el bar, encargo de tratamiento (RGPD) y política de privacidad.
+4. **Impresoras en el local**: probar tickets, comandas y cajón. El ordenador del puente y las
+   impresoras, por cable; recomendado un router 4G de respaldo. Falta saber si sus impresoras son
+   de red o USB (el puente solo imprime por red, IP:9100).
+5. **IA de cualquier proveedor**: hacer que facturas y carta desde foto valgan para cualquier API
+   compatible con OpenAI (Gemini, Mistral, OpenRouter…), con cadena gratis → de pago.
+6. **VERI\*FACTU**: certificado del bar (.p12), prueba en el entorno de pruebas de la AEAT y
+   declaración responsable del fabricante (la firma el usuario; hay que redactarla).
+7. **Correo**: Resend (`RESEND_API_KEY`, `CORREO_REMITENTE`) y `CRON_SECRET`.
+8. **Dominio**: comandatpv.es (registrador español, ~8–15 €/año) o comandatpv.com (Vercel,
+   11,25 $/año); los dos libres el 30/10/2026.
+9. Datáfono integrado (opcional).
 
 ## Trucos del entorno
 

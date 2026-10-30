@@ -2,7 +2,7 @@
 
 import { Download } from "lucide-react";
 import { useState } from "react";
-import { useDatos } from "@/components/datos-personal";
+import { useConTickets } from "@/lib/cliente/use-tickets";
 import { Barras } from "@/components/barras";
 import { Boton, claseEntrada } from "@/components/ui";
 import { euros } from "@/lib/dominio/importes";
@@ -11,7 +11,6 @@ import { NOMBRE_CATEGORIA_GASTO } from "@/lib/dominio/tipos";
 import { aCsv, importeCsv } from "@/lib/csv";
 import { descargar } from "@/lib/cliente/descargar";
 import { diaLocal, formatearFechaHora } from "@/lib/fechas";
-import { DIAS_EN_PANTALLA } from "@/lib/constantes";
 import { PorCamarero } from "./por-camarero";
 import { RepartoPropinas } from "./propinas";
 import { TiemposCocina } from "./tiempos";
@@ -25,11 +24,11 @@ const METODOS = {
 } as const;
 
 export function Informes() {
-  const { estado } = useDatos();
   const hoy = diaLocal(new Date().toISOString());
   const [desde, setDesde] = useState(`${hoy.slice(0, 8)}01`);
   const [hasta, setHasta] = useState(hoy);
   const rango = rangoDeDias(desde, hasta < desde ? desde : hasta);
+  const { estado, cargando, error } = useConTickets(rango);
   const r = informe(estado, rango);
   const tickets = estado.tickets.filter((t) => t.fecha >= rango.desde && t.fecha < rango.hasta);
 
@@ -157,9 +156,12 @@ export function Informes() {
           </Boton>
         </div>
       </div>
-      <p className="mb-4 text-xs text-tinta-suave">
-        En pantalla se ven los últimos {DIAS_EN_PANTALLA} días. El histórico completo está en el
-        archivo de datos del local.
+      <p className="mb-4 text-xs text-tinta-suave" aria-live="polite">
+        {cargando
+          ? "Cargando los tickets de esas fechas…"
+          : error
+            ? "No se han podido traer los tickets de esas fechas. Prueba otra vez en un momento."
+            : "Puedes elegir cualquier periodo (hasta algo más de un año de una vez)."}
       </p>
 
       <dl className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">

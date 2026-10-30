@@ -7,6 +7,10 @@ import { precioConTarifa } from "../dominio/tarifas";
 import { cuentaEnJuego, nombreLlevar } from "../dominio/selectores";
 import { pagadoCuenta, totalCuenta } from "../dominio/importes";
 import { dentroDeHorario } from "../dominio/horario";
+import { resumenTurno } from "../dominio/caja";
+import { inicioDelDia } from "../dominio/informes";
+import { masPedidos } from "../dominio/rapidos";
+import { diaLocal } from "../fechas";
 import type { Cuenta, Empleado, Estado, LineaCuenta } from "../dominio/tipos";
 
 /**
@@ -21,9 +25,26 @@ export function vistaPersonal(
   ahora = Date.now(),
 ) {
   const desde = new Date(ahora - DIAS_EN_PANTALLA * 86_400_000).toISOString();
-  const suyo = (empleadoId: string | null) => quien.rol === "encargado" || empleadoId === quien.id;
+  const ahoraIso = new Date(ahora).toISOString();
+  const encargado = quien.rol === "encargado";
+  const suyo = (empleadoId: string | null) => encargado || empleadoId === quien.id;
+  // Con los datos en directo solo viajan los tickets de hoy y del turno abierto: los demás se
+  // piden aparte cuando hacen falta (informes). Así cada recarga pesa poco aunque el bar lleve
+  // meses vendiendo.
+  const abierto = estado.turnos.find((t) => !t.cerradoEn);
+  const hoy = inicioDelDia(diaLocal(ahoraIso));
+  const desdeTickets = abierto && abierto.abiertoEn < hoy ? abierto.abiertoEn : hoy;
+  const { gastos, vinculos, ...resto } = estado;
   return {
-    ...estado,
+    ...resto,
+    gastos: encargado ? gastos : [],
+    vinculos: encargado ? vinculos : [],
+    /** Lo más pedido a esta hora (pestaña «Rápidos»), ya calculado. */
+    rapidos: masPedidos(estado.tickets, ahoraIso),
+    /** Si el bar ya ha cobrado alguna vez (primeros pasos). */
+    hayTickets: estado.tickets.length > 0,
+    // El correo del dueño solo lo ve el encargado.
+    ajustes: encargado ? estado.ajustes : { ...estado.ajustes, resumenDiario: undefined },
     /** Identificador del bar (va en la dirección de los QR). */
     local,
     /** Qué claves tiene el servidor: sin ellas, algunas funciones no se pueden encender. */
@@ -32,8 +53,17 @@ export function vistaPersonal(
     entornoAeat: process.env.VERIFACTU_ENTORNO === "produccion" ? "produccion" : "pruebas",
     empleados: estado.empleados.map((e) => ({ ...e, pin: "" })),
     cuentas: estado.cuentas.filter((c) => cuentaEnJuego(c, ahora)),
-    tickets: estado.tickets.filter((t) => t.fecha >= desde),
-    turnos: estado.turnos.filter((t) => !t.cerradoEn || t.cerradoEn >= desde),
+    tickets: estado.tickets.filter((t) => t.fecha >= desdeTickets),
+    turnos: estado.turnos
+      .filter((t) => !t.cerradoEn || t.cerradoEn >= desde)
+      .map((t) => {
+        if (!t.cerradoEn) return t;
+        const r = resumenTurno(estado, t);
+        return { ...t, cifras: { ventas: r.ventas, tickets: r.tickets, descuadre: r.descuadre } };
+      }),
+    tiemposCocina: encargado
+      ? (estado.tiemposCocina ?? []).filter((x) => x.dia >= desde.slice(0, 10))
+      : [],
     fichajes: estado.fichajes.filter(
       (f) => suyo(f.empleadoId) && (f.entrada >= desde || !f.salida),
     ),

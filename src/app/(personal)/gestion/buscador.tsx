@@ -5,7 +5,11 @@ import Link from "next/link";
 import { useDeferredValue, useEffect, useRef, useState } from "react";
 import { useDatos } from "@/components/datos-personal";
 import { Boton, claseEntrada, Dialogo } from "@/components/ui";
+import { useConTickets } from "@/lib/cliente/use-tickets";
+import { DIAS_EN_PANTALLA } from "@/lib/constantes";
 import { buscarEnGestion, type Resultado } from "@/lib/dominio/buscador";
+import { rangoDeDias, sumarDias } from "@/lib/dominio/informes";
+import { diaLocal } from "@/lib/fechas";
 import { euros } from "@/lib/dominio/importes";
 import type { Ticket } from "@/lib/dominio/tipos";
 
@@ -14,11 +18,16 @@ import type { Ticket } from "@/lib/dominio/tipos";
  * Ctrl+K (o Cmd+K) lo enfoca desde cualquier pantalla de Gestión.
  */
 export function BuscadorGestion() {
-  const { estado } = useDatos();
   const [consulta, setConsulta] = useState("");
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const diferida = useDeferredValue(consulta);
   const entrada = useRef<HTMLInputElement>(null);
+  // Los tickets de las últimas semanas se piden solo al empezar a buscar.
+  const hoy = diaLocal(new Date().toISOString());
+  const { estado } = useConTickets(
+    rangoDeDias(sumarDias(hoy, -DIAS_EN_PANTALLA), hoy),
+    diferida.trim().length >= 2,
+  );
   const resultados = buscarEnGestion(estado, diferida);
   const grupos = Map.groupBy(resultados, (r) => r.grupo);
 

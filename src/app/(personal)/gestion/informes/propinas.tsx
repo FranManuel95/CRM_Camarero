@@ -2,7 +2,7 @@
 
 import clsx from "clsx";
 import { useState } from "react";
-import { useDatos } from "@/components/datos-personal";
+import { useConTickets } from "@/lib/cliente/use-tickets";
 import { useAhora } from "@/lib/cliente/use-ahora";
 import { formatearMinutos, repartoPropinas } from "@/lib/dominio/equipo";
 import { euros } from "@/lib/dominio/importes";
@@ -10,7 +10,7 @@ import type { Rango } from "@/lib/dominio/informes";
 
 /** Cuánto le toca a cada uno de las propinas del periodo, por horas fichadas o a partes iguales. */
 export function RepartoPropinas({ rango }: { rango: Rango }) {
-  const { estado } = useDatos();
+  const { estado } = useConTickets(rango);
   const ahora = useAhora(60_000);
   const [modo, setModo] = useState<"horas" | "iguales">("horas");
   const { total, filas } = repartoPropinas(estado, rango, ahora, modo);

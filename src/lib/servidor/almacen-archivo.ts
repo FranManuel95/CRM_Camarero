@@ -111,6 +111,8 @@ export function almacenArchivo(): Almacen {
     },
     fichajesEntre: async (desde, hasta) =>
       estado.fichajes.filter((f) => f.entrada >= desde && f.entrada < hasta),
+    ticketsEntre: async (desde, hasta) =>
+      estado.tickets.filter((t) => t.fecha >= desde && t.fecha < hasta),
     async cambiar(aplicar) {
       const r = aplicar(estado);
       guardar(r.estado);

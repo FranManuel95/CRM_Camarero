@@ -1,5 +1,6 @@
 import type { AccionPersonal } from "../dominio/acciones";
 import type { TrabajoImpresion } from "../dominio/tipos";
+import type { VistaPersonal } from "../servidor/vistas";
 
 export type RespuestaAccion = {
   error?: string;
@@ -9,6 +10,8 @@ export type RespuestaAccion = {
     TrabajoImpresion,
     "id" | "estado" | "titulo" | "impresoraId" | "destino" | "tipo"
   >[];
+  /** Cómo queda todo tras el cambio (así no hace falta volver a pedirlo). */
+  vista?: VistaPersonal;
 };
 
 export async function enviarAccion(accion: AccionPersonal): Promise<RespuestaAccion> {

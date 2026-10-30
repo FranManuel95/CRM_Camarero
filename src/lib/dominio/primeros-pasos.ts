@@ -5,7 +5,7 @@ export function primerosPasos(
   estado: Pick<
     Estado,
     "ajustes" | "productos" | "mesas" | "empleados" | "impresoras" | "tickets" | "trabajos"
-  >,
+  > & { hayTickets?: boolean },
 ) {
   return [
     {
@@ -42,7 +42,8 @@ export function primerosPasos(
       clave: "cobro",
       texto: "Haz tu primer cobro",
       enlace: "/sala",
-      hecho: estado.tickets.length > 0,
+      // En las pantallas solo llegan los tickets de hoy: el servidor dice si hubo alguno.
+      hecho: estado.hayTickets ?? estado.tickets.length > 0,
     },
   ];
 }

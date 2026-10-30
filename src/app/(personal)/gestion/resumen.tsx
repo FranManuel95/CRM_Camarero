@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useDatos, useFuncion } from "@/components/datos-personal";
+import { useConTickets } from "@/lib/cliente/use-tickets";
 import { Barras } from "@/components/barras";
 import { ListaAlertas } from "@/components/alertas";
 import { euros } from "@/lib/dominio/importes";
@@ -19,9 +20,11 @@ const nombreDia = new Intl.DateTimeFormat("es-ES", {
 });
 
 export function Resumen() {
-  const { estado } = useDatos();
   const ahora = useAhora(60_000);
   const hoy = diaLocal(ahora);
+  // Lo que enseña esta pantalla: los últimos 14 días y el mes en curso.
+  const inicio = [sumarDias(hoy, -13), `${hoy.slice(0, 8)}01`].sort()[0]!;
+  const { estado } = useConTickets(rangoDeDias(inicio, hoy));
   const deHoy = informe(estado, rangoDeDias(hoy, hoy));
   const ayer = informe(estado, rangoDeDias(sumarDias(hoy, -1), sumarDias(hoy, -1)));
   const catorce = informe(estado, rangoDeDias(sumarDias(hoy, -13), hoy));

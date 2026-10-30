@@ -171,8 +171,9 @@ export function DatosPersonal({
         return false;
       }
       if (mensajeOk) avisar(mensajeOk);
-      // En la nube, quien hace el cambio no espera al aviso de Realtime: pide los datos ya.
-      if (directo.tipo === "supabase") refrescar();
+      // Quien hace el cambio no espera al aviso en directo: la respuesta ya trae cómo queda.
+      if (r.vista) setEstado(r.vista);
+      else if (directo.tipo === "supabase") refrescar();
       if (r.trabajos?.length) imprimirTrabajos(r.trabajos);
       return true;
     },
