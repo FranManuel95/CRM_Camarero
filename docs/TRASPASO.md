@@ -247,6 +247,31 @@ Estado en versión 7 (`clientes`; fuera `pagosOnline`). Todo con pruebas unitari
 - **Buscador de Gestión** (`buscador.ts`, Ctrl+K): carta, tickets (se abren y se reimprimen),
   clientes, mesas, equipo, gastos, stock y secciones. `?producto=` y `?cliente=` abren la ficha.
 
+## Escala, errores y seguridad (30/10/2026)
+
+- **Datos en directo ligeros** (`vistas.ts`): solo los tickets de hoy y del turno abierto. Lo
+  demás se pide con `/api/tickets?desde&hasta` (encargado) mediante `useConTickets`
+  (`src/lib/cliente/use-tickets.ts`), que guarda lo pedido. «Rápidos», las cifras de los cierres
+  (`turno.cifras`) y `hayTickets` llegan calculados. Bar de ejemplo: 419 KB → 40 KB por recarga.
+- **Una lectura por acción**: `sesionActual` usa el equipo recordado 20 s (`equipoDe`);
+  `ejecutarPersonal` vuelve a comprobar a la persona con los datos frescos y devuelve el estado,
+  y `/api/acciones` contesta con la vista nueva (el cliente no vuelve a pedirla).
+- **El bar no crece**: `podar` en el reductor quita cuentas cerradas hace más de 2 días y lo
+  impreso hace más de un día (594 KB → 157 KB en el ejemplo).
+- **Registro**: una línea JSON por suceso (`src/lib/servidor/registro.ts`): `accion` (bar, tipo,
+  ms), `accion_rechazada`, `fallo_servidor`, `error_sin_capturar` (`src/instrumentation.ts`) y
+  `error_pantalla` (errores de los navegadores, por `/api/errores`). Se ven y filtran en los logs
+  de Vercel. Sin datos personales.
+- **Pantallas de error** (`app/error.tsx`, `app/global-error.tsx`) que avisan solas.
+- **Salud**: `/api/salud` para un vigilante externo (UptimeRobot o similar, gratis).
+- **Cabeceras de seguridad** (`next.config.ts`): CSP, marcos solo propios, nosniff, permisos.
+- Corregida una redirección abierta tras el PIN (`vuelta=//otra-web`).
+- Supabase: tablas cerradas (RLS sin políticas: solo funciones con la clave del servidor). Falta
+  activar «Leaked password protection» en Auth. `npm audit`: 0 vulnerabilidades.
+- **Siguiente paso de escala** (cuando haya muchos bares grandes): que el servidor no cargue 62
+  días de tickets en cada acción (necesita una función en la base de datos que dé solo el último
+  ticket y el número de serie), y limitar intentos de PIN en la base de datos en vez de en memoria.
+
 ## Pendiente (por orden)
 
 1. **Planes de pago**: Vercel Pro (Hobby no permite uso comercial) y Supabase Pro (copias y sin

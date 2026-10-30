@@ -2,6 +2,7 @@ import "server-only";
 import { ZodError } from "zod";
 import { ErrorAccion } from "../dominio/reducir";
 import { almacen } from "./almacen";
+import { datosDeError, registrar } from "./registro";
 
 export const json = (datos: unknown, status = 200) =>
   Response.json(datos, { status, headers: { "Cache-Control": "no-store" } });
@@ -16,7 +17,7 @@ export function respuestaDeError(e: unknown) {
       400,
     );
   }
-  console.error(e);
+  registrar("error", "fallo_servidor", datosDeError(e));
   return json({ error: "Algo ha fallado en el servidor. Prueba otra vez." }, 500);
 }
 

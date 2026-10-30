@@ -528,7 +528,25 @@ export function reducirPersonal(
         r.estado.historial.splice(0, r.estado.historial.length - MAX_HISTORIAL);
     }
   }
+  podar(r.estado, ctx.ahora);
   return r;
+}
+
+/**
+ * Lo que ya no hace falta guardar con el bar: las cuentas cerradas hace días (lo cobrado está en
+ * los tickets) y lo impreso hace más de un día. Así el bar no pesa más cada mes que pasa y cada
+ * cambio se guarda rápido.
+ */
+function podar(estado: Estado, ahora: string) {
+  const hace = (horas: number) => new Date(Date.parse(ahora) - horas * 3_600_000).toISOString();
+  const dosDias = hace(48);
+  if (estado.cuentas.some((c) => c.estado !== "abierta" && c.cerradaEn && c.cerradaEn < dosDias))
+    estado.cuentas = estado.cuentas.filter(
+      (c) => c.estado === "abierta" || !c.cerradaEn || c.cerradaEn >= dosDias,
+    );
+  const unDia = hace(24);
+  if (estado.trabajos.some((t) => t.estado === "impreso" && t.creadoEn < unDia))
+    estado.trabajos = estado.trabajos.filter((t) => t.estado !== "impreso" || t.creadoEn >= unDia);
 }
 
 function aplicarPersonal(

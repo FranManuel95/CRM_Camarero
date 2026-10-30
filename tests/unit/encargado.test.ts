@@ -207,3 +207,28 @@ describe("rápidos, buscador, cierre y resumen diario (con el historial de ejemp
     expect(texto).toContain("CAJA");
   });
 });
+
+describe("el bar no crece con el tiempo", () => {
+  it("olvida las cuentas cerradas hace días y lo impreso hace más de un día", () => {
+    const t = preparar();
+    const viejo = new Date(Date.parse(ctx.ahora) - 3 * 86_400_000).toISOString();
+    t.estado.cuentas.push({
+      ...structuredClone(t.estado.cuentas[0] ?? ({} as never)),
+      id: "vieja",
+      estado: "cobrada",
+      cerradaEn: viejo,
+    });
+    t.estado.trabajos.push({
+      id: "impreso-viejo",
+      creadoEn: viejo,
+      tipo: "ticket",
+      impresoraId: null,
+      titulo: "Ticket",
+      documento: [],
+      estado: "impreso",
+    });
+    t.hacer({ tipo: "guardar_plano", nombre: "Cualquiera" });
+    expect(t.estado.cuentas.some((c) => c.id === "vieja")).toBe(false);
+    expect(t.estado.trabajos.some((x) => x.id === "impreso-viejo")).toBe(false);
+  });
+});

@@ -21,7 +21,8 @@ export function TecladoPin() {
         }).catch(() => null);
         const datos = (await r?.json().catch(() => null)) as { error?: string } | null;
         if (!r?.ok) return datos?.error ?? "No hay conexión con la caja.";
-        router.replace(vuelta?.startsWith("/") ? vuelta : "/sala");
+        // Solo direcciones de esta web: «//otra-web.com» también empieza por «/».
+        router.replace(vuelta && /^\/(?![\/\\])/.test(vuelta) ? vuelta : "/sala");
         router.refresh();
         return null;
       }}
