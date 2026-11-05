@@ -40,8 +40,12 @@ import { almacenSupabase } from "./almacen-supabase";
 export type Almacen = {
   modo: "archivo" | "supabase";
   leer(): Promise<Estado>;
-  /** Aplica un cambio de forma segura frente a otras pantallas; reintenta si hace falta. */
-  cambiar(aplicar: (estado: Estado) => Resultado): Promise<Resultado>;
+  /**
+   * Aplica un cambio de forma segura frente a otras pantallas; reintenta si hace falta. En la
+   * nube solo se leen los tickets de las últimas horas: `extras` trae además los que la acción
+   * necesite (un ticket antiguo que se rectifica, los de un cierre que se reimprime).
+   */
+  cambiar(aplicar: (estado: Estado) => Resultado, extras?: ExtrasDeCarga): Promise<Resultado>;
   /** Todo el bar, con todos los tickets y fichajes (para la copia de seguridad). */
   completo(): Promise<Estado>;
   /** Solo en el ordenador del bar: sustituye todo por una copia. */
@@ -58,6 +62,17 @@ export type Almacen = {
   /** Solo en modo archivo: el servidor imprime él mismo en las impresoras de red. */
   imprimirEnRed?(trabajo: TrabajoImpresion): void;
 };
+
+/** Tickets que una acción necesita aunque no sean de las últimas horas. */
+export type ExtrasDeCarga = { tickets?: string[]; turnos?: string[] };
+
+/** Lo que una acción necesita leer además de lo normal. */
+export function extrasDe(accion: AccionPersonal): ExtrasDeCarga | undefined {
+  if (accion.tipo === "rectificar_ticket" || accion.tipo === "reimprimir_ticket")
+    return { tickets: [accion.ticketId] };
+  if (accion.tipo === "reimprimir_cierre") return { turnos: [accion.turnoId] };
+  return undefined;
+}
 
 export type TrabajoResumen = Pick<
   TrabajoImpresion,
@@ -175,7 +190,7 @@ export async function ejecutarPersonal(local: string, accion: AccionPersonal, em
       const r = reducirPersonal(e, accion, yo, contexto());
       despues = r.estado;
       return r;
-    }),
+    }, extrasDe(accion)),
   );
   if (despues) recordarEquipo(local, (despues as Estado).empleados);
   return { trabajos, estado: despues as Estado | null };

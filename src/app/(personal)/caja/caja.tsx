@@ -89,25 +89,35 @@ export function Caja() {
           <ul className="space-y-2">
             {cerrados.slice(0, 20).map((t) => {
               // Las cifras de los cierres vienen calculadas: sus tickets no viajan a la pantalla.
-              const r = t.cifras ?? resumenTurno(estado, t);
+              // Cierres antiguos sin cifras guardadas: sus números están en el informe Z.
+              const r = t.cifras === null ? null : (t.cifras ?? resumenTurno(estado, t));
               return (
                 <li key={t.id} className="rounded-xl bg-white p-3 ring-1 ring-zinc">
                   <div className="flex items-baseline justify-between">
                     <p className="font-semibold">Z nº {t.numero}</p>
-                    <p className="font-semibold">{euros(r.ventas)}</p>
+                    <p className="font-semibold">{r ? euros(r.ventas) : "—"}</p>
                   </div>
                   <p className="text-sm text-tinta-suave">
                     {formatearFechaHora(t.abiertoEn)} –{" "}
-                    {t.cerradoEn ? formatearHora(t.cerradoEn) : ""} · {r.tickets} tickets
+                    {t.cerradoEn ? formatearHora(t.cerradoEn) : ""}
+                    {r ? ` · ${r.tickets} tickets` : ""}
                   </p>
                   <div className="mt-1 flex items-center justify-between">
                     <p
                       className={clsx(
                         "text-sm font-semibold",
-                        (r.descuadre ?? 0) < 0 ? "text-aviso" : "text-cuenta",
+                        !r
+                          ? "text-tinta-suave"
+                          : (r.descuadre ?? 0) < 0
+                            ? "text-aviso"
+                            : "text-cuenta",
                       )}
                     >
-                      {r.descuadre === 0 ? "Cuadrada" : `Descuadre ${euros(r.descuadre ?? 0)}`}
+                      {!r
+                        ? "Reimprime el Z para ver sus cifras"
+                        : r.descuadre === 0
+                          ? "Cuadrada"
+                          : `Descuadre ${euros(r.descuadre ?? 0)}`}
                     </p>
                     <Boton
                       tamano="pequeno"

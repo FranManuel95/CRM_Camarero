@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { z } from "zod";
 import { enLaNube } from "@/lib/servidor/almacen";
-import { crearLimite, ipDe } from "@/lib/servidor/limite";
+import { crearLimiteCompartido, ipDe } from "@/lib/servidor/limite";
 import { acceder, pedirCambioDeClave, registrar } from "@/lib/servidor/nube";
 import { json } from "@/lib/servidor/respuestas";
 import { COOKIE_DUENO, crearFirmado, DURACION, opcionesCookie } from "@/lib/servidor/sesion";
@@ -20,7 +20,7 @@ const peticion = z.discriminatedUnion("accion", [
   z.object({ accion: z.literal("salir") }),
 ]);
 
-const limite = crearLimite(10, 10 * 60_000);
+const limite = crearLimiteCompartido("dueno", 10, 10 * 60_000);
 
 /** Cuenta del dueño: alta, entrada, contraseña olvidada y salida. */
 export async function POST(request: Request) {
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     galletas.delete(COOKIE_DUENO);
     return json({ ok: true });
   }
-  if (!limite(ipDe(request)))
+  if (!(await limite(ipDe(request))))
     return json({ error: "Demasiados intentos. Espera unos minutos." }, 429);
   const origen = new URL(request.url).origin;
 

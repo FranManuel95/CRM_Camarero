@@ -677,10 +677,10 @@ export type TurnoCaja = {
   abiertoPor: Id | null;
   cerradoPor: Id | null;
   /**
-   * Solo en lo que se manda a las pantallas: las cifras del cierre ya calculadas, para no tener
-   * que mandar todos sus tickets. No se guarda.
+   * Las cifras del cierre, guardadas al cerrar (así no hace falta volver a leer sus tickets). En
+   * lo que se manda a las pantallas, null si son de un cierre antiguo sin ellas.
    */
-  cifras?: { ventas: Centimos; tickets: number; descuadre: Centimos | null };
+  cifras?: { ventas: Centimos; tickets: number; descuadre: Centimos | null } | null;
 };
 
 export type TipoAviso = "llamar" | "cuenta" | "pedido_qr" | "listo";
@@ -774,6 +774,14 @@ export type Estado = {
    * aceptan datos más viejos que los que ya tienen: así un aviso que llega tarde no pisa nada.
    */
   revision?: number;
+  /**
+   * Solo al leer de la nube (no se guarda): en `tickets` están los de las últimas horas (desde
+   * `ticketsDesde`) y el último de cada serie, para numerar y encadenar sin traer meses enteros.
+   */
+  ticketsDesde?: FechaISO;
+  ultimosTickets?: Ticket[];
+  /** Solo al leer de la nube (no se guarda): lo más pedido a esta hora (pestaña «Rápidos»). */
+  masPedidos?: string[];
   ajustes: Ajustes;
   empleados: Empleado[];
   zonas: Zona[];

@@ -1,6 +1,6 @@
-import { sumarDias } from "@/lib/dominio/informes";
+import { rangoDeDias, sumarDias } from "@/lib/dominio/informes";
 import { diaLocal } from "@/lib/fechas";
-import { enLaNube, LOCAL_ARCHIVO, leerEstado } from "@/lib/servidor/almacen";
+import { almacen, enLaNube, LOCAL_ARCHIVO, leerEstado } from "@/lib/servidor/almacen";
 import { mandarResumen } from "@/lib/servidor/correo";
 import { listarLocales } from "@/lib/servidor/nube";
 import { json, respuestaDeError } from "@/lib/servidor/respuestas";
@@ -10,6 +10,17 @@ import { sesionActual } from "@/lib/servidor/sesion";
 export const dynamic = "force-dynamic";
 
 const ayer = () => sumarDias(diaLocal(new Date().toISOString()), -1);
+
+/**
+ * El bar con los tickets que hacen falta para el resumen de un día: ese día y el mismo de la
+ * semana anterior (con el bar solo vienen los de las últimas horas).
+ */
+async function conTicketsDe(local: string, dia: string) {
+  const estado = await leerEstado(local);
+  const { desde } = rangoDeDias(sumarDias(dia, -7), dia);
+  const { hasta } = rangoDeDias(dia, dia);
+  return { ...estado, tickets: await almacen(local).ticketsEntre(desde, hasta) };
+}
 
 /**
  * Cada mañana (cron de Vercel, con CRON_SECRET): manda a cada bar que lo tenga encendido el
@@ -27,10 +38,9 @@ export async function GET(request: Request) {
   const fallos: string[] = [];
   for (const local of locales) {
     try {
-      const estado = await leerEstado(local);
-      const r = estado.ajustes.resumenDiario;
+      const r = (await leerEstado(local)).ajustes.resumenDiario;
       if (!r?.activo || !r.correo) continue;
-      await mandarResumen(estado, ayer(), r.correo);
+      await mandarResumen(await conTicketsDe(local, ayer()), ayer(), r.correo);
       mandados++;
     } catch (e) {
       console.error(`Resumen diario de ${local}:`, e);
@@ -49,10 +59,9 @@ export async function POST() {
   try {
     if (!servicios().correo)
       return json({ error: "Falta configurar el servicio de correo en el servidor." }, 400);
-    const estado = await leerEstado(sesion.local);
-    const correo = estado.ajustes.resumenDiario?.correo;
+    const correo = (await leerEstado(sesion.local)).ajustes.resumenDiario?.correo;
     if (!correo) return json({ error: "Guarda primero el correo." }, 400);
-    await mandarResumen(estado, ayer(), correo);
+    await mandarResumen(await conTicketsDe(sesion.local, ayer()), ayer(), correo);
     return json({ ok: true });
   } catch (e) {
     return respuestaDeError(e);

@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { z } from "zod";
 import { enLaNube, gastarCodigoVinculo, localDemo } from "@/lib/servidor/almacen";
-import { crearLimite, ipDe } from "@/lib/servidor/limite";
+import { crearLimiteCompartido, ipDe } from "@/lib/servidor/limite";
 import { localesDe } from "@/lib/servidor/nube";
 import { json, respuestaDeError } from "@/lib/servidor/respuestas";
 import {
@@ -30,7 +30,7 @@ const peticion = z.discriminatedUnion("modo", [
 ]);
 
 // Un código de 6 cifras también se puede adivinar probando.
-const limite = crearLimite(10, 10 * 60_000);
+const limite = crearLimiteCompartido("vinculo", 10, 10 * 60_000);
 
 /** Vincula este aparato (móvil, tablet, ordenador) a un bar. */
 export async function POST(request: Request) {
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
         return json({ error: "Ese bar no es tuyo." }, 403);
       local = datos.local;
     } else {
-      if (!limite(ipDe(request)))
+      if (!(await limite(ipDe(request))))
         return json({ error: "Demasiados intentos. Espera unos minutos." }, 429);
       await gastarCodigoVinculo(datos.local, datos.codigo);
       local = datos.local;

@@ -7,7 +7,7 @@ import type {
   LineaPedida,
   ReservaOnline,
 } from "./acciones";
-import { turnoAbierto } from "./caja";
+import { resumenTurno, turnoAbierto } from "./caja";
 import { type EntornoAeat, sellarTicket } from "./verifactu";
 import { resumenPin } from "./pin";
 import {
@@ -445,7 +445,10 @@ function apuntarEnElClub(estado: Estado, cuenta: Cuenta, ticket: Ticket, salda: 
 
 function siguienteTicket(estado: Estado, ctx: Contexto) {
   const serie = `${estado.ajustes.serieTicket}${ctx.ahora.slice(0, 4)}`;
-  const previos = estado.tickets.filter((t) => t.serie === serie);
+  // En la nube no están todos los tickets: el último de cada serie llega aparte.
+  const previos = [...estado.tickets, ...(estado.ultimosTickets ?? [])].filter(
+    (t) => t.serie === serie,
+  );
   const secuencia = previos.reduce((m, t) => Math.max(m, t.secuencia), 0) + 1;
   const anterior = estado.tickets.at(-1);
   return {
@@ -1215,6 +1218,13 @@ function aplicarPersonal(
       turno.cerradoEn = ctx.ahora;
       turno.cerradoPor = empleado.id;
       turno.efectivoContado = accion.efectivoContado;
+      // Las cifras quedan guardadas: para enseñar el cierre no habrá que leer sus tickets.
+      const cifras = resumenTurno(estado, turno);
+      turno.cifras = {
+        ventas: cifras.ventas,
+        tickets: cifras.tickets,
+        descuadre: cifras.descuadre,
+      };
       encolar(
         estado,
         ctx,

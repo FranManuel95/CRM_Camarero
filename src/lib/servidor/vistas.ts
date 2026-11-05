@@ -34,15 +34,22 @@ export function vistaPersonal(
   const abierto = estado.turnos.find((t) => !t.cerradoEn);
   const hoy = inicioDelDia(diaLocal(ahoraIso));
   const desdeTickets = abierto && abierto.abiertoEn < hoy ? abierto.abiertoEn : hoy;
-  const { gastos, vinculos, ...resto } = estado;
+  const {
+    gastos,
+    vinculos,
+    ultimosTickets,
+    masPedidos: calculados,
+    ticketsDesde,
+    ...resto
+  } = estado;
   return {
     ...resto,
     gastos: encargado ? gastos : [],
     vinculos: encargado ? vinculos : [],
     /** Lo más pedido a esta hora (pestaña «Rápidos»), ya calculado. */
-    rapidos: masPedidos(estado.tickets, ahoraIso),
+    rapidos: calculados ?? masPedidos(estado.tickets, ahoraIso),
     /** Si el bar ya ha cobrado alguna vez (primeros pasos). */
-    hayTickets: estado.tickets.length > 0,
+    hayTickets: estado.tickets.length > 0 || Boolean(ultimosTickets?.length),
     // El correo del dueño solo lo ve el encargado.
     ajustes: encargado ? estado.ajustes : { ...estado.ajustes, resumenDiario: undefined },
     /** Identificador del bar (va en la dirección de los QR). */
@@ -57,7 +64,9 @@ export function vistaPersonal(
     turnos: estado.turnos
       .filter((t) => !t.cerradoEn || t.cerradoEn >= desde)
       .map((t) => {
-        if (!t.cerradoEn) return t;
+        if (!t.cerradoEn || t.cifras) return t;
+        // Cierres de antes de que se guardaran sus cifras: solo si sus tickets están leídos.
+        if (ticketsDesde && t.abiertoEn < ticketsDesde) return { ...t, cifras: null };
         const r = resumenTurno(estado, t);
         return { ...t, cifras: { ventas: r.ventas, tickets: r.tickets, descuadre: r.descuadre } };
       }),

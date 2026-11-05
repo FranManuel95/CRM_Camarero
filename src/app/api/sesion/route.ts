@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { z } from "zod";
 import { entrarConPin } from "@/lib/servidor/almacen";
-import { crearLimite, ipDe } from "@/lib/servidor/limite";
+import { crearLimiteDeFallos, ipDe } from "@/lib/servidor/limite";
 import { json, respuestaDeError } from "@/lib/servidor/respuestas";
 import {
   COOKIE_SESION,
@@ -15,7 +15,7 @@ import {
 export const dynamic = "force-dynamic";
 
 // Un PIN de 4 cifras se adivina probando: se corta tras 8 intentos fallidos en 5 minutos.
-const limite = crearLimite(8, 5 * 60_000);
+const limite = crearLimiteDeFallos("pin", 8, 5 * 60_000);
 
 export async function GET() {
   const sesion = await sesionActual();
@@ -34,10 +34,12 @@ export async function POST(request: Request) {
   const local = await localDelAparato();
   if (!local) return json({ error: "Este aparato aún no está vinculado a ningún bar." }, 409);
   try {
+    const quien = `${ipDe(request)}|${local}`;
+    if (await limite.bloqueado(quien))
+      return json({ error: "Demasiados intentos. Espera unos minutos." }, 429);
     const empleado = await entrarConPin(local, datos.data.pin);
     if (!empleado) {
-      if (!limite(`${ipDe(request)}|${local}`))
-        return json({ error: "Demasiados intentos. Espera unos minutos." }, 429);
+      await limite.fallo(quien);
       return json({ error: "Ese PIN no es de nadie del equipo." }, 401);
     }
     (await cookies()).set(
