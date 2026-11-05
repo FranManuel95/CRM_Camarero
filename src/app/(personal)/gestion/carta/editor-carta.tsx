@@ -550,6 +550,8 @@ export function EditorCarta({
                 <img
                   src={prod.foto}
                   alt=""
+                  width={80}
+                  height={80}
                   className="size-20 rounded-xl object-cover ring-1 ring-zinc"
                 />
               ) : (

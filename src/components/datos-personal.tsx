@@ -77,6 +77,10 @@ export function DatosPersonal({
   const [avisos, setAvisos] = useState<Aviso[]>([]);
   const contador = useRef(0);
 
+  const revisionRef = useRef(inicial.revision);
+  useEffect(() => {
+    revisionRef.current = delServidor.revision;
+  }, [delServidor.revision]);
   const { conectado, refrescar } = useEnDirecto<VistaPersonal>(
     directo,
     { eventos: "/api/eventos", datos: "/api/estado" },
@@ -86,6 +90,7 @@ export function DatosPersonal({
       // eslint-disable-next-line @next/next/no-location-assign-relative-destination
       window.location.assign("/entrar");
     },
+    () => revisionRef.current,
   );
 
   // Sin wifi: lo guardado en este aparato se ve ya aplicado encima de lo último del servidor.

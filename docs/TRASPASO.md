@@ -272,15 +272,48 @@ Estado en versión 7 (`clientes`; fuera `pagosOnline`). Todo con pruebas unitari
   días de tickets en cada acción (necesita una función en la base de datos que dé solo el último
   ticket y el número de serie), y limitar intentos de PIN en la base de datos en vez de en memoria.
 
+## Impresoras con cualquier conexión, carga ligera y auditoría (05/11/2026)
+
+- **Conexiones** (`ConexionImpresora`): `red` (IP:9100), `sistema` (instalada en el ordenador del
+  puente, por su nombre: cola de Windows con winspool en bruto, o `lp -o raw` en Mac/Linux),
+  `puerto` (COM3, Bluetooth emparejada, /dev/usb/lp0; solo rutas de `RUTA_PUERTO`) y
+  `navegador` (conectada a una pantalla). Las tres primeras las imprime el servidor del bar
+  (`src/lib/servidor/salidas.ts`) o el puente; las de pantalla, la pantalla que la tenga.
+- **Desde la pantalla** (`src/lib/cliente/impresion-local.ts`), por impresora y guardado en el
+  navegador: WebUSB (en Windows suele chocar con el driver: mejor el puente), Web Bluetooth
+  (bajo consumo, servicios típicos de las térmicas), Web Serial (puertos serie y Bluetooth
+  clásico emparejado; Android desde Chrome 138) o el diálogo. Los fallos se apuntan en el trabajo
+  (`POST /api/trabajos/[id]`) y se pueden reintentar.
+- **Puente 2** (`public/puente-impresion.mjs`): red, sistema y puerto; escucha los avisos de
+  Supabase Realtime (antes preguntaba cada 2 s leyendo el bar entero), latido con lo que ve
+  (`estado.puente`, se guarda si cambia o cada 4 min), `instalar` (arranque solo en Windows, Mac y
+  Linux), `listar` y `desinstalar`. Mismo código de impresión que el servidor (probado igual).
+- Alertas: impresiones atascadas (y si el puente no da señales) o con error.
+- **Número de cambio** (`estado.revision`): las pantallas no aceptan datos más viejos que los que
+  tienen, ni piden lo que ya trajo la respuesta de su propia acción.
+- **Carga ligera en la nube**: tickets de las últimas 36 h (y los del turno abierto), el último
+  de cada serie para numerar, y bajo demanda el ticket o cierre antiguo que pida la acción
+  (`extrasDe`). «Rápidos» se calcula en la base de datos (cache 30 min). Los cierres guardan sus
+  cifras al cerrar. En producción, `/api/estado` pasó a 60 KB y menos de medio segundo.
+- **Migración pendiente de aplicar**: `supabase/migrations/20261105120000_carga_ligera.sql`
+  (`tpv_cargar_v3`, `tpv_tickets_por_id`, `tpv_mas_pedidos`, `tpv_intento(s)`). La app funciona
+  sin ella (usa las funciones de antes y cuenta los intentos en memoria); con ella va más ligera.
+- **PIN**: ahora se mira si hay demasiados fallos ANTES de comprobar el PIN (antes, tras 8 fallos
+  el bueno seguía entrando) y los fallos se cuentan en la base de datos.
+- Auditoría (pautas de interfaz): sin espera del doble toque (`touch-action`), foco visible en
+  campos, fotos con tamaño, desplazamiento contenido en ventanas, enlace «Saltar al contenido».
+  Las pantallas de cocina, pedidos y las que imprimen no se apagan solas (Wake Lock) y el móvil
+  vibra con cada aviso nuevo.
+
 ## Pendiente (por orden)
 
 1. **Planes de pago**: Vercel Pro (Hobby no permite uso comercial) y Supabase Pro (copias y sin
    pausas).
 2. **Supabase Auth**: desactivar «Confirm email» y poner la Site URL / Redirect URLs.
 3. **Papeles**: contrato con el bar, encargo de tratamiento (RGPD) y política de privacidad.
-4. **Impresoras en el local**: probar tickets, comandas y cajón. El ordenador del puente y las
-   impresoras, por cable; recomendado un router 4G de respaldo. Falta saber si sus impresoras son
-   de red o USB (el puente solo imprime por red, IP:9100).
+4. **Impresoras en el local**: probar tickets, comandas y cajón con las del bar (red, USB o
+   Bluetooth: todo está preparado). El ordenador del puente, por cable; recomendado un router 4G
+   de respaldo.
 5. **IA de cualquier proveedor**: hacer que facturas y carta desde foto valgan para cualquier API
    compatible con OpenAI (Gemini, Mistral, OpenRouter…), con cadena gratis → de pago.
 6. **VERI\*FACTU**: certificado del bar (.p12), prueba en el entorno de pruebas de la AEAT y

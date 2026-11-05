@@ -3,6 +3,7 @@
 import clsx from "clsx";
 import { Check, QrCode, RotateCcw, Undo2 } from "lucide-react";
 import { useEffect, useRef } from "react";
+import { pitar, useMantenerEncendida } from "@/lib/cliente/aparato";
 import { useDatos } from "@/components/datos-personal";
 import { Boton, Vacio } from "@/components/ui";
 import { pedidosCocina } from "@/lib/dominio/selectores";
@@ -23,6 +24,9 @@ export function Cocina({ destino }: { destino: Destino | "todo" }) {
     p.lineas.some((l) => l.estado === "enviada" && !l.ajena),
   );
   const anteriores = useRef<number | null>(null);
+
+  // La tablet de cocina no se apaga sola.
+  useMantenerEncendida(true);
 
   // Un pitido cuando entra un pedido nuevo (si el navegador deja sonar audio).
   useEffect(() => {
@@ -221,20 +225,4 @@ export function Cocina({ destino }: { destino: Destino | "todo" }) {
       )}
     </main>
   );
-}
-
-function pitar() {
-  try {
-    const audio = new AudioContext();
-    const oscilador = audio.createOscillator();
-    const volumen = audio.createGain();
-    oscilador.frequency.value = 880;
-    volumen.gain.setValueAtTime(0.15, audio.currentTime);
-    volumen.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + 0.4);
-    oscilador.connect(volumen).connect(audio.destination);
-    oscilador.start();
-    oscilador.stop(audio.currentTime + 0.4);
-  } catch {
-    // Sin audio: no pasa nada.
-  }
 }

@@ -88,7 +88,7 @@ export function Dialogo({
               <X aria-hidden className="size-5" />
             </button>
           </div>
-          <div className="overflow-y-auto px-5 py-4">{children}</div>
+          <div className="overflow-y-auto overscroll-contain px-5 py-4">{children}</div>
         </div>
       )}
     </dialog>
@@ -116,7 +116,7 @@ export function Campo({
 }
 
 export const claseEntrada =
-  "h-11 w-full rounded-lg border border-zinc-oscuro bg-white px-3 text-base text-tinta placeholder:text-tinta-suave/70 focus:border-cobalto focus:outline-none";
+  "h-11 w-full rounded-lg border border-zinc-oscuro bg-white px-3 text-base text-tinta placeholder:text-tinta-suave/70 focus:border-cobalto focus:ring-3 focus:ring-cobalto/25 focus:outline-none";
 
 export function Interruptor({
   activo,

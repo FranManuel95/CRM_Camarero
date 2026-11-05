@@ -15,14 +15,18 @@ export function useEnDirecto<T>(
   rutas: { eventos: string; datos: string },
   alRecibir: (datos: T) => void,
   alTerminar: () => void,
+  /** El número de cambio que ya tiene la pantalla: si el aviso no trae nada más nuevo, no se pide. */
+  revisionActual: () => number | undefined = () => undefined,
 ): { conectado: boolean; refrescar: () => void } {
   const [conectado, setConectado] = useState(true);
   const recibir = useRef(alRecibir);
   const terminar = useRef(alTerminar);
   const refrescarRef = useRef<() => void>(() => {});
+  const revision = useRef(revisionActual);
   useEffect(() => {
     recibir.current = alRecibir;
     terminar.current = alTerminar;
+    revision.current = revisionActual;
   });
 
   const { eventos, datos } = rutas;
@@ -87,7 +91,13 @@ export function useEnDirecto<T>(
       const supabase = createClient(url, clave, { auth: { persistSession: false } });
       const suscripcion = supabase
         .channel(canal)
-        .on("broadcast", { event: "cambio" }, () => void pedir())
+        .on("broadcast", { event: "cambio" }, (aviso: { payload?: { revision?: number } }) => {
+          // El propio cambio de esta pantalla ya vino en la respuesta: no hace falta pedirlo.
+          const nueva = aviso.payload?.revision;
+          const tengo = revision.current();
+          if (nueva !== undefined && tengo !== undefined && nueva <= tengo) return;
+          void pedir();
+        })
         .subscribe((estado) => {
           if (estado === "SUBSCRIBED") void pedir();
           else if (estado === "CHANNEL_ERROR" || estado === "TIMED_OUT") setConectado(false);

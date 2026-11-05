@@ -297,6 +297,8 @@ export function CartaCliente({
                         <img
                           src={p.foto}
                           alt=""
+                          width={80}
+                          height={80}
                           loading="lazy"
                           decoding="async"
                           className="size-20 shrink-0 rounded-xl object-cover"
@@ -769,7 +771,9 @@ function Opciones({
         <img
           src={producto.foto}
           alt=""
-          className="mb-3 aspect-[4/3] w-full rounded-xl object-cover"
+          width={800}
+          height={600}
+          className="mb-3 aspect-[4/3] h-auto w-full rounded-xl object-cover"
         />
       )}
       {descripcion && <p className="mb-3 text-tinta-suave">{descripcion}</p>}

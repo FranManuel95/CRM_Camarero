@@ -5,6 +5,14 @@ import { Beer, ChefHat, Clock, LayoutGrid, LogOut, Settings, Wallet } from "luci
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { NotificarAlertas, useAlertas } from "./alertas";
+import { useEffect, useRef } from "react";
+import { useMantenerEncendida, vibrar } from "@/lib/cliente/aparato";
+import {
+  CLAVE_CONFIG,
+  CONFIG_POR_DEFECTO,
+  type ConfigImpresion,
+} from "@/lib/cliente/impresion-local";
+import { useGuardado } from "@/lib/cliente/use-guardado";
 import { useDatos, useFuncion } from "./datos-personal";
 
 /** En el móvil, icono encima y nombre pequeño debajo; desde tablet, en línea. */
@@ -19,6 +27,18 @@ export function BarraPersonal() {
   const router = useRouter();
   const urgentes = useAlertas().filter((a) => a.nivel === "urgente").length;
   const avisosPendientes = estado.avisos.filter((a) => !a.atendido && a.tipo !== "listo").length;
+
+  // Un aviso nuevo (te llaman, piden la cuenta, plato listo…): el móvil vibra en el bolsillo.
+  const sinAtender = estado.avisos.filter((a) => !a.atendido).length;
+  const antes = useRef<number | null>(null);
+  useEffect(() => {
+    if (antes.current !== null && sinAtender > antes.current) vibrar();
+    antes.current = sinAtender;
+  }, [sinAtender]);
+
+  // Si esta pantalla imprime (tiene impresoras conectadas), que no se apague sola.
+  const [impresion] = useGuardado<ConfigImpresion>(CLAVE_CONFIG, CONFIG_POR_DEFECTO);
+  useMantenerEncendida(Object.keys(impresion.impresoras ?? {}).length > 0);
 
   const enlaces = [
     {

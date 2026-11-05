@@ -3,6 +3,7 @@
 import { X } from "lucide-react";
 import Link from "next/link";
 import { useDatos } from "@/components/datos-personal";
+import { useMantenerEncendida } from "@/lib/cliente/aparato";
 import { pantallaPedidos } from "@/lib/dominio/selectores";
 
 /**
@@ -12,6 +13,8 @@ import { pantallaPedidos } from "@/lib/dominio/selectores";
 export function PantallaPedidos() {
   const { estado } = useDatos();
   const { preparando, listos } = pantallaPedidos(estado);
+  // Es una pantalla para dejar puesta: que no se apague.
+  useMantenerEncendida(true);
   return (
     <main className="fixed inset-0 z-50 grid grid-rows-[auto_1fr] bg-tinta text-white">
       <h1 className="flex items-center justify-between px-6 py-4 font-rotulo text-3xl font-bold sm:text-4xl">
