@@ -19,7 +19,14 @@ import {
   usarCodigoVinculo,
   ErrorAccion,
 } from "../dominio/reducir";
-import type { Empleado, Estado, Fichaje, Ticket, TrabajoImpresion } from "../dominio/tipos";
+import type {
+  Empleado,
+  EquipoPuente,
+  Estado,
+  Fichaje,
+  Ticket,
+  TrabajoImpresion,
+} from "../dominio/tipos";
 import { almacenArchivo } from "./almacen-archivo";
 import { almacenSupabase } from "./almacen-supabase";
 
@@ -224,6 +231,29 @@ export async function marcarTrabajo(
         return cambios.error ? { ...resto, ...cambios } : { ...resto, estado: cambios.estado };
       }),
     },
+    trabajos: [],
+  }));
+}
+
+/** Cada cuánto se apunta, como mucho, que el puente sigue vivo si no ha cambiado nada. */
+const REFRESCO_PUENTE_MS = 4 * 60_000;
+
+/**
+ * Apunta lo que ve el puente (impresoras, puertos) y que sigue en marcha. Para no reescribir el
+ * bar cada minuto, solo se guarda si ha cambiado algo o si hace un rato de la última vez.
+ */
+export async function apuntarPuente(local: string, equipo: Omit<EquipoPuente, "visto">) {
+  const ahora = new Date().toISOString();
+  const previo = (await leerEstado(local)).puente;
+  const igual =
+    previo &&
+    previo.version === equipo.version &&
+    previo.so === equipo.so &&
+    JSON.stringify(previo.sistema) === JSON.stringify(equipo.sistema) &&
+    JSON.stringify(previo.puertos) === JSON.stringify(equipo.puertos);
+  if (igual && Date.parse(ahora) - Date.parse(previo.visto) < REFRESCO_PUENTE_MS) return;
+  await almacen(local).cambiar((estado) => ({
+    estado: { ...estado, puente: { ...equipo, visto: ahora } },
     trabajos: [],
   }));
 }

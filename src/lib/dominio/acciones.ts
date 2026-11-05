@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { type Funcion, LISTA_FUNCIONES } from "./funciones";
+import { BAUDIOS, RUTA_PUERTO } from "./impresoras";
 import { ALERGENOS } from "./tipos";
 
 /**
@@ -489,9 +490,27 @@ export const accionEncargado = z.discriminatedUnion("tipo", [
     impresora: z.object({
       id: id.optional(),
       nombre: texto(40).min(1),
-      conexion: z.enum(["red", "navegador"]),
+      conexion: z.enum(["red", "sistema", "puerto", "navegador"]),
       ip: z.union([z.literal(""), z.ipv4()]),
       puerto: z.number().int().min(1).max(65535),
+      // Sin caracteres de control: el nombre se pasa tal cual al sistema del ordenador.
+      nombreSistema: z
+        .string()
+        .trim()
+        .max(120)
+        .regex(/^[^\u0000-\u001f"]*$/, "Ese nombre de impresora no vale.")
+        .optional(),
+      rutaPuerto: z
+        .union([
+          z.literal(""),
+          z.string().trim().regex(RUTA_PUERTO, "El puerto es como COM3 o /dev/rfcomm0."),
+        ])
+        .optional(),
+      baudios: z
+        .number()
+        .int()
+        .refine((n) => (BAUDIOS as readonly number[]).includes(n), "Velocidad no válida.")
+        .optional(),
       columnas: z.number().int().min(24).max(64),
       imprimeCocina: z.boolean(),
       imprimeBarra: z.boolean(),

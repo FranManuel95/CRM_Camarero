@@ -3,6 +3,7 @@ import { resumenTurno } from "./caja";
 import { activa } from "./funciones";
 import { euros } from "./importes";
 import { inicioDelDia, sumarDias } from "./informes";
+import { puenteEnMarcha } from "./impresoras";
 import { bajoMinimo } from "./stock";
 import type { Estado } from "./tipos";
 
@@ -68,6 +69,36 @@ export function alertasEncargado(estado: Estado, ahora: string): Alerta[] {
       enlace: "/gestion/informes",
     });
   }
+
+  // Impresiones atascadas (nadie las imprime) o que han fallado: las comandas no llegan a cocina.
+  const haceMin = (m: number) => new Date(Date.parse(ahora) - m * 60_000).toISOString();
+  const nombreImpresora = (id: string | null) =>
+    estado.impresoras.find((i) => i.id === id)?.nombre ?? "sin impresora";
+  const atascados = estado.trabajos.filter(
+    (t) => t.estado === "pendiente" && t.creadoEn < haceMin(2),
+  );
+  if (atascados.length) {
+    const donde = [...new Set(atascados.map((t) => nombreImpresora(t.impresoraId)))].join(", ");
+    alertas.push({
+      clave: `impresion-atascada-${atascados.map((t) => t.id).join(",")}`,
+      nivel: "urgente",
+      texto:
+        estado.puente && !puenteEnMarcha(estado.puente, ahora)
+          ? `No está saliendo nada por ${donde}: el puente de impresión no da señales.`
+          : `Hay ${atascados.length} ${atascados.length === 1 ? "impresión atascada" : "impresiones atascadas"} en ${donde}.`,
+      enlace: "/gestion/impresoras",
+    });
+  }
+  const fallidos = estado.trabajos.filter(
+    (t) => t.estado === "error" && t.creadoEn >= haceMin(120),
+  );
+  if (fallidos.length)
+    alertas.push({
+      clave: `impresion-error-${fallidos.map((t) => t.id).join(",")}`,
+      nivel: "aviso",
+      texto: `${fallidos.length === 1 ? "Ha fallado 1 impresión" : `Han fallado ${fallidos.length} impresiones`} (${[...new Set(fallidos.map((t) => nombreImpresora(t.impresoraId)))].join(", ")}). Se pueden reintentar.`,
+      enlace: "/gestion/impresoras",
+    });
 
   // Reservas pedidas desde la web que nadie ha confirmado.
   const porConfirmar = estado.reservas.filter((r) => r.estado === "por_confirmar" && r.dia >= hoy);

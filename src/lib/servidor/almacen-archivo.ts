@@ -18,7 +18,7 @@ import { migrar } from "../dominio/migraciones";
 import type { Estado, TrabajoImpresion } from "../dominio/tipos";
 import { aEscpos } from "../impresion/escpos";
 import { type Almacen, contexto, LOCAL_ARCHIVO, marcarTrabajo } from "./almacen";
-import { enviarAImpresora } from "./impresora-red";
+import { enviar, salidaDe } from "./salidas";
 
 /**
  * El estado en un archivo JSON en el ordenador del bar. Es un solo proceso: las acciones se
@@ -47,7 +47,11 @@ export function almacenArchivo(): Almacen {
   eventos.setMaxListeners(200);
 
   /** Escribe en un temporal y lo renombra: si se va la luz a mitad, el anterior sigue entero. */
+  let ultimaRevision = 0;
   function guardar(nuevo: Estado) {
+    // Por la hora, para que siga creciendo aunque se reinicie el programa.
+    ultimaRevision = Math.max(Date.now(), ultimaRevision + 1);
+    nuevo.revision = ultimaRevision;
     const temporal = `${archivo}.tmp`;
     writeFileSync(temporal, JSON.stringify(nuevo));
     renameSync(temporal, archivo);
@@ -87,12 +91,15 @@ export function almacenArchivo(): Almacen {
         estado: "error",
         error: "La impresora ya no existe.",
       });
+    const salida = salidaDe(impresora);
+    if (!salida)
+      return marcarTrabajo(LOCAL_ARCHIVO, trabajo.id, {
+        estado: "error",
+        error: "A esta impresora le falta la IP, el nombre o el puerto.",
+      });
     try {
-      await enviarAImpresora(
-        impresora.ip,
-        impresora.puerto,
-        aEscpos(trabajo.documento, { columnas: impresora.columnas }),
-      );
+      // En el ordenador del bar, el propio servidor hace de puente: red, sistema o puerto.
+      await enviar(salida, aEscpos(trabajo.documento, { columnas: impresora.columnas }));
       await marcarTrabajo(LOCAL_ARCHIVO, trabajo.id, { estado: "impreso" });
     } catch (e) {
       await marcarTrabajo(LOCAL_ARCHIVO, trabajo.id, {

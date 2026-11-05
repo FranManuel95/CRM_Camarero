@@ -695,15 +695,38 @@ export type Aviso = {
   detalle: string;
 };
 
-export type ConexionImpresora = "red" | "navegador";
+/**
+ * Cómo llega a la impresora lo que hay que imprimir:
+ * - **red**: tiene su propia IP (cable de red o wifi). Le manda el servidor del bar o el puente.
+ * - **sistema**: instalada con su driver en un ordenador del bar (USB, Bluetooth, la que sea),
+ *   por su nombre. Le manda el puente de ese ordenador (o el servidor, si es el mismo).
+ * - **puerto**: un puerto de un ordenador del bar (COM3, Bluetooth emparejada, /dev/usb/lp0).
+ *   Le manda el puente.
+ * - **navegador**: conectada a una pantalla con la app abierta (tablet u ordenador): por USB,
+ *   Bluetooth o puerto serie directo desde Chrome, o con el diálogo de imprimir. Cómo, se elige
+ *   en esa pantalla (Gestión → Impresoras → Esta pantalla).
+ */
+export type ConexionImpresora = "red" | "sistema" | "puerto" | "navegador";
+
+/** Las que imprime el servidor del bar o el puente, sin que haga falta ninguna pantalla. */
+export const SE_IMPRIME_SOLA: ReadonlySet<ConexionImpresora> = new Set([
+  "red",
+  "sistema",
+  "puerto",
+]);
 
 export type Impresora = {
   id: Id;
   nombre: string;
   conexion: ConexionImpresora;
-  /** IP de la impresora térmica en la red del local (puerto 9100, estándar ESC/POS). */
+  /** «red»: IP de la impresora en la red del local y su puerto (9100, el estándar ESC/POS). */
   ip: string;
   puerto: number;
+  /** «sistema»: el nombre de la impresora en el ordenador del puente, tal cual sale allí. */
+  nombreSistema?: string;
+  /** «puerto»: COM3, /dev/rfcomm0, /dev/usb/lp0… y su velocidad (las Bluetooth la ignoran). */
+  rutaPuerto?: string;
+  baudios?: number;
   /** Caracteres por línea: 48 en papel de 80 mm, 32 en papel de 58 mm. */
   columnas: number;
   /** Qué imprime: comandas de cocina, de barra y/o tickets de cliente. */
@@ -716,6 +739,18 @@ export type Impresora = {
 };
 
 export type TipoTrabajo = "comanda" | "ticket" | "precuenta" | "cierre" | "prueba";
+
+/** Lo que ve el puente de impresión en su ordenador, para elegir de una lista al dar de alta. */
+export type EquipoPuente = {
+  /** Cuándo dio señales por última vez. */
+  visto: FechaISO;
+  version: string;
+  so: "windows" | "mac" | "linux" | "otro";
+  /** Impresoras instaladas en ese ordenador. */
+  sistema: string[];
+  /** Puertos serie y Bluetooth emparejados («COM5», «/dev/rfcomm0») con su descripción. */
+  puertos: { ruta: string; nombre: string }[];
+};
 
 /** Lo que se ha mandado a imprimir. Se guarda para poder verlo o reimprimirlo. */
 export type TrabajoImpresion = {
@@ -734,6 +769,11 @@ export type TrabajoImpresion = {
 
 export type Estado = {
   version: number;
+  /**
+   * Número de cambio, lo pone el almacén al leer y al guardar (siempre crece). Las pantallas no
+   * aceptan datos más viejos que los que ya tienen: así un aviso que llega tarde no pisa nada.
+   */
+  revision?: number;
   ajustes: Ajustes;
   empleados: Empleado[];
   zonas: Zona[];
@@ -762,6 +802,8 @@ export type Estado = {
   planos?: PlanoGuardado[];
   /** Tiempos de cocina y barra por día y producto (los últimos meses). Ver tiempos.ts. */
   tiemposCocina?: TiempoCocina[];
+  /** Lo último que ha contado el puente de impresión del bar (solo en la nube). */
+  puente?: EquipoPuente;
   /** VERI*FACTU: registros por mandar a la AEAT y los últimos mandados. */
   verifactu?: {
     registros: RegistroAeat[];

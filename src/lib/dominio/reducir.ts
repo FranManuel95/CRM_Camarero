@@ -62,6 +62,7 @@ import type {
   TipoTrabajo,
   TrabajoImpresion,
 } from "./tipos";
+import { SE_IMPRIME_SOLA } from "./tipos";
 import type { Bloque } from "../impresion/documento";
 import {
   plantillaCierre,
@@ -228,7 +229,9 @@ function encolar(
       titulo,
       documento: conCajon,
       // Sin impresora de red, el trabajo queda listo para imprimirlo desde el navegador.
-      estado: imp?.conexion === "red" ? "pendiente" : "en_navegador",
+      // Las de red, las del ordenador del puente y las de sus puertos se imprimen solas; las
+      // conectadas a una pantalla esperan a que esa pantalla las imprima.
+      estado: imp && SE_IMPRIME_SOLA.has(imp.conexion) ? "pendiente" : "en_navegador",
     };
     estado.trabajos.push(trabajo);
     trabajos.push(trabajo);
@@ -1239,10 +1242,12 @@ function aplicarPersonal(
     case "reintentar_trabajo": {
       const previo = buscar(estado.trabajos, accion.trabajoId, "ese trabajo");
       const impresora = estado.impresoras.find((i) => i.id === previo.impresoraId);
-      if (impresora?.conexion !== "red") falla("Este trabajo se imprime desde el navegador.");
       const { error: _error, ...resto } = previo;
       void _error;
-      const trabajo: TrabajoImpresion = { ...resto, estado: "pendiente" };
+      const trabajo: TrabajoImpresion = {
+        ...resto,
+        estado: impresora && SE_IMPRIME_SOLA.has(impresora.conexion) ? "pendiente" : "en_navegador",
+      };
       estado.trabajos = estado.trabajos.map((t) => (t.id === trabajo.id ? trabajo : t));
       trabajos.push(trabajo);
       break;
@@ -1558,6 +1563,9 @@ function reducirEncargado(
     case "guardar_impresora": {
       const { id, ...datos } = accion.impresora;
       if (datos.conexion === "red" && !datos.ip) falla("Pon la IP de la impresora.");
+      if (datos.conexion === "sistema" && !datos.nombreSistema)
+        falla("Elige la impresora del ordenador.");
+      if (datos.conexion === "puerto" && !datos.rutaPuerto) falla("Elige el puerto.");
       if (id) Object.assign(buscar(estado.impresoras, id, "esa impresora"), datos);
       else estado.impresoras.push({ id: ctx.nuevoId(), ...datos });
       break;

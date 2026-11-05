@@ -43,7 +43,11 @@ export function almacenSupabase(local: string, esDemo: boolean): Almacen {
       if (!c) throw new Error("No se ha podido crear el local en la base de datos.");
     }
     const fichajes = c.fichajes ?? [];
-    const estado = { ...migrar({ ...c.datos, tickets: c.tickets }), fichajes };
+    const estado = {
+      ...migrar({ ...c.datos, tickets: c.tickets }),
+      fichajes,
+      revision: c.revision,
+    };
     return {
       revision: c.revision,
       estado,
@@ -96,7 +100,11 @@ export function almacenSupabase(local: string, esDemo: boolean): Almacen {
         const r = aplicar(estado);
         const nuevos = r.estado.tickets.filter((t) => !ids.has(t.id));
         const fichajes = r.estado.fichajes.filter((f) => previos.get(f.id) !== JSON.stringify(f));
-        if ((await guardar(revision, r.estado, nuevos, fichajes)) >= 0) return r;
+        const nueva = await guardar(revision, r.estado, nuevos, fichajes);
+        if (nueva >= 0) {
+          r.estado.revision = nueva;
+          return r;
+        }
         await new Promise((ok) => setTimeout(ok, 40 + Math.random() * 120));
       }
       throw new ErrorAccion("Hay mucho movimiento ahora mismo. Vuelve a intentarlo.");

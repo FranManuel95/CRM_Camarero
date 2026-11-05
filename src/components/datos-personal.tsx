@@ -65,7 +65,15 @@ export function DatosPersonal({
   directo: ConfigDirecto;
   children: React.ReactNode;
 }) {
-  const [delServidor, setEstado] = useState(inicial);
+  const [delServidor, setDelServidor] = useState(inicial);
+  // Solo datos iguales o más nuevos: un aviso o una respuesta que llega tarde no pisa lo de ahora.
+  const setEstado = useCallback(
+    (nueva: VistaPersonal) =>
+      setDelServidor((actual) =>
+        (nueva.revision ?? 0) >= (actual.revision ?? 0) ? nueva : actual,
+      ),
+    [],
+  );
   const [avisos, setAvisos] = useState<Aviso[]>([]);
   const contador = useRef(0);
 
@@ -92,20 +100,6 @@ export function DatosPersonal({
   );
   const sinRed = disponible(estado.ajustes, estado.servicios, "sinConexion");
 
-  // Puesto de impresión: lo nuevo que llega sin impresora de red y le toca a esta pantalla.
-  const vistos = useRef<Set<string> | null>(null);
-  useEffect(() => {
-    if (!vistos.current) {
-      vistos.current = new Set(estado.trabajos.map((t) => t.id));
-      return;
-    }
-    for (const t of estado.trabajos) {
-      if (vistos.current.has(t.id)) continue;
-      vistos.current.add(t.id);
-      if (t.estado === "en_navegador" && tocaAqui(t)) imprimirUno(t.id).catch(() => {});
-    }
-  }, [estado.trabajos]);
-
   const avisar = useCallback((texto: string, tipo: Aviso["tipo"] = "ok") => {
     const id = ++contador.current;
     setAvisos((a) => [...a.slice(-2), { id, texto, tipo }]);
@@ -114,6 +108,37 @@ export function DatosPersonal({
       tipo === "error" ? 6000 : 2500,
     );
   }, []);
+
+  // Puesto de impresión: lo nuevo para las impresoras conectadas a esta pantalla (y, en bares sin
+  // impresoras dadas de alta, lo que le toca como puesto). Si algo falla o se reintenta desde
+  // Gestión, vuelve a salir.
+  const vistos = useRef<Set<string> | null>(null);
+  const columnasDe = useCallback(
+    (impresoraId: string | null | undefined) =>
+      estado.impresoras.find((i) => i.id === impresoraId)?.columnas,
+    [estado.impresoras],
+  );
+  useEffect(() => {
+    if (!vistos.current) {
+      vistos.current = new Set(estado.trabajos.map((t) => t.id));
+      return;
+    }
+    for (const t of estado.trabajos) {
+      if (t.estado !== "en_navegador") {
+        vistos.current.delete(t.id);
+        continue;
+      }
+      if (vistos.current.has(t.id)) continue;
+      vistos.current.add(t.id);
+      if (tocaAqui(t))
+        imprimirUno(t.id, {
+          impresoraId: t.impresoraId,
+          columnas: columnasDe(t.impresoraId),
+        }).catch((e: Error) =>
+          avisar(`No se ha podido imprimir «${t.titulo}»: ${e.message}`, "error"),
+        );
+    }
+  }, [estado.trabajos, avisar, columnasDe]);
 
   // Manda en orden lo guardado sin wifi. Si la red vuelve a fallar, para y lo intenta luego.
   const mandando = useRef(false);
@@ -128,7 +153,7 @@ export function DatosPersonal({
         quitarPendiente(empleado.id, p.id);
         if (r.error) avisar(`No se ha podido mandar algo guardado sin wifi: ${r.error}`, "error");
         else mandados++;
-        if (r.trabajos?.length) imprimirTrabajos(r.trabajos);
+        if (r.trabajos?.length) imprimirTrabajos(r.trabajos, (m) => avisar(m, "error"), columnasDe);
       }
     } finally {
       mandando.current = false;
@@ -137,7 +162,7 @@ export function DatosPersonal({
       avisar("Ya está mandado lo que se guardó sin wifi");
       refrescar();
     }
-  }, [avisar, empleado.id, refrescar]);
+  }, [avisar, empleado.id, refrescar, columnasDe]);
 
   const hayPendientes = pendientes.length > 0;
   useEffect(() => {
@@ -174,10 +199,10 @@ export function DatosPersonal({
       // Quien hace el cambio no espera al aviso en directo: la respuesta ya trae cómo queda.
       if (r.vista) setEstado(r.vista);
       else if (directo.tipo === "supabase") refrescar();
-      if (r.trabajos?.length) imprimirTrabajos(r.trabajos);
+      if (r.trabajos?.length) imprimirTrabajos(r.trabajos, (m) => avisar(m, "error"), columnasDe);
       return true;
     },
-    [avisar, directo.tipo, refrescar, sinRed, empleado.id],
+    [avisar, directo.tipo, refrescar, sinRed, empleado.id, columnasDe, setEstado],
   );
 
   const valor = useMemo(

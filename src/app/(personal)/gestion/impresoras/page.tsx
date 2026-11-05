@@ -9,5 +9,5 @@ export default async function PaginaImpresoras() {
   const sesion = await sesionActual();
   // En la nube, las impresoras de red las atiende el puente que corre en el bar.
   const puente = enLaNube() && sesion ? { clave: clavePuente(sesion.local) } : null;
-  return <Impresoras puente={puente} />;
+  return <Impresoras puente={puente} enLaNube={enLaNube()} />;
 }
