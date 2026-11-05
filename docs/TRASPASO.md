@@ -295,9 +295,9 @@ Estado en versión 7 (`clientes`; fuera `pagosOnline`). Todo con pruebas unitari
   de cada serie para numerar, y bajo demanda el ticket o cierre antiguo que pida la acción
   (`extrasDe`). «Rápidos» se calcula en la base de datos (cache 30 min). Los cierres guardan sus
   cifras al cerrar. En producción, `/api/estado` pasó a 60 KB y menos de medio segundo.
-- **Migración pendiente de aplicar**: `supabase/migrations/20261105120000_carga_ligera.sql`
-  (`tpv_cargar_v3`, `tpv_tickets_por_id`, `tpv_mas_pedidos`, `tpv_intento(s)`). La app funciona
-  sin ella (usa las funciones de antes y cuenta los intentos en memoria); con ella va más ligera.
+- Migración `supabase/migrations/20261105120000_carga_ligera.sql` **aplicada** el 05/11/2026
+  (`tpv_cargar_v3`, `tpv_tickets_por_id`, `tpv_mas_pedidos`, `tpv_intento(s)`); producción ya
+  las usa. Si faltaran, la app vuelve sola a las funciones de antes y cuenta intentos en memoria.
 - **PIN**: ahora se mira si hay demasiados fallos ANTES de comprobar el PIN (antes, tras 8 fallos
   el bueno seguía entrando) y los fallos se cuentan en la base de datos.
 - Auditoría (pautas de interfaz): sin espera del doble toque (`touch-action`), foco visible en
