@@ -2,18 +2,21 @@ import { cookies } from "next/headers";
 import { z } from "zod";
 import { enLaNube } from "@/lib/servidor/almacen";
 import { crearLimiteCompartido, ipDe } from "@/lib/servidor/limite";
-import { acceder, pedirCambioDeClave, registrar } from "@/lib/servidor/nube";
+import { AVISO_CLAVE_FILTRADA, claveFiltrada } from "@/lib/servidor/clave-filtrada";
+import { acceder, cambiarClave, pedirCambioDeClave, registrar } from "@/lib/servidor/nube";
 import { json } from "@/lib/servidor/respuestas";
 import { COOKIE_DUENO, crearFirmado, DURACION, opcionesCookie } from "@/lib/servidor/sesion";
 
 export const dynamic = "force-dynamic";
 
 const correo = z.email("Ese correo no parece bien escrito.").max(200);
+const claveNueva = z.string().min(8, "La contraseña necesita al menos 8 caracteres.").max(72);
 const peticion = z.discriminatedUnion("accion", [
+  z.object({ accion: z.literal("registro"), email: correo, clave: claveNueva }),
   z.object({
-    accion: z.literal("registro"),
-    email: correo,
-    clave: z.string().min(8, "La contraseña necesita al menos 8 caracteres.").max(72),
+    accion: z.literal("nueva-clave"),
+    permiso: z.string().min(1).max(4000),
+    clave: claveNueva,
   }),
   z.object({ accion: z.literal("acceder"), email: correo, clave: z.string().min(1).max(72) }),
   z.object({ accion: z.literal("recuperar"), email: correo }),
@@ -22,7 +25,7 @@ const peticion = z.discriminatedUnion("accion", [
 
 const limite = crearLimiteCompartido("dueno", 10, 10 * 60_000);
 
-/** Cuenta del dueño: alta, entrada, contraseña olvidada y salida. */
+/** Cuenta del dueño: alta, entrada, contraseña olvidada, contraseña nueva y salida. */
 export async function POST(request: Request) {
   if (!enLaNube())
     return json({ error: "Las cuentas solo existen en la versión en internet." }, 404);
@@ -41,6 +44,20 @@ export async function POST(request: Request) {
 
   if (p.accion === "recuperar") {
     await pedirCambioDeClave(p.email, `${origen}/acceder/nueva-clave`);
+    return json({ ok: true });
+  }
+  // Las contraseñas nuevas no pueden ser de las que circulan en filtraciones.
+  if ((p.accion === "registro" || p.accion === "nueva-clave") && (await claveFiltrada(p.clave)))
+    return json({ error: AVISO_CLAVE_FILTRADA }, 400);
+  if (p.accion === "nueva-clave") {
+    if (!(await cambiarClave(p.permiso, p.clave)))
+      return json(
+        {
+          error:
+            "El enlace ha caducado o ya se ha usado. Pide otro desde «He olvidado la contraseña».",
+        },
+        400,
+      );
     return json({ ok: true });
   }
   if (p.accion === "registro") {

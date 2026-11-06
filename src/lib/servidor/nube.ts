@@ -75,7 +75,17 @@ export async function pedirCambioDeClave(email: string, volverA: string) {
   });
 }
 
-export type LocalResumen = { id: string; nombre: string; creadoEn: string };
+/** Pone la contraseña nueva con el permiso temporal del enlace del correo. */
+export async function cambiarClave(permiso: string, clave: string): Promise<boolean> {
+  const r = await fetch(auth("user"), {
+    method: "PUT",
+    headers: { ...cabeceras(), Authorization: `Bearer ${permiso}` },
+    body: JSON.stringify({ password: clave }),
+  });
+  return r.ok;
+}
+
+export type LocalResumen ={ id: string; nombre: string; creadoEn: string };
 
 export const localesDe = (dueno: Dueno) =>
   rpc<LocalResumen[]>("tpv_locales_de", { p_propietario: dueno.id });

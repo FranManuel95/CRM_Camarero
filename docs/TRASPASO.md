@@ -298,6 +298,11 @@ Estado en versión 7 (`clientes`; fuera `pagosOnline`). Todo con pruebas unitari
 - Migración `supabase/migrations/20261105120000_carga_ligera.sql` **aplicada** el 05/11/2026
   (`tpv_cargar_v3`, `tpv_tickets_por_id`, `tpv_mas_pedidos`, `tpv_intento(s)`); producción ya
   las usa. Si faltaran, la app vuelve sola a las funciones de antes y cuenta intentos en memoria.
+- **Contraseñas filtradas**: la protección de Supabase solo existe en el plan Pro, así que la hace
+  la app (`src/lib/servidor/clave-filtrada.ts`): al registrarse y al poner contraseña nueva se
+  consulta Pwned Passwords con k-anonimato (solo 5 caracteres de la huella SHA-1). Si el servicio no
+  responde, no bloquea. El cambio de contraseña ya pasa por `/api/dueno` (`accion: "nueva-clave"`).
+  El aviso «Leaked Password Protection Disabled» de Supabase seguirá saliendo; es esperado.
 - **PIN**: ahora se mira si hay demasiados fallos ANTES de comprobar el PIN (antes, tras 8 fallos
   el bueno seguía entrando) y los fallos se cuentan en la base de datos.
 - Auditoría (pautas de interfaz): sin espera del doble toque (`touch-action`), foco visible en
