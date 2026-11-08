@@ -326,8 +326,8 @@ Estado en versión 7 (`clientes`; fuera `pagosOnline`). Todo con pruebas unitari
   `/api/declaracion` (texto). Datos del art. 15.1 de la Orden HAC/1177/2024 en orden; `SISTEMA`
   (Comanda, CM, 1.0) es lo mismo que se manda a la AEAT. Para firmarla:
   `docs/legal/declaracion-responsable.md`.
-- **Copias nocturnas** (migración `20261108120000_copias_nocturnas.sql`, **sin aplicar**: la
-  confirmación caducó): pg_cron copia cada madrugada el documento de cada bar si ha cambiado, 30
+- **Copias nocturnas** (migración `20261108120000_copias_nocturnas.sql`, **aplicada** el
+  08/11/2026; tarea `copias-nocturnas` de pg_cron a las 2:23 UTC): pg_cron copia cada madrugada el documento de cada bar si ha cambiado, 30
   días. Se listan y descargan en Gestión → Ajustes (`/api/copia/noches`). Sin la migración, la
   lista sale vacía.
 - **`CRON_SECRET`** puesto en Vercel (Production, sensible). Falta Resend para que el resumen
@@ -342,21 +342,20 @@ Estado en versión 7 (`clientes`; fuera `pagosOnline`). Todo con pruebas unitari
 
 ## Pendiente (por orden)
 
-1. **Aplicar** la migración de copias nocturnas (pide confirmación en Supabase).
-2. **Planes de pago**: Vercel Pro (Hobby no permite uso comercial) y Supabase Pro (copias y sin
+1. **Planes de pago**: Vercel Pro (Hobby no permite uso comercial) y Supabase Pro (copias y sin
    pausas).
-3. **Supabase Auth**: desactivar «Confirm email» y poner la Site URL / Redirect URLs.
-4. **Papeles**: revisar con un abogado `docs/legal/` y firmar con el bar. Rellenar
+2. **Supabase Auth**: desactivar «Confirm email» y poner la Site URL / Redirect URLs.
+3. **Papeles**: revisar con un abogado `docs/legal/` y firmar con el bar. Rellenar
    `LEGAL_TITULAR_*` en Vercel.
-5. **VERI\*FACTU**: certificado del bar (.p12), prueba en el entorno de pruebas de la AEAT y firmar
+4. **VERI\*FACTU**: certificado del bar (.p12), prueba en el entorno de pruebas de la AEAT y firmar
    la declaración responsable (variables `VERIFACTU_PRODUCTOR_*` y `DECLARACION_*`).
-6. **IA**: poner `GEMINI_API_KEY` (y, si se quiere, una de pago) y probar con una carta y una
+5. **IA**: poner `GEMINI_API_KEY` (y, si se quiere, una de pago) y probar con una carta y una
    factura de verdad.
-7. **Impresoras en el local**: probar con las del bar siguiendo `docs/PUESTA_EN_MARCHA.md`.
-8. **Correo**: Resend (`RESEND_API_KEY`, `CORREO_REMITENTE`).
-9. **Dominio**: comandatpv.es (registrador español, ~8–15 €/año) o comandatpv.com (Vercel,
+6. **Impresoras en el local**: probar con las del bar siguiendo `docs/PUESTA_EN_MARCHA.md`.
+7. **Correo**: Resend (`RESEND_API_KEY`, `CORREO_REMITENTE`).
+8. **Dominio**: comandatpv.es (registrador español, ~8–15 €/año) o comandatpv.com (Vercel,
    11,25 $/año).
-10. Datáfono integrado (opcional).
+9. Datáfono integrado (opcional).
 
 ## Trucos del entorno
 
