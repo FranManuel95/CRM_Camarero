@@ -11,6 +11,11 @@ export default function Legal() {
   return (
     <PaginaCuenta titulo="Aviso legal y privacidad" ancho="max-w-2xl">
       <TextoLegalVista texto={texto} />
+      <p className="mt-8 text-sm">
+        <a href="/declaracion-responsable" className="font-semibold text-cobalto underline">
+          Declaración responsable del sistema de facturación (VERI*FACTU)
+        </a>
+      </p>
     </PaginaCuenta>
   );
 }

@@ -1,3 +1,4 @@
+import { SISTEMA } from "@/lib/dominio/declaracion";
 import { writeFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { leerRespuesta, sobreSoap } from "@/lib/aeat/xml";
@@ -147,6 +148,9 @@ describe("VERI*FACTU en los tickets", () => {
     expect(xml).toContain(
       "<sum1:NombreRazonEmisor>Bar La Esquina, S.L. (ficticio)</sum1:NombreRazonEmisor>",
     );
+    // Lo mismo que dice la declaración responsable.
+    expect(xml).toContain(`<sum1:IdSistemaInformatico>${SISTEMA.id}</sum1:IdSistemaInformatico>`);
+    expect(xml).toContain(`<sum1:Version>${SISTEMA.version}</sum1:Version>`);
     if (process.env.XML_SALIDA) writeFileSync(process.env.XML_SALIDA, xml);
 
     const respuesta =

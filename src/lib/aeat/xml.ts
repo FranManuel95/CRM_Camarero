@@ -1,3 +1,4 @@
+import { SISTEMA } from "../dominio/declaracion";
 import { importeAeat } from "../dominio/huella";
 import type { RespuestaAeat } from "../dominio/verifactu";
 import type { RegistroAeat } from "../dominio/tipos";
@@ -40,8 +41,8 @@ const sistema = (s: SistemaInformatico) =>
     "SistemaInformatico",
     t("NombreRazon", s.nombreFabricante) +
       t("NIF", s.nifFabricante) +
-      t("NombreSistemaInformatico", "Comanda") +
-      t("IdSistemaInformatico", "CM") +
+      t("NombreSistemaInformatico", SISTEMA.nombre) +
+      t("IdSistemaInformatico", SISTEMA.id) +
       t("Version", s.version) +
       t("NumeroInstalacion", s.numeroInstalacion) +
       t("TipoUsoPosibleSoloVerifactu", "S") +

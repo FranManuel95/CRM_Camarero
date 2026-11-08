@@ -62,7 +62,10 @@ export function Verifactu() {
           <strong>Se manda a la AEAT de verdad.</strong>
         ) : (
           <strong>Ahora va al entorno de pruebas de la AEAT (no cuenta para Hacienda).</strong>
-        )}
+        )}{" "}
+        <a href="/declaracion-responsable" className="text-cobalto underline" target="_blank">
+          Declaración responsable del programa
+        </a>
       </p>
 
       <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">

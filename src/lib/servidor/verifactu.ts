@@ -1,6 +1,7 @@
 import "server-only";
 import { request } from "node:https";
 import { ErrorAeat, leerRespuesta, sobreSoap } from "../aeat/xml";
+import { SISTEMA } from "../dominio/declaracion";
 import { disponible } from "../dominio/funciones";
 import { apuntarFallo, apuntarRespuesta, porEnviar, reservarEnvio } from "../dominio/verifactu";
 import type { RegistroAeat } from "../dominio/tipos";
@@ -88,7 +89,7 @@ export async function enviarVerifactu(local: string): Promise<void> {
       nombreFabricante: process.env.VERIFACTU_PRODUCTOR_NOMBRE ?? "",
       nifFabricante: process.env.VERIFACTU_PRODUCTOR_NIF ?? "",
       numeroInstalacion: local,
-      version: "1.0",
+      version: SISTEMA.version,
       multiplesBares: enLaNube(),
     });
     const respuesta = leerRespuesta(await mandar(xml));
