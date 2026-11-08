@@ -40,6 +40,14 @@ const MAX_REGISTROS_HECHOS = 300;
  * Pone la huella al ticket y lo añade al estado. Con VERI*FACTU encendido, además le pone el QR
  * de cotejo y deja su registro listo para mandar a la AEAT.
  */
+/**
+ * Número de instalación (FAQ 4 de la AEAT para desarrolladores): el momento en que se constituye
+ * el sistema para ese bar, al segundo. Así no coincide con ninguna instalación pasada ni futura.
+ */
+export function numeroInstalacion(ahora: string): string {
+  return `CM-${ahora.slice(0, 19).replace(/[-:T]/g, "")}`;
+}
+
 export function sellarTicket(
   estado: Estado,
   ticket: SinSellar,
@@ -126,6 +134,7 @@ export function sellarTicket(
       ...estado.verifactu,
       registros,
       ...(inicioCadena ? { cadena: { entorno: enEntorno, desde: sellado.numero, en: ahora } } : {}),
+      instalacion: estado.verifactu?.instalacion ?? numeroInstalacion(ahora),
     };
   }
   return sellado;

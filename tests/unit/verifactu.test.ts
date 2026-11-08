@@ -176,6 +176,24 @@ describe("VERI*FACTU en los tickets", () => {
       },
     );
     expect(xml).toContain("<sum1:PrimerRegistro>S</sum1:PrimerRegistro>");
+    expect(xml).toContain("<sum1:IndicadorMultiplesOT>N</sum1:IndicadorMultiplesOT>");
+    const conVarios = sobreSoap(
+      porEnviar(estado, ctx.ahora),
+      { nombre: "Bar", nif: "B00000000" },
+      {
+        nombreFabricante: "F",
+        nifFabricante: "X",
+        numeroInstalacion: estado.verifactu!.instalacion!,
+        version: SISTEMA.version,
+        multiplesBares: true,
+        usuarioConVarios: true,
+      },
+    );
+    expect(conVarios).toContain("<sum1:IndicadorMultiplesOT>S</sum1:IndicadorMultiplesOT>");
+    expect(conVarios).toContain("<sum1:TipoUsoPosibleMultiOT>S</sum1:TipoUsoPosibleMultiOT>");
+    expect(conVarios).toContain(
+      "<sum1:NumeroInstalacion>CM-20261024190000</sum1:NumeroInstalacion>",
+    );
 
     const segundo = venta();
     expect(segundo.inicioCadena).toBeUndefined();
@@ -195,11 +213,17 @@ describe("VERI*FACTU en los tickets", () => {
     expect(estado.verifactu!.cadena!.entorno).toBe("produccion");
     expect(venta({ ...ctx, entornoAeat: "produccion" }).inicioCadena).toBeUndefined();
 
-    // Apagado y vuelto a encender: los de entre medias no le llegan, así que empieza de nuevo.
-    hacer({ tipo: "cambiar_funcion", funcion: "verifactu", activa: false });
-    venta({ ...ctx, entornoAeat: "produccion" });
-    hacer({ tipo: "cambiar_funcion", funcion: "verifactu", activa: true });
-    expect(venta({ ...ctx, entornoAeat: "produccion" }).inicioCadena).toBe(true);
+    // Una vez que ha mandado tickets, ya no se apaga (FAQ 3 de la AEAT).
+    expect(() =>
+      reducirPersonal(
+        estado,
+        { tipo: "cambiar_funcion", funcion: "verifactu", activa: false },
+        ana,
+        ctx,
+      ),
+    ).toThrow(/no se puede apagar/);
+    // El número de instalación se fija con el primer ticket y no cambia.
+    expect(estado.verifactu!.instalacion).toBe("CM-20261024190000");
     expect(verificarCadena(estado.tickets)).toBeNull();
   });
 

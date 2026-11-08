@@ -46,17 +46,27 @@ export function Funciones() {
                 const def: DefinicionFuncion = FUNCIONES[f];
                 const falta = def.necesita && !estado.servicios[def.necesita];
                 const encendida = activa(estado.ajustes, f);
+                // VERI*FACTU, una vez que ha mandado tickets, ya no se apaga (FAQ 3 de la AEAT).
+                const fijo = f === "verifactu" && encendida && Boolean(estado.verifactu?.cadena);
                 return (
                   <li key={f}>
                     <Interruptor
                       activo={encendida && !falta}
-                      bloqueado={Boolean(falta)}
-                      alCambiar={(v) =>
+                      bloqueado={Boolean(falta) || fijo}
+                      alCambiar={(v) => {
+                        if (
+                          f === "verifactu" &&
+                          v &&
+                          !confirm(
+                            "Al encender VERI*FACTU, cada ticket se manda a Hacienda. En cuanto salga el primero, ya no se podrá apagar. ¿Encenderlo?",
+                          )
+                        )
+                          return;
                         void hacer(
                           { tipo: "cambiar_funcion", funcion: f, activa: v },
                           `${def.nombre}: ${v ? "encendido" : "apagado"}`,
-                        )
-                      }
+                        );
+                      }}
                       etiqueta={def.nombre}
                       ayuda={
                         <>
@@ -64,6 +74,11 @@ export function Funciones() {
                           {falta && def.necesita && (
                             <span className="mt-0.5 block font-semibold text-aviso">
                               {FALTA[def.necesita]}
+                            </span>
+                          )}
+                          {fijo && (
+                            <span className="mt-0.5 block font-semibold">
+                              Ya se mandan los tickets a Hacienda: no se puede apagar.
                             </span>
                           )}
                           {f === "verifactu" && (

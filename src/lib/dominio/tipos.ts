@@ -828,6 +828,11 @@ export type Estado = {
      * mismo (de pruebas a producción), el siguiente ticket empieza una cadena nueva.
      */
     cadena?: { entorno: "pruebas" | "produccion"; desde: string; en: FechaISO };
+    /**
+     * Número de instalación con que se identifica este bar ante Hacienda: se fija al mandar el
+     * primer ticket y no cambia ni se reutiliza nunca.
+     */
+    instalacion?: string;
   };
   /**
    * Códigos de 6 cifras para vincular un móvil o una tablet a este bar sin la cuenta del dueño.

@@ -24,6 +24,7 @@ test("con VERI*FACTU, el ticket lleva el QR y su registro se ve en Gestión", as
   await listo(page);
   const interruptor = page.getByRole("checkbox", { name: "VERI*FACTU" });
   if (!(await interruptor.isChecked())) {
+    page.once("dialog", (d) => void d.accept());
     await page.getByRole("main").getByText("VERI*FACTU", { exact: true }).click();
     await expect(page.getByText("VERI*FACTU: encendido")).toBeVisible();
   }

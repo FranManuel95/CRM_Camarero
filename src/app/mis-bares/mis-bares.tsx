@@ -57,6 +57,12 @@ export function MisBares({
   return (
     <div className="space-y-6">
       {bares.length === 0 && !creando && <Vacio titulo="Aún no tienes ningún bar" />}
+      {bares.length > 1 && (
+        <p className="rounded-xl bg-zinc-claro p-3 text-sm">
+          Comanda lleva la facturación de tus {bares.length} bares por separado: cada uno con sus
+          tickets, su numeración y su envío a Hacienda, como si fueran programas distintos.
+        </p>
+      )}
       {bares.length > 0 && (
         <ul className="divide-y divide-zinc rounded-2xl bg-white ring-1 ring-zinc">
           {bares.map((b) => (

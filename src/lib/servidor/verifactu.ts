@@ -6,6 +6,7 @@ import { disponible } from "../dominio/funciones";
 import { apuntarFallo, apuntarRespuesta, porEnviar, reservarEnvio } from "../dominio/verifactu";
 import type { RegistroAeat } from "../dominio/tipos";
 import { almacen, enLaNube } from "./almacen";
+import { duenoConVariosBares } from "./nube";
 import { servicios } from "./servicios";
 
 /**
@@ -66,6 +67,7 @@ export async function enviarVerifactu(local: string): Promise<void> {
   const a = almacen(local);
   let registros: RegistroAeat[] = [];
   let obligado = { nombre: "", nif: "" };
+  let instalacion = local;
   const ahora = new Date().toISOString();
   try {
     await a.cambiar((estado) => {
@@ -76,6 +78,7 @@ export async function enviarVerifactu(local: string): Promise<void> {
         nombre: estado.ajustes.razonSocial || estado.ajustes.nombreLocal,
         nif: estado.ajustes.nif.trim().toUpperCase(),
       };
+      instalacion = estado.verifactu?.instalacion ?? local;
       return { estado: registros.length ? reservarEnvio(estado, ahora) : estado, trabajos: [] };
     });
   } catch (e) {
@@ -88,9 +91,10 @@ export async function enviarVerifactu(local: string): Promise<void> {
     const xml = sobreSoap(registros, obligado, {
       nombreFabricante: process.env.VERIFACTU_PRODUCTOR_NOMBRE ?? "",
       nifFabricante: process.env.VERIFACTU_PRODUCTOR_NIF ?? "",
-      numeroInstalacion: local,
+      numeroInstalacion: instalacion,
       version: SISTEMA.version,
       multiplesBares: enLaNube(),
+      usuarioConVarios: enLaNube() ? await duenoConVariosBares(local) : false,
     });
     const respuesta = leerRespuesta(await mandar(xml));
     const hora = new Date().toISOString();

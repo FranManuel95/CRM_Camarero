@@ -70,8 +70,10 @@ Cuando el bar esté obligado (o quiera empezar antes):
 2. **Comprobar** otra vez: la conexión ahora es con la AEAT de verdad.
 3. El primer ticket en producción vuelve a ser «primer registro» (la cadena de pruebas no cuenta).
 
-A partir de ahí no se apaga: si se apagara y se volviera a encender, la cadena para Hacienda
-empezaría de nuevo y quedarían tickets sin mandar entre medias.
+Encenderlo es **para siempre**: en cuanto sale el primer ticket, el interruptor queda bloqueado
+(FAQ 3 de la AEAT: un mismo sistema no puede cumplir unos días sí y otros no). Por eso el ticket
+de prueba del paso 5 hazlo en el entorno de **pruebas**: en producción un ticket de prueba es una
+factura real.
 
 ## Límite actual
 
@@ -79,3 +81,31 @@ El certificado va en el servidor, así que hoy vale para **un bar con VERI*FACTU
 bares hay dos caminos: guardar el certificado de cada bar (cifrado) en la base de datos, o
 mandar todo con un único certificado de quien presenta en nombre de los bares (colaboración
 social o apoderamiento). Hay que hacerlo antes de encenderlo en un segundo bar.
+
+## Revisado con las fuentes oficiales
+
+Contrastado el 08/11/2026 con «Aclaraciones a dudas de los desarrolladores» (AEAT, versión 1.3,
+4/12/2025), el RD 1007/2023 y la Orden HAC/1177/2024:
+
+| Requisito | Dónde lo dice | Cómo está |
+| --- | --- | --- |
+| Solo VERI\*FACTU: sin firma de registros ni registro de eventos | FAQ 15, nota 1 | Así es Comanda |
+| No se puede cambiar de cumplir a no cumplir sobre la marcha | FAQ 3 | Al mandar el primer ticket, ya no se apaga |
+| Número de instalación único, que no se repite nunca | FAQ 4 | `CM-aaaammddhhmmss` del momento en que se constituye |
+| IndicadorMultiplesOT por usuario del SaaS (S si su dueño tiene más de un bar) | FAQ 4 | Calculado por dueño |
+| Cadena independiente por obligado; primer registro sin anterior | FAQ 4 y 15 | Una cadena por bar; se abre al encender y al pasar a producción |
+| Registros en orden cronológico | FAQ 15 | Una cola por bar en el servidor |
+| Ver en todo momento de quién se factura, y avisar si se llevan varios | FAQ 7 (art. 2.d OM) | Nombre del bar en la barra; razón social y NIF en VERI\*FACTU; aviso en Mis bares |
+| Envío por un tercero (apoderamiento o colaboración social, convenio 017) | FAQ 16 | Funciona con el certificado de quien envíe |
+| Errores: rectificativa, no anulación, para operaciones reales | FAQ 17 | Rectificativas R5 por diferencias |
+| Numeración: nunca se reutiliza, ni de facturas de prueba | FAQ 6 | Numeración correlativa sin huecos ni repetidos |
+| Canarias (IGIC), Ceuta y Melilla (IPSI) | FAQ 23 a 26 | **Pendiente**: hoy solo IVA (`Impuesto=01`) |
+
+**Pendiente antes de venderlo a muchos bares:**
+
+- **Rechazos de Hacienda**: hoy «Reintentar» vuelve a mandar el mismo registro. Según la FAQ 17,
+  lo correcto es un registro de alta de subsanación nuevo (`Subsanacion=S`, `RechazoPrevio=X`).
+  La comprobación previa (NIF validado, certificado) evita casi todos los rechazos.
+- **Registro de anulación** (FAQ 17.2.d): para facturas que no debieron emitirse, como una de
+  prueba en producción. No está hecho; por eso las pruebas, siempre en el entorno de pruebas.
+- **IGIC e IPSI** para bares de Canarias, Ceuta y Melilla.

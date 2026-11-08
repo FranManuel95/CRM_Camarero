@@ -20,11 +20,19 @@ export type Obligado = { nombre: string; nif: string };
 export type SistemaInformatico = {
   nombreFabricante: string;
   nifFabricante: string;
-  /** Identificador del bar en esta instalación. */
+  /**
+   * Número de instalación: único para ese bar y que no se repite nunca (FAQ 4 de la AEAT para
+   * desarrolladores). Se fija al encender VERI*FACTU.
+   */
   numeroInstalacion: string;
   version: string;
-  /** En la nube, el mismo programa lo usan varios bares. */
+  /** El programa admite llevar la facturación de varios bares (en la nube, sí). */
   multiplesBares: boolean;
+  /**
+   * El dueño de este bar tiene más de una facturación en el programa (FAQ 4: se calcula por
+   * usuario del SaaS, no para todo el programa).
+   */
+  usuarioConVarios?: boolean;
 };
 
 const escapar = (texto: string) =>
@@ -47,7 +55,7 @@ const sistema = (s: SistemaInformatico) =>
       t("NumeroInstalacion", s.numeroInstalacion) +
       t("TipoUsoPosibleSoloVerifactu", "S") +
       t("TipoUsoPosibleMultiOT", s.multiplesBares ? "S" : "N") +
-      t("IndicadorMultiplesOT", "N"),
+      t("IndicadorMultiplesOT", s.usuarioConVarios ? "S" : "N"),
   );
 
 /** Un registro de alta de un ticket (factura simplificada F2 o su rectificativa R5). */

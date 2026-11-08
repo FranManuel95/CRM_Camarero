@@ -85,7 +85,7 @@ export async function cambiarClave(permiso: string, clave: string): Promise<bool
   return r.ok;
 }
 
-export type LocalResumen ={ id: string; nombre: string; creadoEn: string };
+export type LocalResumen = { id: string; nombre: string; creadoEn: string };
 
 export const localesDe = (dueno: Dueno) =>
   rpc<LocalResumen[]>("tpv_locales_de", { p_propietario: dueno.id });
@@ -97,6 +97,33 @@ export type LocalAdmin = LocalResumen & {
   tickets30Dias: number;
 };
 export const listarLocales = () => rpc<LocalAdmin[]>("tpv_listar_locales", {});
+
+/** Por bar: si su dueño tiene más de uno en Comanda. Recordado 10 minutos. */
+let variosPorBar: { hasta: number; bares: Map<string, boolean> } | null = null;
+
+/**
+ * ¿El dueño de este bar lleva más de una facturación en Comanda? (campo IndicadorMultiplesOT de
+ * VERI*FACTU, que se calcula por usuario del programa). Si no se puede saber, «no».
+ */
+export async function duenoConVariosBares(local: string): Promise<boolean> {
+  if (!variosPorBar || variosPorBar.hasta < Date.now()) {
+    try {
+      const locales = await listarLocales();
+      const porDueno = new Map<string, number>();
+      for (const l of locales)
+        if (l.propietario) porDueno.set(l.propietario, (porDueno.get(l.propietario) ?? 0) + 1);
+      variosPorBar = {
+        hasta: Date.now() + 10 * 60_000,
+        bares: new Map(
+          locales.map((l) => [l.id, Boolean(l.propietario && porDueno.get(l.propietario)! > 1)]),
+        ),
+      };
+    } catch {
+      return false;
+    }
+  }
+  return variosPorBar.bares.get(local) ?? false;
+}
 
 /** Convierte un nombre en identificador: «Bar Paco» → «bar-paco». */
 export function identificadorDe(nombre: string): string {

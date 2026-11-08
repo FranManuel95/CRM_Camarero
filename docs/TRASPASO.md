@@ -349,6 +349,11 @@ Estado en versión 7 (`clientes`; fuera `pagosOnline`). Todo con pruebas unitari
     del fabricante.
   - Límite: un certificado por servidor (un bar con VERI*FACTU). Para varios, certificado por bar
     o uno de colaborador social.
+  - Revisado con las aclaraciones oficiales de la AEAT (v1.3): VERI*FACTU ya no se apaga tras el
+    primer ticket (FAQ 3), número de instalación fijo `CM-aaaammddhhmmss` (FAQ 4),
+    IndicadorMultiplesOT por dueño (`duenoConVariosBares`), aviso en Mis bares con varios bares
+    (FAQ 7). Pendiente: subsanación tras rechazo, registro de anulación e IGIC/IPSI (tabla en
+    `docs/ENCENDER_VERIFACTU.md`).
 
 ## Pendiente (por orden)
 

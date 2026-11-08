@@ -88,6 +88,13 @@ function Registros() {
         </a>
       </p>
 
+      <p className="mb-4 text-sm">
+        Facturando como{" "}
+        <strong>
+          {estado.ajustes.razonSocial || estado.ajustes.nombreLocal} · {estado.ajustes.nif}
+        </strong>
+        {v?.instalacion && <> · instalación {v.instalacion}</>}
+      </p>
       <PrepararVerifactu abierta={false} />
 
       <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
