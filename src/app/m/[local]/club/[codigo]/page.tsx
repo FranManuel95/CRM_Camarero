@@ -4,7 +4,7 @@ import { reglasClub } from "@/lib/dominio/club";
 import { activa } from "@/lib/dominio/funciones";
 import { euros } from "@/lib/dominio/importes";
 import { leerEstado } from "@/lib/servidor/almacen";
-import { CabeceraPublica, NoDisponible } from "../../publico";
+import { CabeceraPublica, NoDisponible, PieLegal } from "../../publico";
 import { RecordarTarjeta } from "./recordar";
 
 export const dynamic = "force-dynamic";
@@ -69,6 +69,7 @@ export default async function Tarjeta({ params, searchParams }: Params) {
           bar.
         </p>
       </main>
+      <PieLegal local={local} />
     </div>
   );
 }

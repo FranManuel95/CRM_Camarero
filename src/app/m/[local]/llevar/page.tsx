@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { barConFunciones, CabeceraPublica, NoDisponible } from "../publico";
+import { barConFunciones, CabeceraPublica, NoDisponible, PieLegal } from "../publico";
 import { FormularioEncargo } from "./formulario";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +21,7 @@ export default async function PaginaEncargar({ params }: Params) {
         </p>
         <FormularioEncargo local={local} />
       </main>
+      <PieLegal local={local} />
     </div>
   );
 }

@@ -1,4 +1,3 @@
-import "server-only";
 import { z } from "zod/v4";
 import type { LecturaFactura } from "../dominio/stock";
 import type { Ingrediente } from "../dominio/tipos";

@@ -3,7 +3,7 @@ import { reglasClub } from "@/lib/dominio/club";
 import { euros } from "@/lib/dominio/importes";
 import { leerEstado } from "@/lib/servidor/almacen";
 import { activa } from "@/lib/dominio/funciones";
-import { CabeceraPublica, NoDisponible } from "../publico";
+import { CabeceraPublica, NoDisponible, PieLegal } from "../publico";
 import { FormularioClub } from "./formulario";
 
 export const dynamic = "force-dynamic";
@@ -42,6 +42,7 @@ export default async function PaginaClub({ params, searchParams }: Params) {
         </ul>
         <FormularioClub local={local} nombreLocal={estado.ajustes.nombreLocal} mesa={mesa} />
       </main>
+      <PieLegal local={local} />
     </div>
   );
 }

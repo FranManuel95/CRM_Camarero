@@ -93,7 +93,10 @@ export function FormularioClub({
         />
         <span className="text-sm">
           Acepto que {nombreLocal} guarde mi nombre, mi teléfono y lo que consumo para el club de
-          puntos. Puedo pedir que lo borren cuando quiera.
+          puntos. Puedo pedir que lo borren cuando quiera.{" "}
+          <a href={`/m/${local}/legal#privacidad`} className="underline" target="_blank">
+            Más información
+          </a>
         </span>
       </label>
       <label className="flex items-start gap-3">

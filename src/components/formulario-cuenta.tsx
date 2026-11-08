@@ -77,6 +77,15 @@ export function FormularioCuenta({ modo, aviso }: { modo: Modo; aviso?: string }
       <p role="alert" className="min-h-5 text-sm font-semibold text-aviso">
         {error}
       </p>
+      {modo === "registro" && (
+        <p className="text-sm text-tinta-suave">
+          Al crear la cuenta aceptas el{" "}
+          <Link className="underline" href="/legal" target="_blank">
+            aviso legal y la privacidad
+          </Link>
+          .
+        </p>
+      )}
       <Boton
         type="submit"
         variante="primario"

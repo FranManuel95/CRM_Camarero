@@ -47,6 +47,19 @@ export function Ajustes() {
           {campo("nif", "NIF")}
           {campo("direccion", "Dirección")}
           {campo("telefono", "Teléfono")}
+          <Campo
+            etiqueta="Correo de contacto"
+            ayuda="Sale en el aviso legal y la privacidad de la carta QR, las reservas y el club."
+          >
+            <input
+              className={claseEntrada}
+              type="email"
+              autoComplete="email"
+              value={a.correoContacto ?? ""}
+              onChange={(e) => setA({ ...a, correoContacto: e.target.value })}
+            />
+          </Campo>
+          <AvisoLegal ajustes={a} local={estado.local} />
           {campo("pieTicket", "Mensaje al pie del ticket")}
           <div className="grid grid-cols-2 gap-3">
             {campo("serieTicket", "Serie de los tickets", "Se le añade el año: T2026-000001.")}
@@ -180,5 +193,35 @@ function EnlacesClientes() {
         ))}
       </ul>
     </section>
+  );
+}
+
+/** Lo que falta para que el aviso legal y la privacidad de las páginas públicas estén completos. */
+function AvisoLegal({
+  ajustes,
+  local,
+}: {
+  ajustes: { razonSocial: string; nif: string; direccion: string; correoContacto?: string };
+  local: string;
+}) {
+  const faltan = [
+    !ajustes.razonSocial && "la razón social",
+    !ajustes.nif && "el NIF",
+    !ajustes.direccion && "la dirección",
+    !ajustes.correoContacto && "un correo de contacto",
+  ].filter(Boolean);
+  return (
+    <p className="rounded-xl bg-zinc-claro p-3 text-sm">
+      {faltan.length
+        ? `Para que el aviso legal de tu carta QR esté completo, falta ${faltan.join(", ")}. `
+        : "Con estos datos se rellenan solos el aviso legal y la privacidad de tu carta QR. "}
+      <a
+        href={`/m/${local}/legal`}
+        target="_blank"
+        className="font-semibold text-cobalto underline"
+      >
+        Ver cómo queda
+      </a>
+    </p>
   );
 }

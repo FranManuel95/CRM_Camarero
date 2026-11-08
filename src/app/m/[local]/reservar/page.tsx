@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { barConFunciones, CabeceraPublica, NoDisponible } from "../publico";
+import { barConFunciones, CabeceraPublica, NoDisponible, PieLegal } from "../publico";
 import { FormularioReserva } from "./formulario";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +22,7 @@ export default async function PaginaReservar({ params }: Params) {
         </p>
         <FormularioReserva local={local} />
       </main>
+      <PieLegal local={local} />
     </div>
   );
 }

@@ -1,8 +1,10 @@
-import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod/v4";
+import { hayIa, proveedoresIa, type NombreProveedor } from "./ia-config";
 import { registrar } from "./registro";
+
+export { hayIa, proveedoresIa };
 
 /**
  * Lectura de fotos y PDF con IA de cualquier proveedor, en cadena: se prueba el primero que esté
@@ -42,25 +44,6 @@ export class IaSinRespuesta extends Error {}
 export class IaSinFormato extends Error {}
 
 class Saturado extends Error {}
-
-const NOMBRES = ["gemini", "compatible", "anthropic"] as const;
-type NombreProveedor = (typeof NOMBRES)[number];
-
-export function proveedoresIa(entorno: NodeJS.ProcessEnv = process.env): NombreProveedor[] {
-  const hay: Record<NombreProveedor, boolean> = {
-    gemini: Boolean(entorno.GEMINI_API_KEY),
-    compatible: Boolean(entorno.IA_URL && entorno.IA_CLAVE && entorno.IA_MODELO),
-    anthropic: Boolean(entorno.ANTHROPIC_API_KEY),
-  };
-  const pedido = (entorno.IA_ORDEN ?? "")
-    .split(",")
-    .map((s) => s.trim().toLowerCase())
-    .filter((s): s is NombreProveedor => (NOMBRES as readonly string[]).includes(s));
-  const orden = [...new Set([...pedido, ...NOMBRES])];
-  return orden.filter((n) => hay[n]);
-}
-
-export const hayIa = () => proveedoresIa().length > 0;
 
 /** Instrucciones de formato para los modelos que no reciben el esquema por la API. */
 function conEsquema(sistema: string, esquema: z.ZodType) {

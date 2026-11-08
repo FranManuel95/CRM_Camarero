@@ -1,5 +1,5 @@
 import type { Servicios } from "../dominio/funciones";
-import { hayIa } from "./ia";
+import { hayIa } from "./ia-config";
 
 /** Qué servicios externos tiene configurados este servidor (sin enseñar las claves). */
 export function servicios(): Servicios {

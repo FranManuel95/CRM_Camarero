@@ -127,6 +127,13 @@ export default async function Portada() {
           </aside>
         )}
       </div>
+      {nube && (
+        <p className="mt-10 text-center text-sm">
+          <Link href="/legal" className="text-tinta-suave underline">
+            Aviso legal y privacidad
+          </Link>
+        </p>
+      )}
     </main>
   );
 }

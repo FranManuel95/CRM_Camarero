@@ -309,6 +309,7 @@ export function estadoDeEjemplo(ctx: Contexto, opciones: { conHistorial?: boolea
       nif: "B00000000",
       direccion: "Calle Inventada, 1 · 00000 Ciudad",
       telefono: "600 000 000",
+      correoContacto: "hola@laesquina.example",
       ivaPorDefecto: 10,
       confirmarPedidosQR: true,
       pedidosQRActivos: true,

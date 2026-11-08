@@ -89,6 +89,12 @@ export function FormularioEncargo({ local }: { local: string }) {
           {error}
         </p>
       )}
+      <p className="text-sm text-tinta-suave">
+        Usamos tu nombre y tu teléfono solo para tu pedido.{" "}
+        <a href={`/m/${local}/legal#privacidad`} className="underline" target="_blank">
+          Más información
+        </a>
+      </p>
       <Boton type="submit" variante="primario" tamano="grande" disabled={enviando}>
         Elegir de la carta
       </Boton>

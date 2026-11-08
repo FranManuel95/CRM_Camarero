@@ -470,6 +470,9 @@ export const accionEncargado = z.discriminatedUnion("tipo", [
       nif: texto(20),
       direccion: texto(160),
       telefono: texto(30),
+      correoContacto: z
+        .union([z.literal(""), z.email("Revisa el correo de contacto.").max(120)])
+        .optional(),
       ivaPorDefecto: iva,
       confirmarPedidosQR: z.boolean(),
       pedidosQRActivos: z.boolean(),

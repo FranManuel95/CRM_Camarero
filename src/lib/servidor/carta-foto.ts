@@ -1,4 +1,3 @@
-import "server-only";
 import { z } from "zod/v4";
 import { ALERGENOS } from "../dominio/tipos";
 import { IaSinFormato, IaSinRespuesta, leerConIa } from "./ia";

@@ -37,6 +37,8 @@ export type Ajustes = {
   nif: string;
   direccion: string;
   telefono: string;
+  /** Correo de contacto del bar (aviso legal y privacidad de las páginas públicas). */
+  correoContacto?: string;
   /** IVA por defecto de la carta, en %. La hostelería en España va al 10 %. */
   ivaPorDefecto: number;
   /** Si es true, los pedidos de la carta QR esperan a que un camarero los acepte. */

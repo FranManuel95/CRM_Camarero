@@ -350,7 +350,12 @@ export function CartaCliente({
             </section>
           );
         })}
-        <p className="py-8 text-center text-xs text-tinta-suave">{t.preciosIva}</p>
+        <p className="pt-8 text-center text-xs text-tinta-suave">{t.preciosIva}</p>
+        <p className="pt-2 pb-8 text-center text-xs">
+          <a href={`/m/${local}/legal`} className="text-tinta-suave underline">
+            {t.legal}
+          </a>
+        </p>
       </main>
 
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-zinc bg-white/95 p-3 backdrop-blur">

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { activa, type Funcion } from "@/lib/dominio/funciones";
 import { leerEstado } from "@/lib/servidor/almacen";
 
@@ -22,6 +23,17 @@ export function CabeceraPublica({ nombre, titulo }: { nombre: string; titulo: st
         <h1 className="font-rotulo text-5xl leading-none font-bold drop-shadow">{nombre}</h1>
       </div>
     </header>
+  );
+}
+
+/** Enlace al aviso legal y la privacidad del bar, al pie de sus páginas públicas. */
+export function PieLegal({ local }: { local: string }) {
+  return (
+    <footer className="mx-auto max-w-md px-4 pt-2 pb-8 text-center text-sm">
+      <Link href={`/m/${local}/legal`} className="text-tinta-suave underline">
+        Aviso legal y privacidad
+      </Link>
+    </footer>
   );
 }
 
