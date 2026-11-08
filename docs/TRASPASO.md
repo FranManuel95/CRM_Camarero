@@ -310,23 +310,53 @@ Estado en versión 7 (`clientes`; fuera `pagosOnline`). Todo con pruebas unitari
   Las pantallas de cocina, pedidos y las que imprimen no se apagan solas (Wake Lock) y el móvil
   vibra con cada aviso nuevo.
 
+## Lista para un bar real (08/11/2026)
+
+- **IA de cualquier proveedor** (`src/lib/servidor/ia.ts`, `ia-config.ts`): facturas y carta desde
+  foto prueban en cadena Gemini (`GEMINI_API_KEY`, gratis en Google AI Studio), cualquier API
+  compatible con OpenAI (`IA_URL`, `IA_CLAVE`, `IA_MODELO`, `IA_PDF`) y Claude
+  (`ANTHROPIC_API_KEY`). Si una está saturada, falla o no cumple el esquema, pasa a la siguiente.
+  Orden con `IA_ORDEN`. Basta con una clave para encender la función. Sin probar con claves reales.
+- **Textos legales** (`src/lib/dominio/legal.ts`): `/m/<bar>/legal` (aviso legal, privacidad y
+  cookies del bar, solo con las funciones que tiene encendidas) y `/legal` (plataforma, con
+  `LEGAL_TITULAR_*`). Enlazados desde la carta QR, reservas, encargos, club y el alta de dueño.
+  Ajustes tiene «Correo de contacto» y avisa de lo que falta. Borradores del contrato y del
+  encargo de tratamiento en `docs/legal/` (para revisar con un abogado).
+- **Declaración responsable** (`src/lib/dominio/declaracion.ts`): `/declaracion-responsable` y
+  `/api/declaracion` (texto). Datos del art. 15.1 de la Orden HAC/1177/2024 en orden; `SISTEMA`
+  (Comanda, CM, 1.0) es lo mismo que se manda a la AEAT. Para firmarla:
+  `docs/legal/declaracion-responsable.md`.
+- **Copias nocturnas** (migración `20261108120000_copias_nocturnas.sql`, **sin aplicar**: la
+  confirmación caducó): pg_cron copia cada madrugada el documento de cada bar si ha cambiado, 30
+  días. Se listan y descargan en Gestión → Ajustes (`/api/copia/noches`). Sin la migración, la
+  lista sale vacía.
+- **`CRON_SECRET`** puesto en Vercel (Production, sensible). Falta Resend para que el resumen
+  diario se mande.
+- **Ensayo de carga** contra la nube (bar de demostración): con 3 aparatos, 54/54 acciones bien;
+  con 8 aparatos a tope, 1 de cada 5 fallaba con «Hay mucho movimiento». Arreglado con una cola por
+  bar en cada servidor (`enCola`) y 10 reintentos con espera creciente: 132/136 bien (los 4
+  restantes, legítimos: stock agotado), p50 1,4 s y p90 2,7 s con 8 aparatos sin pausa. Numeración
+  sin huecos ni repetidos en todos los casos. Después se cerraron las cuentas del ensayo y se
+  repuso el stock de la demo.
+- **Guía de instalación**: `docs/PUESTA_EN_MARCHA.md`.
+
 ## Pendiente (por orden)
 
-1. **Planes de pago**: Vercel Pro (Hobby no permite uso comercial) y Supabase Pro (copias y sin
+1. **Aplicar** la migración de copias nocturnas (pide confirmación en Supabase).
+2. **Planes de pago**: Vercel Pro (Hobby no permite uso comercial) y Supabase Pro (copias y sin
    pausas).
-2. **Supabase Auth**: desactivar «Confirm email» y poner la Site URL / Redirect URLs.
-3. **Papeles**: contrato con el bar, encargo de tratamiento (RGPD) y política de privacidad.
-4. **Impresoras en el local**: probar tickets, comandas y cajón con las del bar (red, USB o
-   Bluetooth: todo está preparado). El ordenador del puente, por cable; recomendado un router 4G
-   de respaldo.
-5. **IA de cualquier proveedor**: hacer que facturas y carta desde foto valgan para cualquier API
-   compatible con OpenAI (Gemini, Mistral, OpenRouter…), con cadena gratis → de pago.
-6. **VERI\*FACTU**: certificado del bar (.p12), prueba en el entorno de pruebas de la AEAT y
-   declaración responsable del fabricante (la firma el usuario; hay que redactarla).
-7. **Correo**: Resend (`RESEND_API_KEY`, `CORREO_REMITENTE`) y `CRON_SECRET`.
-8. **Dominio**: comandatpv.es (registrador español, ~8–15 €/año) o comandatpv.com (Vercel,
-   11,25 $/año); los dos libres el 30/10/2026.
-9. Datáfono integrado (opcional).
+3. **Supabase Auth**: desactivar «Confirm email» y poner la Site URL / Redirect URLs.
+4. **Papeles**: revisar con un abogado `docs/legal/` y firmar con el bar. Rellenar
+   `LEGAL_TITULAR_*` en Vercel.
+5. **VERI\*FACTU**: certificado del bar (.p12), prueba en el entorno de pruebas de la AEAT y firmar
+   la declaración responsable (variables `VERIFACTU_PRODUCTOR_*` y `DECLARACION_*`).
+6. **IA**: poner `GEMINI_API_KEY` (y, si se quiere, una de pago) y probar con una carta y una
+   factura de verdad.
+7. **Impresoras en el local**: probar con las del bar siguiendo `docs/PUESTA_EN_MARCHA.md`.
+8. **Correo**: Resend (`RESEND_API_KEY`, `CORREO_REMITENTE`).
+9. **Dominio**: comandatpv.es (registrador español, ~8–15 €/año) o comandatpv.com (Vercel,
+   11,25 $/año).
+10. Datáfono integrado (opcional).
 
 ## Trucos del entorno
 
