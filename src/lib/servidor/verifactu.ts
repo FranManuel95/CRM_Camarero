@@ -26,7 +26,7 @@ const URL_AEAT = {
     "https://www10.agenciatributaria.gob.es/wlpl/TIKE-CONT/ws/SistemaFacturacion/VerifactuSOAP",
 };
 
-function direccion() {
+export function direccion() {
   const produccion = process.env.VERIFACTU_ENTORNO === "produccion";
   const sello = process.env.VERIFACTU_SELLO === "1";
   return URL_AEAT[

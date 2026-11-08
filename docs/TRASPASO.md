@@ -339,6 +339,16 @@ Estado en versión 7 (`clientes`; fuera `pagosOnline`). Todo con pruebas unitari
   sin huecos ni repetidos en todos los casos. Después se cerraron las cuentas del ensayo y se
   repuso el stock de la demo.
 - **Guía de instalación**: `docs/PUESTA_EN_MARCHA.md`.
+- **VERI\*FACTU listo para encender** (`docs/ENCENDER_VERIFACTU.md`):
+  - Al encenderlo (o al pasar de pruebas a producción, o tras apagarlo) el siguiente ticket abre
+    cadena nueva para Hacienda: `inicioCadena`, huella con anterior vacía y `PrimerRegistro=S`.
+    `estado.verifactu.cadena` guarda dónde empezó; `verificarCadena` solo acepta ese corte.
+  - Gestión → VERI*FACTU se ve aunque esté apagado, con «Preparar y comprobar»
+    (`/api/verifactu/comprobar`): datos del bar con NIF validado (`nif.ts`), certificado (titular,
+    NIF y caducidad, `certificado.ts`), conexión TLS real con la AEAT sin mandar nada, y datos
+    del fabricante.
+  - Límite: un certificado por servidor (un bar con VERI*FACTU). Para varios, certificado por bar
+    o uno de colaborador social.
 
 ## Pendiente (por orden)
 

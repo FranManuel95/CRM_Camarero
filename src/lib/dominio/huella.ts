@@ -41,12 +41,15 @@ export function importeAeat(centimos: number): string {
 
 /** Devuelve el número del primer ticket cuya cadena no cuadra, o null si todo está bien. */
 export function verificarCadena(
-  tickets: { numero: string; huella: string; huellaAnterior: string }[],
+  tickets: { numero: string; huella: string; huellaAnterior: string; inicioCadena?: true }[],
 ): string | null {
   for (let i = 1; i < tickets.length; i++) {
     const actual = tickets[i];
     const previo = tickets[i - 1];
-    if (actual && previo && actual.huellaAnterior !== previo.huella) return actual.numero;
+    if (!actual || !previo) continue;
+    // Al encender VERI*FACTU la cadena vuelve a empezar (sin anterior): solo vale así.
+    if (actual.inicioCadena && actual.huellaAnterior === "") continue;
+    if (actual.huellaAnterior !== previo.huella) return actual.numero;
   }
   return null;
 }

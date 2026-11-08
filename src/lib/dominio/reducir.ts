@@ -1569,6 +1569,13 @@ function reducirEncargado(
       estado.ajustes.funciones = { ...estado.ajustes.funciones, [accion.funcion]: accion.activa };
       // Al apagar el stock, lo que había agotado vuelve a la carta (y al revés).
       if (accion.funcion === "stock") revisarAgotados(estado);
+      // Si se apaga VERI*FACTU, al volver a encenderlo la cadena para Hacienda empieza de nuevo
+      // (los tickets de entre medias no le llegan).
+      if (accion.funcion === "verifactu" && !accion.activa && estado.verifactu?.cadena) {
+        const { cadena: _c, ...resto } = estado.verifactu;
+        void _c;
+        estado.verifactu = resto;
+      }
       break;
     case "guardar_impresora": {
       const { id, ...datos } = accion.impresora;

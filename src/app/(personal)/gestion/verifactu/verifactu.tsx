@@ -3,12 +3,13 @@
 import clsx from "clsx";
 import { RefreshCw, Send } from "lucide-react";
 import { useState } from "react";
-import { useDatos } from "@/components/datos-personal";
+import { useDatos, useFuncion } from "@/components/datos-personal";
 import { Boton, Vacio } from "@/components/ui";
 import { euros } from "@/lib/dominio/importes";
 import type { EstadoRegistroAeat } from "@/lib/dominio/tipos";
 import { formatearFechaHora, formatearHora } from "@/lib/fechas";
 import { useAhora } from "@/lib/cliente/use-ahora";
+import { PrepararVerifactu } from "./preparar";
 
 const TEXTO: Record<EstadoRegistroAeat, string> = {
   pendiente: "Por mandar",
@@ -26,6 +27,25 @@ const COLOR: Record<EstadoRegistroAeat, string> = {
 
 /** Cómo van los registros de VERI*FACTU: lo mandado a la AEAT, lo pendiente y lo rechazado. */
 export function Verifactu() {
+  const encendida = useFuncion("verifactu");
+  if (!encendida)
+    return (
+      <main>
+        <h1 className="mb-1 font-rotulo text-4xl font-bold">VERI*FACTU</h1>
+        <p className="mb-4 max-w-2xl text-tinta-suave">
+          Está apagado: los tickets llevan su huella encadenada, pero no se mandan a Hacienda. Antes
+          de encenderlo, comprueba que está todo.{" "}
+          <a href="/declaracion-responsable" className="text-cobalto underline" target="_blank">
+            Declaración responsable del programa
+          </a>
+        </p>
+        <PrepararVerifactu abierta />
+      </main>
+    );
+  return <Registros />;
+}
+
+function Registros() {
   const { estado, avisar } = useDatos();
   const [mandando, setMandando] = useState(false);
   const v = estado.verifactu;
@@ -67,6 +87,8 @@ export function Verifactu() {
           Declaración responsable del programa
         </a>
       </p>
+
+      <PrepararVerifactu abierta={false} />
 
       <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
         {(["pendiente", "correcto", "aceptado_con_errores", "incorrecto"] as const).map((e) => (

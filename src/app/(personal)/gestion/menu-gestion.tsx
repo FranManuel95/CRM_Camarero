@@ -40,7 +40,7 @@ const SECCIONES: {
   { href: "/gestion/clientes", texto: "Clientes", icono: Contact, funcion: "club" },
   { href: "/gestion/resenas", texto: "Reseñas", icono: Star, funcion: "resenas" },
   { href: "/gestion/historial", texto: "Historial", icono: History, funcion: "historial" },
-  { href: "/gestion/verifactu", texto: "VERI*FACTU", icono: Landmark, funcion: "verifactu" },
+  { href: "/gestion/verifactu", texto: "VERI*FACTU", icono: Landmark },
   { href: "/gestion/funciones", texto: "Funciones", icono: ToggleRight },
   { href: "/gestion/ajustes", texto: "Ajustes", icono: SlidersHorizontal },
 ];

@@ -2,13 +2,29 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import { entrar, listo } from "./ayuda";
 
+test("antes de encenderlo, se comprueba lo que falta", async ({ page }) => {
+  await entrar(page, "1234");
+  await page.goto("/gestion/verifactu");
+  await listo(page);
+  // Si otra prueba ya lo encendió, el apartado sale plegado.
+  const boton = page.getByRole("button", { name: "Comprobar" });
+  if (!(await boton.isVisible())) await page.getByText("Preparar y comprobar").click();
+  await boton.click();
+  await expect(page.getByText("Datos fiscales del bar")).toBeVisible();
+  // El certificado de las pruebas es de mentira: dice que no se puede abrir.
+  await expect(page.getByText(/no se puede abrir|contraseña/)).toBeVisible();
+  await expect(page.getByText("Datos del fabricante y declaración responsable")).toBeVisible();
+  const axe = await new AxeBuilder({ page }).analyze();
+  expect(axe.violations.map((v) => v.id)).toEqual([]);
+});
+
 test("con VERI*FACTU, el ticket lleva el QR y su registro se ve en Gestión", async ({ page }) => {
   await entrar(page, "1234");
   await page.goto("/gestion/funciones");
   await listo(page);
   const interruptor = page.getByRole("checkbox", { name: "VERI*FACTU" });
   if (!(await interruptor.isChecked())) {
-    await page.getByText("VERI*FACTU", { exact: true }).click();
+    await page.getByRole("main").getByText("VERI*FACTU", { exact: true }).click();
     await expect(page.getByText("VERI*FACTU: encendido")).toBeVisible();
   }
 

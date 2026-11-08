@@ -466,6 +466,8 @@ export type Ticket = {
   /** Huella encadenada con la del ticket anterior (ver huella.ts). */
   huella: string;
   huellaAnterior: string;
+  /** Primer ticket mandado a Hacienda (al encender VERI*FACTU): empieza cadena, sin anterior. */
+  inicioCadena?: true;
   /** Si es rectificativa, el ticket al que anula. */
   rectificaA: Id | null;
   /** F2 (factura simplificada) o R5 (su rectificativa). Los tickets antiguos no lo tienen. */
@@ -821,6 +823,11 @@ export type Estado = {
     esperarHasta?: FechaISO;
     /** Si el último envío no llegó (sin red, certificado…), por qué. */
     ultimoError?: string;
+    /**
+     * Dónde empezó la cadena de registros que conoce Hacienda. Si falta, o el entorno ya no es el
+     * mismo (de pruebas a producción), el siguiente ticket empieza una cadena nueva.
+     */
+    cadena?: { entorno: "pruebas" | "produccion"; desde: string; en: FechaISO };
   };
   /**
    * Códigos de 6 cifras para vincular un móvil o una tablet a este bar sin la cuenta del dueño.

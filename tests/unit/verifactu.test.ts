@@ -126,6 +126,83 @@ describe("VERI*FACTU en los tickets", () => {
     expect(ticket.huella).toMatch(/^[0-9A-F]{64}$/);
   });
 
+  it("al encenderlo con tickets de antes, Hacienda recibe una cadena nueva", () => {
+    let estado = estadoDeEjemplo(ctx);
+    const ana = estado.empleados.find((e) => e.rol === "encargado")!;
+    const hacer = (accion: AccionPersonal, c = ctx) => {
+      estado = reducirPersonal(estado, accion, ana, c).estado;
+    };
+    const venta = (c = ctx) => {
+      hacer(
+        {
+          tipo: "venta_rapida",
+          lineas: [{ productoId: "prod-1-1", cantidad: 1, opciones: [], nota: "" }],
+          pagos: [{ metodo: "tarjeta", importe: 200 }],
+        },
+        c,
+      );
+      return estado.tickets.at(-1)!;
+    };
+    hacer({ tipo: "abrir_caja", fondoInicial: 0 });
+    const antes = venta();
+    expect(antes.inicioCadena).toBeUndefined();
+
+    hacer({ tipo: "cambiar_funcion", funcion: "verifactu", activa: true });
+    const primero = venta();
+    expect(primero).toMatchObject({ inicioCadena: true, huellaAnterior: "" });
+    expect(primero.huella).toBe(
+      calcularHuella({
+        nif: estado.ajustes.nif,
+        numero: primero.numero,
+        fechaExpedicion: "24-10-2026",
+        tipoFactura: "F2",
+        cuotaTotal: primero.desglose.reduce((s, d) => s + d.cuota, 0),
+        importeTotal: primero.total,
+        huellaAnterior: "",
+        generadoEn: primero.generadoEn!,
+      }),
+    );
+    expect(estado.verifactu!.registros[0]!.anterior).toBeNull();
+    expect(estado.verifactu!.cadena).toMatchObject({ entorno: "pruebas", desde: primero.numero });
+    const xml = sobreSoap(
+      porEnviar(estado, ctx.ahora),
+      { nombre: "Bar", nif: "B00000000" },
+      {
+        nombreFabricante: "F",
+        nifFabricante: "X",
+        numeroInstalacion: "1",
+        version: SISTEMA.version,
+        multiplesBares: true,
+      },
+    );
+    expect(xml).toContain("<sum1:PrimerRegistro>S</sum1:PrimerRegistro>");
+
+    const segundo = venta();
+    expect(segundo.inicioCadena).toBeUndefined();
+    expect(estado.verifactu!.registros.at(-1)!.anterior).toMatchObject({
+      numero: primero.numero,
+      huella: primero.huella,
+    });
+    // La cadena de dentro sigue cuadrando: solo vale empezar de cero en ese ticket.
+    expect(verificarCadena(estado.tickets)).toBeNull();
+    expect(verificarCadena(estado.tickets.map((t) => ({ ...t, inicioCadena: undefined })))).toBe(
+      primero.numero,
+    );
+
+    // De pruebas a producción: otra cadena nueva.
+    const enProduccion = venta({ ...ctx, entornoAeat: "produccion" });
+    expect(enProduccion.inicioCadena).toBe(true);
+    expect(estado.verifactu!.cadena!.entorno).toBe("produccion");
+    expect(venta({ ...ctx, entornoAeat: "produccion" }).inicioCadena).toBeUndefined();
+
+    // Apagado y vuelto a encender: los de entre medias no le llegan, así que empieza de nuevo.
+    hacer({ tipo: "cambiar_funcion", funcion: "verifactu", activa: false });
+    venta({ ...ctx, entornoAeat: "produccion" });
+    hacer({ tipo: "cambiar_funcion", funcion: "verifactu", activa: true });
+    expect(venta({ ...ctx, entornoAeat: "produccion" }).inicioCadena).toBe(true);
+    expect(verificarCadena(estado.tickets)).toBeNull();
+  });
+
   it("el XML lleva la cadena y lo que contesta la AEAT se apunta en cada registro", () => {
     const t = conVerifactu();
     const primero = t.cobrarCaña();

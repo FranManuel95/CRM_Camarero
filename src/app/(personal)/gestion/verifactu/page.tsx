@@ -1,13 +1,9 @@
 import type { Metadata } from "next";
-import { SiFuncion } from "@/components/funcion-apagada";
 import { Verifactu } from "./verifactu";
 
 export const metadata: Metadata = { title: "VERI*FACTU" };
 
+/** Se ve también con la función apagada: para prepararlo y comprobarlo antes de encenderlo. */
 export default function PaginaVerifactu() {
-  return (
-    <SiFuncion funcion="verifactu">
-      <Verifactu />
-    </SiFuncion>
-  );
+  return <Verifactu />;
 }

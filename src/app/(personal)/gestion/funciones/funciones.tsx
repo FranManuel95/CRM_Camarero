@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useDatos } from "@/components/datos-personal";
 import { Interruptor } from "@/components/ui";
 import {
@@ -64,6 +65,14 @@ export function Funciones() {
                             <span className="mt-0.5 block font-semibold text-aviso">
                               {FALTA[def.necesita]}
                             </span>
+                          )}
+                          {f === "verifactu" && (
+                            <Link
+                              href="/gestion/verifactu"
+                              className="mt-0.5 block font-semibold text-cobalto underline"
+                            >
+                              Preparar y comprobar
+                            </Link>
                           )}
                         </>
                       }

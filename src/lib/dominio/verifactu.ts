@@ -51,8 +51,16 @@ export function sellarTicket(
   const generadoEn = fechaHoraConHuso(ahora);
   const cuotaTotal = ticket.desglose.reduce((s, d) => s + d.cuota, 0);
   const verifactu = activa(estado.ajustes, "verifactu");
+  // Al encender VERI*FACTU (o al pasar de pruebas a producción), Hacienda empieza a recibir
+  // registros: el primero abre una cadena nueva (sin anterior y con «PrimerRegistro»), porque los
+  // tickets de antes nunca le llegaron.
+  const enEntorno = entorno ?? "pruebas";
+  const inicioCadena =
+    verifactu && (!estado.verifactu?.cadena || estado.verifactu.cadena.entorno !== enEntorno);
+  if (inicioCadena) ticket = { ...ticket, huellaAnterior: "" };
   const sellado: Ticket = {
     ...ticket,
+    ...(inicioCadena ? { inicioCadena: true as const } : {}),
     tipoFactura,
     generadoEn,
     huella: calcularHuella({
@@ -96,13 +104,14 @@ export function sellarTicket(
       importeTotal: sellado.total,
       huella: sellado.huella,
       generadoEn,
-      anterior: anterior
-        ? {
-            numero: anterior.numero,
-            fechaExpedicion: fechaAeat(anterior.fecha),
-            huella: anterior.huella,
-          }
-        : null,
+      anterior:
+        anterior && !inicioCadena
+          ? {
+              numero: anterior.numero,
+              fechaExpedicion: fechaAeat(anterior.fecha),
+              huella: anterior.huella,
+            }
+          : null,
       ...(rectificado
         ? {
             rectifica: {
@@ -113,7 +122,11 @@ export function sellarTicket(
         : {}),
       estado: "pendiente",
     });
-    estado.verifactu = { ...estado.verifactu, registros };
+    estado.verifactu = {
+      ...estado.verifactu,
+      registros,
+      ...(inicioCadena ? { cadena: { entorno: enEntorno, desde: sellado.numero, en: ahora } } : {}),
+    };
   }
   return sellado;
 }
