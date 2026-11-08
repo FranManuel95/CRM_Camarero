@@ -23,6 +23,29 @@ let sinCargaV3 = 0;
 /** «Rápidos» por bar y hora, recordados un rato en este servidor. */
 const rapidos = new Map<string, { lista: string[]; hasta: number }>();
 
+/**
+ * Cola por bar dentro de este servidor: los cambios de un mismo bar que llegan a la vez a este
+ * servidor van de uno en uno, así no chocan entre sí (solo pueden chocar con los de otro
+ * servidor, y para eso están los reintentos).
+ */
+const colas = new Map<string, Promise<unknown>>();
+
+export function enCola<T>(clave: string, trabajo: () => Promise<T>): Promise<T> {
+  const anterior = colas.get(clave) ?? Promise.resolve();
+  const este = anterior.catch(() => undefined).then(trabajo);
+  const cola = este.catch(() => undefined);
+  colas.set(clave, cola);
+  void cola.then(() => {
+    if (colas.get(clave) === cola) colas.delete(clave);
+  });
+  return este;
+}
+
+/** Espera antes del reintento n (0, 1, 2…): crece y lleva algo de azar para no volver a chocar. */
+export const esperaReintento = (n: number) => Math.min(1200, 40 * 2 ** n) * (0.5 + Math.random());
+
+const INTENTOS = 10;
+
 /** Trabajos de impresión que se guardan en la nube (los más antiguos se olvidan). */
 const MAX_TRABAJOS = 120;
 
@@ -214,20 +237,22 @@ export function almacenSupabase(local: string, esDemo: boolean): Almacen {
       rpc<Fichaje[]>("tpv_fichajes", { p_desde: desde, p_hasta: hasta }),
     ticketsEntre: (desde, hasta) =>
       rpc<Ticket[]>("tpv_tickets", { p_desde: desde, p_hasta: hasta }),
-    async cambiar(aplicar, extras) {
-      for (let intento = 0; intento < 6; intento++) {
-        const { revision, estado, ids, previos } = await cargar(extras);
-        const r = aplicar(estado);
-        const nuevos = r.estado.tickets.filter((t) => !ids.has(t.id));
-        const fichajes = r.estado.fichajes.filter((f) => previos.get(f.id) !== JSON.stringify(f));
-        const nueva = await guardar(revision, r.estado, nuevos, fichajes);
-        if (nueva >= 0) {
-          r.estado.revision = nueva;
-          return r;
+    cambiar(aplicar, extras) {
+      return enCola(local, async () => {
+        for (let intento = 0; intento < INTENTOS; intento++) {
+          const { revision, estado, ids, previos } = await cargar(extras);
+          const r = aplicar(estado);
+          const nuevos = r.estado.tickets.filter((t) => !ids.has(t.id));
+          const fichajes = r.estado.fichajes.filter((f) => previos.get(f.id) !== JSON.stringify(f));
+          const nueva = await guardar(revision, r.estado, nuevos, fichajes);
+          if (nueva >= 0) {
+            r.estado.revision = nueva;
+            return r;
+          }
+          await new Promise((ok) => setTimeout(ok, esperaReintento(intento)));
         }
-        await new Promise((ok) => setTimeout(ok, 40 + Math.random() * 120));
-      }
-      throw new ErrorAccion("Hay mucho movimiento ahora mismo. Vuelve a intentarlo.");
+        throw new ErrorAccion("Hay mucho movimiento ahora mismo. Vuelve a intentarlo.");
+      });
     },
     async iniciar(estado) {
       if ((await guardar(0, estado, estado.tickets, estado.fichajes)) < 0)
