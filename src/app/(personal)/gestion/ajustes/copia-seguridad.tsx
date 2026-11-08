@@ -1,7 +1,7 @@
 "use client";
 
 import { Download, Upload } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useDatos, useFuncion } from "@/components/datos-personal";
 import { Boton } from "@/components/ui";
 
@@ -73,6 +73,7 @@ export function CopiaSeguridad({ nube }: { nube: boolean }) {
           </>
         )}
       </div>
+      {nube && <CopiasDeNoche />}
       {nube && (
         <p className="text-xs text-tinta-suave">
           En la nube los tickets son definitivos, así que no se puede volver a una copia: sirve para
@@ -80,5 +81,53 @@ export function CopiaSeguridad({ nube }: { nube: boolean }) {
         </p>
       )}
     </section>
+  );
+}
+
+type Noche = { dia: string; creada: string; bytes: number };
+
+/** Las copias que se hacen solas cada noche en la nube (los últimos 30 días). */
+function CopiasDeNoche() {
+  const [noches, setNoches] = useState<Noche[] | null>(null);
+  useEffect(() => {
+    let vivo = true;
+    fetch("/api/copia/noches")
+      .then((r) => (r.ok ? (r.json() as Promise<{ noches: Noche[] }>) : { noches: [] }))
+      .then((d) => vivo && setNoches(d.noches))
+      .catch(() => vivo && setNoches([]));
+    return () => {
+      vivo = false;
+    };
+  }, []);
+  if (!noches?.length) return null;
+  const fecha = (dia: string) =>
+    new Date(`${dia}T12:00:00`).toLocaleDateString("es-ES", {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+    });
+  return (
+    <details className="rounded-xl bg-zinc-claro p-3">
+      <summary className="cursor-pointer font-semibold">
+        Copias de cada noche ({noches.length})
+      </summary>
+      <p className="mt-2 text-sm text-tinta-suave">
+        Se hacen solas de madrugada si algo ha cambiado: carta, mesas, equipo, clientes, stock y
+        ajustes. Se guardan 30 días.
+      </p>
+      <ul className="mt-2 flex flex-wrap gap-2">
+        {noches.map((n) => (
+          <li key={n.dia}>
+            <a
+              href={`/api/copia/noches?dia=${n.dia}`}
+              download
+              className="inline-flex h-9 items-center gap-1 rounded-lg bg-white px-3 text-sm font-semibold ring-1 ring-zinc"
+            >
+              <Download aria-hidden className="size-3.5" /> {fecha(n.dia)}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }
