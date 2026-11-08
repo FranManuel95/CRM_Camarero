@@ -1,8 +1,8 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { activa } from "@/lib/dominio/funciones";
 import { pedidoDeFactura } from "@/lib/dominio/stock";
 import { leerEstado } from "@/lib/servidor/almacen";
 import { FacturaIlegible, leerFactura, TIPOS_FOTO, type TipoFoto } from "@/lib/servidor/facturas";
+import { hayIa, IaSaturada } from "@/lib/servidor/ia";
 import { json } from "@/lib/servidor/respuestas";
 import { sesionActual } from "@/lib/servidor/sesion";
 
@@ -16,7 +16,7 @@ export async function POST(request: Request) {
   const sesion = await sesionActual();
   if (sesion?.empleado.rol !== "encargado")
     return json({ error: "Solo un encargado puede recibir pedidos." }, 403);
-  if (!process.env.ANTHROPIC_API_KEY)
+  if (!hayIa())
     return json({ error: "La lectura de facturas no está activada en este servidor." }, 404);
   const tipo = request.headers.get("content-type") ?? "";
   if (!TIPOS_FOTO.includes(tipo as TipoFoto))
@@ -35,12 +35,8 @@ export async function POST(request: Request) {
     return json(pedidoDeFactura(lectura, estado.ingredientes));
   } catch (e) {
     if (e instanceof FacturaIlegible) return json({ error: e.message }, 422);
-    if (e instanceof Anthropic.RateLimitError)
+    if (e instanceof IaSaturada)
       return json({ error: "Hay mucha gente leyendo facturas. Prueba en un minuto." }, 429);
-    if (e instanceof Anthropic.APIError) {
-      console.error("Lectura de factura:", e.status, e.message);
-      return json({ error: "No se ha podido leer la factura. Prueba otra vez." }, 502);
-    }
-    throw e;
+    return json({ error: "No se ha podido leer la factura. Prueba otra vez en un momento." }, 502);
   }
 }

@@ -13,7 +13,7 @@ import {
 
 /** Lo que hay que configurar en el servidor para cada servicio. */
 const FALTA: Record<Servicio, string> = {
-  ia: "Necesita la clave de Claude (ANTHROPIC_API_KEY) en el servidor.",
+  ia: "Necesita una clave de IA en el servidor (Gemini, cualquier compatible con OpenAI o Claude).",
   correo: "Necesita un proveedor de correo (RESEND_API_KEY y CORREO_REMITENTE).",
   aeat: "Necesita el certificado electrónico del bar y los datos del fabricante del programa (VERIFACTU_*).",
 };

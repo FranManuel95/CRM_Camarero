@@ -1,11 +1,11 @@
-import Anthropic from "@anthropic-ai/sdk";
-import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
+import "server-only";
 import { z } from "zod/v4";
 import { ALERGENOS } from "../dominio/tipos";
+import { IaSinFormato, IaSinRespuesta, leerConIa } from "./ia";
 
 /**
  * Lee la foto (o el PDF) de la carta de un bar con Claude y devuelve categorías y platos con su
- * precio, para darlos de alta de golpe. Solo funciona si el servidor tiene ANTHROPIC_API_KEY.
+ * precio, para darlos de alta de golpe. Usa la IA que tenga el servidor (`ia.ts`).
  */
 
 const esquema = z.object({
@@ -41,36 +41,26 @@ export type TipoCarta = (typeof TIPOS_CARTA)[number];
 export class CartaIlegible extends Error {}
 
 export async function leerCarta(archivo: Buffer, tipo: TipoCarta): Promise<LecturaCarta> {
-  const datos = archivo.toString("base64");
-  const cliente = new Anthropic();
-  const respuesta = await cliente.beta.messages.parse({
-    model: "claude-opus-5-5",
-    max_tokens: 16000,
-    output_config: { effort: "medium", format: betaZodOutputFormat(esquema) },
-    // Si los filtros de seguridad rechazan la petición, la repite otro modelo en la misma llamada.
-    betas: ["server-side-fallback-2026-07-01"],
-    fallbacks: "default",
-    system:
-      "Pasas a datos la carta de un bar o restaurante de España. Respeta las secciones de la " +
-      "carta como categorías y copia los nombres tal cual. Si un plato tiene varios precios " +
-      "(tapa, media, ración), crea un producto por cada uno con el tamaño en el nombre " +
-      "(«Croquetas (media)»). Los alérgenos, solo si la carta los indica; no los deduzcas. " +
-      "No inventes nada: si un precio no se lee, pon 0.",
-    messages: [
-      {
-        role: "user",
-        content: [
-          tipo === "application/pdf"
-            ? { type: "document", source: { type: "base64", media_type: tipo, data: datos } }
-            : { type: "image", source: { type: "base64", media_type: tipo, data: datos } },
-          { type: "text", text: "Esta es la carta." },
-        ],
-      },
-    ],
-  });
-  if (respuesta.stop_reason === "refusal" || !respuesta.parsed_output)
-    throw new CartaIlegible("No se ha podido leer la carta. Prueba con otra foto más nítida.");
-  const lectura = respuesta.parsed_output;
+  let lectura: LecturaCarta;
+  try {
+    lectura = await leerConIa({
+      sistema:
+        "Pasas a datos la carta de un bar o restaurante de España. Respeta las secciones de la " +
+        "carta como categorías y copia los nombres tal cual. Si un plato tiene varios precios " +
+        "(tapa, media, ración), crea un producto por cada uno con el tamaño en el nombre " +
+        "(«Croquetas (media)»). Los alérgenos, solo si la carta los indica; no los deduzcas. " +
+        "No inventes nada: si un precio no se lee, pon 0.",
+      texto: "Esta es la carta.",
+      archivo: { datos: archivo, tipo },
+      esquema,
+    });
+  } catch (e) {
+    if (e instanceof IaSinRespuesta)
+      throw new CartaIlegible("No se ha podido leer la carta. Prueba con otra foto más nítida.");
+    if (e instanceof IaSinFormato)
+      throw new CartaIlegible("Aquí no se pueden leer PDF: manda una foto de la carta.");
+    throw e;
+  }
   if (!lectura.categorias.some((c) => c.productos.length))
     throw new CartaIlegible("No veo platos en esa foto. Prueba con otra más nítida.");
   return lectura;
