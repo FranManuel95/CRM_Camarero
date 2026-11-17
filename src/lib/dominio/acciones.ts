@@ -22,6 +22,12 @@ const dia = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Día no válido");
 const hora = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Hora no válida");
 /** Código de cuenta que pone el propio aparato (para seguir trabajando sin esperar respuesta). */
 const idDelAparato = z.string().regex(/^sr-[a-z0-9-]{8,40}$/, "Identificador no válido");
+/** Franja horaria (hora de Madrid) de una categoría o una carta. */
+const horarioServicio = z.object({
+  desde: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Hora no válida"),
+  hasta: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Hora no válida"),
+  dias: z.array(z.number().int().min(0).max(6)).max(7),
+});
 const receta = z.array(z.object({ ingredienteId: id, cantidad: cantidad.positive() })).max(30);
 
 const telefono = z
@@ -285,16 +291,21 @@ export const accionEncargado = z.discriminatedUnion("tipo", [
       orden: z.number().int(),
       destino: z.enum(["cocina", "barra"]),
       visibleEnQR: z.boolean(),
-      horario: z
-        .object({
-          desde: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Hora no válida"),
-          hasta: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Hora no válida"),
-          dias: z.array(z.number().int().min(0).max(6)).max(7),
-        })
-        .optional(),
+      horario: horarioServicio.optional(),
     }),
   }),
   z.object({ tipo: z.literal("borrar_categoria"), categoriaId: id }),
+  z.object({
+    tipo: z.literal("guardar_carta_horaria"),
+    carta: z.object({
+      id: id.optional(),
+      nombre: texto(40).min(1, "Ponle nombre a la carta."),
+      nombreEn: texto(40).optional(),
+      horario: horarioServicio,
+      categoriaIds: z.array(id).min(1, "Elige al menos una categoría.").max(100),
+    }),
+  }),
+  z.object({ tipo: z.literal("borrar_carta_horaria"), cartaId: id }),
   z.object({
     tipo: z.literal("guardar_producto"),
     producto: z.object({

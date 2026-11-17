@@ -5,6 +5,7 @@ import { Minus, MoreHorizontal, Plus, Search, Zap } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useDatos, useFuncion } from "@/components/datos-personal";
 import { useAhora } from "@/lib/cliente/use-ahora";
+import { cartasAhora, categoriasVisibles, type VerCarta } from "@/lib/dominio/cartas";
 import { precioConTarifa } from "@/lib/dominio/tarifas";
 import { Boton, Campo, claseEntrada, Dialogo, Interruptor, Vacio } from "@/components/ui";
 import type { LineaPedida } from "@/lib/dominio/acciones";
@@ -17,7 +18,8 @@ export type Anotar = (linea: LineaPedida) => Promise<boolean>;
  * La carta para el camarero: categorías, buscador y botones grandes. Tocar un plato lo anota; los
  * que tienen opciones (o el botón «…») abren el detalle con cantidad, nota y «para después».
  * Lo oculto no lo ve el camarero; el encargado ve lo oculto y lo agotado (en gris) y puede
- * anotarlo igualmente, sin tener que ir a cambiar la carta.
+ * anotarlo igualmente, sin tener que ir a cambiar la carta. Si el bar tiene cartas por horario
+ * (desayuno, mediodía, cena), sale primero la que toca; el buscador encuentra todo igualmente.
  */
 const RAPIDOS = "rapidos";
 
@@ -37,10 +39,10 @@ export function CartaTpv({
   const precioDe = (p: Producto) =>
     conTarifas ? precioConTarifa(estado, p, zonaId, ahora) : { precio: p.precio };
   const encargado = empleado.rol === "encargado";
-  const categorias = useMemo(
-    () => [...estado.categorias].sort((a, b) => a.orden - b.orden),
-    [estado.categorias],
-  );
+  const [ver, setVer] = useState<VerCarta>("ahora");
+  const conCartas = Boolean(estado.cartas?.length);
+  const categorias = useMemo(() => categoriasVisibles(estado, ver, ahora), [estado, ver, ahora]);
+  const nombresAhora = conCartas ? cartasAhora(estado, ahora).map((c) => c.nombre) : [];
   // «Rápidos»: lo que más se pide a esta hora, a un toque (si hay historia suficiente).
   const rapidos = useMemo(() => {
     // Lo calcula el servidor con las últimas semanas (aquí solo llegan los tickets de hoy).
@@ -50,7 +52,12 @@ export function CartaTpv({
       .filter((p): p is Producto => Boolean(p && !p.oculto && p.disponible));
   }, [estado.rapidos, estado.productos]);
   const hayRapidos = rapidos.length >= 4;
-  const [categoriaId, setCategoriaId] = useState(hayRapidos ? RAPIDOS : (categorias[0]?.id ?? ""));
+  const [elegida, setCategoriaId] = useState(hayRapidos ? RAPIDOS : (categorias[0]?.id ?? ""));
+  // Al cambiar de carta (o de hora), si la categoría elegida ya no está, la primera que haya.
+  const categoriaId =
+    elegida === RAPIDOS || categorias.some((c) => c.id === elegida)
+      ? elegida
+      : (categorias[0]?.id ?? "");
   const [busqueda, setBusqueda] = useState("");
   const [detalle, setDetalle] = useState<Producto | null>(null);
 
@@ -86,6 +93,30 @@ export function CartaTpv({
           className={clsx(claseEntrada, "pl-10")}
         />
       </div>
+      {!termino && conCartas && (
+        <div className="mb-2 flex flex-wrap items-center gap-1.5" role="group" aria-label="Carta">
+          {(
+            [
+              ["ahora", nombresAhora.length ? `Ahora · ${nombresAhora.join(" · ")}` : "Ahora"],
+              ...(estado.cartas ?? []).map((c) => [c.id, c.nombre] as const),
+              ["toda", "Toda la carta"],
+            ] as const
+          ).map(([id, texto]) => (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={ver === id}
+              onClick={() => setVer(id)}
+              className={clsx(
+                "h-8 rounded-lg px-3 text-sm font-semibold",
+                ver === id ? "bg-cobalto-oscuro text-white" : "bg-zinc-claro text-tinta",
+              )}
+            >
+              {texto}
+            </button>
+          ))}
+        </div>
+      )}
       {!termino && (
         <div className="mb-3 flex flex-wrap gap-1.5" role="tablist" aria-label="Categorías">
           {hayRapidos && (

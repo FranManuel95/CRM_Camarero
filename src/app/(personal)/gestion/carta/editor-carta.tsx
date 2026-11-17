@@ -413,7 +413,7 @@ export function EditorCarta({
                 })
               }
               etiqueta="Solo a ciertas horas"
-              ayuda="Desayunos, menú del día… Fuera de su horario no sale en la carta QR."
+              ayuda="Fuera de su horario no sale en la carta QR. Para desayunos, mediodía y cenas, mejor «Cartas por horario», más abajo."
             />
             {cat.horario && (
               <div className="space-y-2 rounded-xl bg-zinc-claro p-3">

@@ -217,6 +217,16 @@ export type Categoria = {
   visibleEnQR: boolean;
 };
 
+/** Una carta por horario (desayuno, mediodía, cena…) con sus categorías. Ver cartas.ts. */
+export type CartaHoraria = {
+  id: Id;
+  nombre: string;
+  /** Nombre en inglés para la carta QR (opcional). */
+  nombreEn?: string;
+  horario: Horario;
+  categoriaIds: Id[];
+};
+
 /** Los 14 alérgenos de declaración obligatoria (Reglamento UE 1169/2011). */
 export const ALERGENOS = [
   "gluten",
@@ -791,6 +801,8 @@ export type Estado = {
   zonas: Zona[];
   mesas: Mesa[];
   categorias: Categoria[];
+  /** Cartas por horario: desayuno, mediodía, cena… (sin ninguna, toda la carta siempre). */
+  cartas?: CartaHoraria[];
   productos: Producto[];
   cuentas: Cuenta[];
   tickets: Ticket[];

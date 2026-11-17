@@ -23,7 +23,7 @@ import {
   totalCuenta,
   totalPagos,
 } from "./importes";
-import { dentroDeHorario } from "./horario";
+import { categoriaEnServicio, MAX_CARTAS } from "./cartas";
 import { buscarMesa, lineasPara, MESA_VENTA_RAPIDA, PREFIJO_LLEVAR } from "./selectores";
 import { descontar, devolver, redondear, revisarAgotados } from "./stock";
 import { activa, type Funcion, FUNCIONES } from "./funciones";
@@ -144,7 +144,7 @@ function crearLineas(
     }
     if (soloVisiblesEnQR && categoria && !categoria.visibleEnQR)
       falla(`${producto.nombre} no se puede pedir desde aquí.`);
-    if (soloVisiblesEnQR && categoria && !dentroDeHorario(categoria.horario, ctx.ahora))
+    if (soloVisiblesEnQR && categoria && !categoriaEnServicio(estado, categoria, ctx.ahora))
       falla(`${producto.nombre} no se sirve a esta hora.`);
     const { precio, tarifa } = conTarifas
       ? precioConTarifa(estado, producto, zonaId, ctx.ahora)
@@ -1301,6 +1301,32 @@ function reducirEncargado(
       if (estado.productos.some((p) => p.categoriaId === accion.categoriaId))
         falla("Esta categoría tiene productos. Muévelos o bórralos antes.");
       estado.categorias = estado.categorias.filter((c) => c.id !== accion.categoriaId);
+      // Y fuera de las cartas por horario en las que estuviera.
+      if (estado.cartas)
+        estado.cartas = estado.cartas.map((c) => ({
+          ...c,
+          categoriaIds: c.categoriaIds.filter((id) => id !== accion.categoriaId),
+        }));
+      break;
+    case "guardar_carta_horaria": {
+      const { id, ...datos } = accion.carta;
+      for (const c of datos.categoriaIds) buscar(estado.categorias, c, "esa categoría");
+      const cartas = estado.cartas ?? [];
+      const nombre = datos.nombre.trim().toLowerCase();
+      if (cartas.some((c) => c.id !== id && c.nombre.trim().toLowerCase() === nombre))
+        falla(`Ya hay una carta que se llama «${datos.nombre}».`);
+      const carta = { ...datos, categoriaIds: [...new Set(datos.categoriaIds)] };
+      if (id) Object.assign(buscar(cartas, id, "esa carta"), carta);
+      else {
+        if (cartas.length >= MAX_CARTAS) falla(`Como mucho, ${MAX_CARTAS} cartas.`);
+        cartas.push({ id: ctx.nuevoId(), ...carta });
+      }
+      estado.cartas = cartas;
+      break;
+    }
+    case "borrar_carta_horaria":
+      buscar(estado.cartas ?? [], accion.cartaId, "esa carta");
+      estado.cartas = estado.cartas!.filter((c) => c.id !== accion.cartaId);
       break;
     case "guardar_producto": {
       const { id, receta, ...datos } = accion.producto;

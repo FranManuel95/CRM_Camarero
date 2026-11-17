@@ -6,7 +6,7 @@ import { reglasClub } from "../dominio/club";
 import { precioConTarifa } from "../dominio/tarifas";
 import { cuentaEnJuego, nombreLlevar } from "../dominio/selectores";
 import { pagadoCuenta, totalCuenta } from "../dominio/importes";
-import { dentroDeHorario } from "../dominio/horario";
+import { cartasAhora, categoriaEnServicio } from "../dominio/cartas";
 import { resumenTurno } from "../dominio/caja";
 import { inicioDelDia } from "../dominio/informes";
 import { masPedidos } from "../dominio/rapidos";
@@ -102,7 +102,7 @@ export function vistaCliente(estado: Estado, token: string, ahora = new Date().t
   if (!mesaQR && !encargo?.llevar) return null;
   const mesa = mesaQR ?? { id: encargo!.mesaId, nombre: nombreLlevar(encargo!.llevar!) };
   const categorias = estado.categorias
-    .filter((c) => c.visibleEnQR && dentroDeHorario(c.horario, ahora))
+    .filter((c) => c.visibleEnQR && categoriaEnServicio(estado, c, ahora))
     .sort((a, b) => a.orden - b.orden);
   const ids = new Set(categorias.map((c) => c.id));
   // Un encargo se sigue viendo después de pagarlo (para saber cuándo está listo).
@@ -164,6 +164,8 @@ export function vistaCliente(estado: Estado, token: string, ahora = new Date().t
       club: activa(ajustes, "club") ? reglasClub(estado) : null,
     },
     mesa: { nombre: mesa.nombre },
+    /** La carta por horario que toca ahora («Desayunos»), si el bar las usa. */
+    cartas: cartasAhora(estado, ahora).map(({ nombre, nombreEn }) => ({ nombre, nombreEn })),
     /** Solo en los encargos para llevar. */
     llevar: encargo?.llevar ? { recogida: encargo.llevar.recogida } : null,
     categorias: categorias.map(({ id, nombre, nombreEn }) => ({ id, nombre, nombreEn })),

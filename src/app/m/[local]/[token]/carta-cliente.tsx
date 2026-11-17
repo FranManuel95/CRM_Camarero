@@ -174,6 +174,11 @@ export function CartaCliente({
           <h1 className="font-rotulo text-5xl leading-none font-bold drop-shadow">
             {vista.local.nombre}
           </h1>
+          {vista.cartas.length > 0 && (
+            <p className="mt-1 font-semibold">
+              {vista.cartas.map((c) => (idioma === "en" && c.nombreEn) || c.nombre).join(" · ")}
+            </p>
+          )}
           {!pedir && <p className="mt-2 text-sm">{t.pideAlCamarero}</p>}
           {llevar && (
             <p className="mt-2 flex items-center gap-1.5 font-semibold">

@@ -355,6 +355,21 @@ Estado en versión 7 (`clientes`; fuera `pagosOnline`). Todo con pruebas unitari
     (FAQ 7). Pendiente: subsanación tras rechazo, registro de anulación e IGIC/IPSI (tabla en
     `docs/ENCENDER_VERIFACTU.md`).
 
+## Cartas por horario (17/11/2026)
+
+- `src/lib/dominio/cartas.ts` y `estado.cartas` (opcional): cartas con nombre (Desayunos,
+  Mediodía, Cenas…), cada una con su horario (`Horario`, con días) y sus categorías. Una categoría
+  puede estar en varias; la que no está en ninguna sale siempre. Si no toca ninguna carta y todo
+  tiene carta, se enseña todo (nunca queda vacía). El horario propio de cada categoría sigue
+  valiendo.
+- Acciones `guardar_carta_horaria` y `borrar_carta_horaria` (encargado; máx. 12, nombres sin
+  repetir); `borrar_categoria` la quita de las cartas.
+- Carta QR: solo la que toca, y fuera de ella no se puede pedir (`categoriaEnServicio`); el
+  nombre de la carta sale bajo el del bar. Camarero (`CartaTpv`): «Ahora · Desayunos», cada carta
+  y «Toda la carta»; el buscador encuentra todo.
+- Gestión → Carta → «Cartas por horario», con modelos para empezar.
+- Next.js 16.4.2 → 16.4.6 (GHSA-mfr8-8qww-v76h, moderada; el build se paraba por ella).
+
 ## Pendiente (por orden)
 
 1. **Planes de pago**: Vercel Pro (Hobby no permite uso comercial) y Supabase Pro (copias y sin
