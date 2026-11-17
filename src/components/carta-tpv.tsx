@@ -5,7 +5,8 @@ import { Minus, MoreHorizontal, Plus, Search, Zap } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useDatos, useFuncion } from "@/components/datos-personal";
 import { useAhora } from "@/lib/cliente/use-ahora";
-import { cartasAhora, categoriasVisibles, type VerCarta } from "@/lib/dominio/cartas";
+import { useGuardado } from "@/lib/cliente/use-guardado";
+import { cartaInicial, cartasAhora, categoriasVisibles, type VerCarta } from "@/lib/dominio/cartas";
 import { precioConTarifa } from "@/lib/dominio/tarifas";
 import { Boton, Campo, claseEntrada, Dialogo, Interruptor, Vacio } from "@/components/ui";
 import type { LineaPedida } from "@/lib/dominio/acciones";
@@ -39,10 +40,16 @@ export function CartaTpv({
   const precioDe = (p: Producto) =>
     conTarifas ? precioConTarifa(estado, p, zonaId, ahora) : { precio: p.precio };
   const encargado = empleado.rol === "encargado";
-  const [ver, setVer] = useState<VerCarta>("ahora");
+  // La carta elegida se recuerda mientras dure la sesión; al empezar, la que toca por horario
+  // (o la primera).
+  const [elegidaCarta, setVer] = useGuardado<VerCarta | "">("comanda.ver-carta", "", "sesion");
   const conCartas = Boolean(estado.cartas?.length);
+  const ver: VerCarta =
+    elegidaCarta === "toda" || estado.cartas?.some((c) => c.id === elegidaCarta)
+      ? elegidaCarta
+      : cartaInicial(estado, ahora);
   const categorias = useMemo(() => categoriasVisibles(estado, ver, ahora), [estado, ver, ahora]);
-  const nombresAhora = conCartas ? cartasAhora(estado, ahora).map((c) => c.nombre) : [];
+  const tocan = new Set(conCartas ? cartasAhora(estado, ahora).map((c) => c.id) : []);
   // «Rápidos»: lo que más se pide a esta hora, a un toque (si hay historia suficiente).
   const rapidos = useMemo(() => {
     // Lo calcula el servidor con las últimas semanas (aquí solo llegan los tickets de hoy).
@@ -97,8 +104,9 @@ export function CartaTpv({
         <div className="mb-2 flex flex-wrap items-center gap-1.5" role="group" aria-label="Carta">
           {(
             [
-              ["ahora", nombresAhora.length ? `Ahora · ${nombresAhora.join(" · ")}` : "Ahora"],
-              ...(estado.cartas ?? []).map((c) => [c.id, c.nombre] as const),
+              ...(estado.cartas ?? []).map(
+                (c) => [c.id, tocan.has(c.id) ? `${c.nombre} · ahora` : c.nombre] as const,
+              ),
               ["toda", "Toda la carta"],
             ] as const
           ).map(([id, texto]) => (

@@ -301,7 +301,7 @@ export const accionEncargado = z.discriminatedUnion("tipo", [
       id: id.optional(),
       nombre: texto(40).min(1, "Ponle nombre a la carta."),
       nombreEn: texto(40).optional(),
-      horario: horarioServicio,
+      horario: horarioServicio.optional(),
       categoriaIds: z.array(id).min(1, "Elige al menos una categoría.").max(100),
     }),
   }),

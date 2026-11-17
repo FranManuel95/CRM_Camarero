@@ -217,13 +217,14 @@ export type Categoria = {
   visibleEnQR: boolean;
 };
 
-/** Una carta por horario (desayuno, mediodía, cena…) con sus categorías. Ver cartas.ts. */
+/** Una carta del bar (Desayunos, Comidas, Copas…) con sus categorías. Ver cartas.ts. */
 export type CartaHoraria = {
   id: Id;
   nombre: string;
   /** Nombre en inglés para la carta QR (opcional). */
   nombreEn?: string;
-  horario: Horario;
+  /** Si lo tiene, solo está disponible en esa franja (y sale sola cuando toca). */
+  horario?: Horario;
   categoriaIds: Id[];
 };
 
@@ -801,7 +802,7 @@ export type Estado = {
   zonas: Zona[];
   mesas: Mesa[];
   categorias: Categoria[];
-  /** Cartas por horario: desayuno, mediodía, cena… (sin ninguna, toda la carta siempre). */
+  /** Cartas: Desayunos, Comidas, Copas… (sin ninguna, toda la carta a la vez). */
   cartas?: CartaHoraria[];
   productos: Producto[];
   cuentas: Cuenta[];

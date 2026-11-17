@@ -6,7 +6,7 @@ import { reglasClub } from "../dominio/club";
 import { precioConTarifa } from "../dominio/tarifas";
 import { cuentaEnJuego, nombreLlevar } from "../dominio/selectores";
 import { pagadoCuenta, totalCuenta } from "../dominio/importes";
-import { cartasAhora, categoriaEnServicio } from "../dominio/cartas";
+import { cartaInicial, cartasDisponibles, categoriaEnServicio } from "../dominio/cartas";
 import { resumenTurno } from "../dominio/caja";
 import { inicioDelDia } from "../dominio/informes";
 import { masPedidos } from "../dominio/rapidos";
@@ -164,8 +164,15 @@ export function vistaCliente(estado: Estado, token: string, ahora = new Date().t
       club: activa(ajustes, "club") ? reglasClub(estado) : null,
     },
     mesa: { nombre: mesa.nombre },
-    /** La carta por horario que toca ahora («Desayunos»), si el bar las usa. */
-    cartas: cartasAhora(estado, ahora).map(({ nombre, nombreEn }) => ({ nombre, nombreEn })),
+    /** Las cartas que se pueden elegir ahora (Desayunos, Copas…), si el bar las usa. */
+    cartas: cartasDisponibles(estado, ahora).map(({ id, nombre, nombreEn, categoriaIds }) => ({
+      id,
+      nombre,
+      nombreEn,
+      categoriaIds: categoriaIds.filter((c) => ids.has(c)),
+    })),
+    /** La que se enseña primero (la que toca por horario, o la primera). */
+    cartaInicial: cartaInicial(estado, ahora),
     /** Solo en los encargos para llevar. */
     llevar: encargo?.llevar ? { recogida: encargo.llevar.recogida } : null,
     categorias: categorias.map(({ id, nombre, nombreEn }) => ({ id, nombre, nombreEn })),

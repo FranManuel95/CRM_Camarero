@@ -7,6 +7,7 @@ export const TEXTOS = {
   es: {
     pideAlCamarero: "Consulta la carta y pide al camarero.",
     secciones: "Secciones de la carta",
+    cartas: "Cartas",
     alergias: "Alergias e intolerancias",
     ocultando: (n: number) => ` · ocultando ${n}`,
     alergiasAyuda: "Marca lo que no puedes tomar y escondemos los platos que lo llevan.",
@@ -85,6 +86,7 @@ export const TEXTOS = {
   en: {
     pideAlCamarero: "Have a look at the menu and order with your waiter.",
     secciones: "Menu sections",
+    cartas: "Menus",
     alergias: "Allergies and intolerances",
     ocultando: (n: number) => ` · hiding ${n}`,
     alergiasAyuda: "Tick what you can't have and we'll hide the dishes that contain it.",

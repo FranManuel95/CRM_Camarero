@@ -151,6 +151,19 @@ export function CartaCliente({
   const visibles = vista.productos.filter(
     (p) => !p.alergenos.some((a) => sinAlergenos.includes(a)),
   );
+  // Con varias cartas (Desayunos, Copas…), el cliente elige cuál ver. Lo que no está en ninguna
+  // sale en todas.
+  const [cartaElegida, setCarta] = useGuardado<string>(`comanda.carta.${token}`, "", "sesion");
+  const cartaVista =
+    vista.cartas.length > 1
+      ? (vista.cartas.find((c) => c.id === cartaElegida) ??
+        vista.cartas.find((c) => c.id === vista.cartaInicial) ??
+        vista.cartas[0])
+      : undefined;
+  const conCarta = new Set(vista.cartas.flatMap((c) => c.categoriaIds));
+  const categorias = cartaVista
+    ? vista.categorias.filter((c) => !conCarta.has(c.id) || cartaVista.categoriaIds.includes(c.id))
+    : vista.categorias;
   const llamado = vista.avisos.includes("llamar");
   const cuentaPedida = vista.avisos.includes("cuenta");
 
@@ -174,9 +187,9 @@ export function CartaCliente({
           <h1 className="font-rotulo text-5xl leading-none font-bold drop-shadow">
             {vista.local.nombre}
           </h1>
-          {vista.cartas.length > 0 && (
+          {vista.cartas.length === 1 && (
             <p className="mt-1 font-semibold">
-              {vista.cartas.map((c) => (idioma === "en" && c.nombreEn) || c.nombre).join(" · ")}
+              {en(idioma, vista.cartas[0]!.nombre, vista.cartas[0]!.nombreEn)}
             </p>
           )}
           {!pedir && <p className="mt-2 text-sm">{t.pideAlCamarero}</p>}
@@ -188,179 +201,213 @@ export function CartaCliente({
         </div>
       </header>
 
-      {encargoListo && (
-        <p
-          role="status"
-          className="mx-4 mt-4 rounded-xl bg-cuenta p-3 text-center text-lg font-semibold text-white"
+      <main>
+        {encargoListo && (
+          <p
+            role="status"
+            className="mx-4 mt-4 rounded-xl bg-cuenta p-3 text-center text-lg font-semibold text-white"
+          >
+            {t.encargoListo}
+          </p>
+        )}
+        {vista.local.club && !llevar && (
+          <Club
+            local={local}
+            token={token}
+            idioma={idioma}
+            premio={euros(vista.local.club.valorPremio)}
+            hayCuenta={Boolean(vista.cuenta)}
+            paraQuien={vista.cuenta?.club ?? null}
+            sumar={async (codigo) => {
+              if (await mandar({ tipo: "sumar_al_club", codigo })) avisar(t.sumado);
+            }}
+          />
+        )}
+        {vista.ticket && verGracias && (!vista.cuenta || vista.cuenta.total === 0) && (
+          <Gracias
+            local={local}
+            token={token}
+            idioma={idioma}
+            ticket={vista.ticket}
+            correo={vista.local.ticketCorreo}
+            resena={vista.local.resena}
+            alCerrar={() => setVerGracias(false)}
+          />
+        )}
+
+        <nav
+          aria-label={t.secciones}
+          className="sticky top-0 z-30 border-b border-zinc bg-white/95 backdrop-blur"
         >
-          {t.encargoListo}
-        </p>
-      )}
-      {vista.local.club && !llevar && (
-        <Club
-          local={local}
-          token={token}
-          idioma={idioma}
-          premio={euros(vista.local.club.valorPremio)}
-          hayCuenta={Boolean(vista.cuenta)}
-          paraQuien={vista.cuenta?.club ?? null}
-          sumar={async (codigo) => {
-            if (await mandar({ tipo: "sumar_al_club", codigo })) avisar(t.sumado);
-          }}
-        />
-      )}
-      {vista.ticket && verGracias && (!vista.cuenta || vista.cuenta.total === 0) && (
-        <Gracias
-          local={local}
-          token={token}
-          idioma={idioma}
-          ticket={vista.ticket}
-          correo={vista.local.ticketCorreo}
-          resena={vista.local.resena}
-          alCerrar={() => setVerGracias(false)}
-        />
-      )}
+          {cartaVista && (
+            <div
+              className="flex gap-1 overflow-x-auto px-3 pt-2"
+              role="group"
+              aria-label={t.cartas}
+            >
+              {vista.cartas.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  aria-pressed={c.id === cartaVista.id}
+                  onClick={() => {
+                    setCarta(c.id);
+                    window.scrollTo({ top: 0 });
+                  }}
+                  className={clsx(
+                    "h-10 shrink-0 rounded-lg px-4 font-semibold whitespace-nowrap",
+                    c.id === cartaVista.id
+                      ? "bg-cobalto text-white"
+                      : "bg-cobalto-claro text-cobalto-oscuro",
+                  )}
+                >
+                  {en(idioma, c.nombre, c.nombreEn)}
+                </button>
+              ))}
+            </div>
+          )}
+          <ul className="flex gap-1 overflow-x-auto px-3 py-2">
+            {categorias.map((c) => (
+              <li key={c.id}>
+                <a
+                  href={`#cat-${c.id}`}
+                  className="block h-9 shrink-0 rounded-full bg-zinc-claro px-3.5 py-1.5 text-sm font-semibold whitespace-nowrap ring-1 ring-zinc"
+                >
+                  {en(idioma, c.nombre, c.nombreEn)}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
 
-      <nav
-        aria-label={t.secciones}
-        className="sticky top-0 z-30 border-b border-zinc bg-white/95 backdrop-blur"
-      >
-        <ul className="flex gap-1 overflow-x-auto px-3 py-2">
-          {vista.categorias.map((c) => (
-            <li key={c.id}>
-              <a
-                href={`#cat-${c.id}`}
-                className="block h-9 shrink-0 rounded-full bg-zinc-claro px-3.5 py-1.5 text-sm font-semibold whitespace-nowrap ring-1 ring-zinc"
-              >
-                {en(idioma, c.nombre, c.nombreEn)}
-              </a>
-            </li>
-          ))}
-        </ul>
-      </nav>
+        <details className="mx-4 mt-4 rounded-xl bg-zinc-claro p-3 text-sm">
+          <summary className="cursor-pointer font-semibold">
+            {t.alergias}
+            {sinAlergenos.length ? t.ocultando(sinAlergenos.length) : ""}
+          </summary>
+          <p className="mt-2 mb-2 text-tinta-suave">{t.alergiasAyuda}</p>
+          <div className="flex flex-wrap gap-1.5">
+            {ALERGENOS.map((a) => {
+              const activo = sinAlergenos.includes(a);
+              return (
+                <button
+                  key={a}
+                  type="button"
+                  aria-pressed={activo}
+                  onClick={() =>
+                    setSinAlergenos((s) => (activo ? s.filter((x) => x !== a) : [...s, a]))
+                  }
+                  className={clsx(
+                    "h-9 rounded-full px-3 ring-1",
+                    activo ? "bg-aviso text-white ring-aviso" : "bg-white ring-zinc-oscuro",
+                  )}
+                >
+                  {activo ? t.sin : ""}
+                  {nombreAlergeno(a)}
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-xs text-tinta-suave">{t.alergiaGrave}</p>
+        </details>
 
-      <details className="mx-4 mt-4 rounded-xl bg-zinc-claro p-3 text-sm">
-        <summary className="cursor-pointer font-semibold">
-          {t.alergias}
-          {sinAlergenos.length ? t.ocultando(sinAlergenos.length) : ""}
-        </summary>
-        <p className="mt-2 mb-2 text-tinta-suave">{t.alergiasAyuda}</p>
-        <div className="flex flex-wrap gap-1.5">
-          {ALERGENOS.map((a) => {
-            const activo = sinAlergenos.includes(a);
+        <div className="px-4">
+          {categorias.map((c) => {
+            const productos = visibles.filter((p) => p.categoriaId === c.id);
+            if (!productos.length) return null;
             return (
-              <button
-                key={a}
-                type="button"
-                aria-pressed={activo}
-                onClick={() =>
-                  setSinAlergenos((s) => (activo ? s.filter((x) => x !== a) : [...s, a]))
-                }
-                className={clsx(
-                  "h-9 rounded-full px-3 ring-1",
-                  activo ? "bg-aviso text-white ring-aviso" : "bg-white ring-zinc-oscuro",
-                )}
+              <section
+                key={c.id}
+                id={`cat-${c.id}`}
+                className="scroll-mt-16 pt-6"
+                aria-labelledby={`t-${c.id}`}
               >
-                {activo ? t.sin : ""}
-                {nombreAlergeno(a)}
-              </button>
+                <h2
+                  id={`t-${c.id}`}
+                  className="mb-2 border-b-2 border-cobalto pb-1 font-rotulo text-3xl font-bold text-cobalto"
+                >
+                  {en(idioma, c.nombre, c.nombreEn)}
+                </h2>
+                <ul className="divide-y divide-zinc">
+                  {productos.map((p) => {
+                    const nombre = en(idioma, p.nombre, p.nombreEn);
+                    const descripcion = en(idioma, p.descripcion, p.descripcionEn);
+                    return (
+                      <li
+                        key={p.id}
+                        className={clsx("flex gap-3 py-3", !p.disponible && "opacity-50")}
+                      >
+                        {p.foto && (
+                          // Fotos que suben los bares a su almacenamiento; tamaño ya reducido al subir.
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={p.foto}
+                            alt=""
+                            width={80}
+                            height={80}
+                            loading="lazy"
+                            decoding="async"
+                            className="size-20 shrink-0 rounded-xl object-cover"
+                          />
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <h3 className="text-lg leading-tight font-semibold">{nombre}</h3>
+                          {descripcion && <p className="text-sm text-tinta-suave">{descripcion}</p>}
+                          {p.alergenos.length > 0 && (
+                            <p className="mt-1 text-xs text-tinta-suave">
+                              {t.contiene}
+                              {p.alergenos.map(nombreAlergeno).join(", ")}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex shrink-0 flex-col items-end gap-1.5">
+                          <span className="text-right">
+                            <span className="block font-rotulo text-xl font-bold">
+                              {euros(p.precio)}
+                            </span>
+                            {p.precioCarta !== undefined && (
+                              <span className="block text-xs text-tinta-suave">
+                                <span className="line-through">{euros(p.precioCarta)}</span>{" "}
+                                {p.tarifa}
+                              </span>
+                            )}
+                          </span>
+                          {!p.disponible ? (
+                            <span className="text-sm font-semibold">{t.agotado}</span>
+                          ) : pedir ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                p.grupos.length
+                                  ? setDetalle(p)
+                                  : añadir({
+                                      productoId: p.id,
+                                      cantidad: 1,
+                                      opciones: [],
+                                      nota: "",
+                                    })
+                              }
+                              className="flex h-10 items-center gap-1 rounded-full bg-cobalto px-4 text-sm font-semibold text-white active:scale-95"
+                              aria-label={t.añadirA(nombre)}
+                            >
+                              <Plus aria-hidden className="size-4" /> {t.añadir}
+                            </button>
+                          ) : null}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
             );
           })}
+          <p className="pt-8 text-center text-xs text-tinta-suave">{t.preciosIva}</p>
+          <p className="pt-2 pb-8 text-center text-xs">
+            <a href={`/m/${local}/legal`} className="text-tinta-suave underline">
+              {t.legal}
+            </a>
+          </p>
         </div>
-        <p className="mt-2 text-xs text-tinta-suave">{t.alergiaGrave}</p>
-      </details>
-
-      <main className="px-4">
-        {vista.categorias.map((c) => {
-          const productos = visibles.filter((p) => p.categoriaId === c.id);
-          if (!productos.length) return null;
-          return (
-            <section
-              key={c.id}
-              id={`cat-${c.id}`}
-              className="scroll-mt-16 pt-6"
-              aria-labelledby={`t-${c.id}`}
-            >
-              <h2
-                id={`t-${c.id}`}
-                className="mb-2 border-b-2 border-cobalto pb-1 font-rotulo text-3xl font-bold text-cobalto"
-              >
-                {en(idioma, c.nombre, c.nombreEn)}
-              </h2>
-              <ul className="divide-y divide-zinc">
-                {productos.map((p) => {
-                  const nombre = en(idioma, p.nombre, p.nombreEn);
-                  const descripcion = en(idioma, p.descripcion, p.descripcionEn);
-                  return (
-                    <li
-                      key={p.id}
-                      className={clsx("flex gap-3 py-3", !p.disponible && "opacity-50")}
-                    >
-                      {p.foto && (
-                        // Fotos que suben los bares a su almacenamiento; tamaño ya reducido al subir.
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={p.foto}
-                          alt=""
-                          width={80}
-                          height={80}
-                          loading="lazy"
-                          decoding="async"
-                          className="size-20 shrink-0 rounded-xl object-cover"
-                        />
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <h3 className="text-lg leading-tight font-semibold">{nombre}</h3>
-                        {descripcion && <p className="text-sm text-tinta-suave">{descripcion}</p>}
-                        {p.alergenos.length > 0 && (
-                          <p className="mt-1 text-xs text-tinta-suave">
-                            {t.contiene}
-                            {p.alergenos.map(nombreAlergeno).join(", ")}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex shrink-0 flex-col items-end gap-1.5">
-                        <span className="text-right">
-                          <span className="block font-rotulo text-xl font-bold">
-                            {euros(p.precio)}
-                          </span>
-                          {p.precioCarta !== undefined && (
-                            <span className="block text-xs text-tinta-suave">
-                              <span className="line-through">{euros(p.precioCarta)}</span>{" "}
-                              {p.tarifa}
-                            </span>
-                          )}
-                        </span>
-                        {!p.disponible ? (
-                          <span className="text-sm font-semibold">{t.agotado}</span>
-                        ) : pedir ? (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              p.grupos.length
-                                ? setDetalle(p)
-                                : añadir({ productoId: p.id, cantidad: 1, opciones: [], nota: "" })
-                            }
-                            className="flex h-10 items-center gap-1 rounded-full bg-cobalto px-4 text-sm font-semibold text-white active:scale-95"
-                            aria-label={t.añadirA(nombre)}
-                          >
-                            <Plus aria-hidden className="size-4" /> {t.añadir}
-                          </button>
-                        ) : null}
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          );
-        })}
-        <p className="pt-8 text-center text-xs text-tinta-suave">{t.preciosIva}</p>
-        <p className="pt-2 pb-8 text-center text-xs">
-          <a href={`/m/${local}/legal`} className="text-tinta-suave underline">
-            {t.legal}
-          </a>
-        </p>
       </main>
 
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-zinc bg-white/95 p-3 backdrop-blur">

@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import { accionPersonal } from "@/lib/dominio/acciones";
-import { categoriaEnServicio, categoriasVisibles } from "@/lib/dominio/cartas";
+import {
+  cartaInicial,
+  cartasDisponibles,
+  categoriaEnServicio,
+  categoriasVisibles,
+} from "@/lib/dominio/cartas";
 import { estadoDeEjemplo } from "@/lib/dominio/demo";
 import { reducirCliente, reducirPersonal } from "@/lib/dominio/reducir";
 import type { Estado } from "@/lib/dominio/tipos";
@@ -49,7 +54,40 @@ function conCartas() {
   };
 }
 
-describe("cartas por horario", () => {
+describe("cartas", () => {
+  it("sin horario: solo un nombre y sus categorías, siempre disponibles y elegidas a mano", () => {
+    const ctx = contexto();
+    let estado: Estado = estadoDeEjemplo(ctx);
+    const ana = estado.empleados.find((e) => e.rol === "encargado")!;
+    const [primera, segunda, tercera] = [...estado.categorias].sort((x, y) => x.orden - y.orden);
+    for (const [nombre, cat] of [
+      ["Comidas", primera!],
+      ["Copas", segunda!],
+    ] as const) {
+      const ok = accionPersonal.safeParse({
+        tipo: "guardar_carta_horaria",
+        carta: { nombre, categoriaIds: [cat.id] },
+      });
+      if (!ok.success) throw ok.error;
+      estado = reducirPersonal(estado, ok.data, ana, ctx).estado;
+    }
+    expect(cartasDisponibles(estado, a("04:00")).map((c) => c.nombre)).toEqual([
+      "Comidas",
+      "Copas",
+    ]);
+    const copas = estado.cartas!.find((c) => c.nombre === "Copas")!.id;
+    // Sin horario, empieza por la primera.
+    expect(cartaInicial(estado, a("09:00"))).toBe(estado.cartas![0]!.id);
+    const ids = categoriasVisibles(estado, copas, a("09:00")).map((c) => c.id);
+    expect(ids).toContain(segunda!.id);
+    expect(ids).not.toContain(primera!.id);
+    expect(ids).toContain(tercera!.id);
+    // Todo se puede pedir desde el QR a cualquier hora.
+    expect(estado.categorias.every((c) => categoriaEnServicio(estado, c, a("04:00")))).toBe(true);
+    const vista = vistaCliente(estado, estado.mesas.find((m) => m.token)!.token, a("09:00"))!;
+    expect(vista.cartas.map((c) => c.nombre)).toEqual(["Comidas", "Copas"]);
+  });
+
   it("cada carta a su hora; lo que no está en ninguna, siempre", () => {
     const t = conCartas();
     const e = t.estado();

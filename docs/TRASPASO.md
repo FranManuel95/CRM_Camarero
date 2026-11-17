@@ -355,19 +355,21 @@ Estado en versión 7 (`clientes`; fuera `pagosOnline`). Todo con pruebas unitari
     (FAQ 7). Pendiente: subsanación tras rechazo, registro de anulación e IGIC/IPSI (tabla en
     `docs/ENCENDER_VERIFACTU.md`).
 
-## Cartas por horario (17/11/2026)
+## Cartas (17/11/2026)
 
 - `src/lib/dominio/cartas.ts` y `estado.cartas` (opcional): cartas con nombre (Desayunos,
-  Mediodía, Cenas…), cada una con su horario (`Horario`, con días) y sus categorías. Una categoría
-  puede estar en varias; la que no está en ninguna sale siempre. Si no toca ninguna carta y todo
-  tiene carta, se enseña todo (nunca queda vacía). El horario propio de cada categoría sigue
-  valiendo.
+  Comidas, Copas…) y sus categorías; el **horario es opcional** (lo decide quien la crea). Una
+  categoría puede estar en varias; la que no está en ninguna sale en todas.
+  - Sin horario: siempre disponible; el camarero y el cliente la eligen a mano.
+  - Con horario: solo disponible en su franja (fuera, no se puede pedir desde el QR) y es la
+    que sale primero cuando toca (`cartaInicial`). Si no hay ninguna disponible y todo tiene
+    carta, se enseña todo.
 - Acciones `guardar_carta_horaria` y `borrar_carta_horaria` (encargado; máx. 12, nombres sin
   repetir); `borrar_categoria` la quita de las cartas.
-- Carta QR: solo la que toca, y fuera de ella no se puede pedir (`categoriaEnServicio`); el
-  nombre de la carta sale bajo el del bar. Camarero (`CartaTpv`): «Ahora · Desayunos», cada carta
-  y «Toda la carta»; el buscador encuentra todo.
-- Gestión → Carta → «Cartas por horario», con modelos para empezar.
+- Carta QR: con varias cartas, pestañas arriba para elegir (se recuerda en la sesión); con una,
+  su nombre bajo el del bar. Camarero (`CartaTpv`): un botón por carta («· ahora» en la que toca)
+  y «Toda la carta»; se recuerda en la sesión; el buscador encuentra todo.
+- Gestión → Carta → «Cartas», con modelos para empezar (Desayunos, Comidas, Cenas, Copas).
 - Next.js 16.4.2 → 16.4.6 (GHSA-mfr8-8qww-v76h, moderada; el build se paraba por ella).
 
 ## Pendiente (por orden)

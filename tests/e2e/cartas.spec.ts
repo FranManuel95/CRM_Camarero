@@ -2,7 +2,20 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import { entrar, listo, tokenDeMesa } from "./ayuda";
 
-test("cartas por horario: el encargado la crea, el camarero la ve primero y el cliente solo esa", async ({
+// Pase lo que pase, las cartas de esta prueba se quitan: si se quedaran, el camarero vería solo
+// esa carta y las demás pruebas no encontrarían sus categorías.
+test.afterEach(async ({ page }, info) => {
+  const r = await page.request.get("/api/estado");
+  if (!r.ok()) return;
+  const estado = (await r.json()) as { cartas?: { id: string; nombre: string }[] };
+  for (const c of estado.cartas ?? [])
+    if (c.nombre.endsWith(info.project.name))
+      await page.request.post("/api/acciones", {
+        data: { accion: { tipo: "borrar_carta_horaria", cartaId: c.id } },
+      });
+});
+
+test("cartas: el encargado crea una con nombre, el camarero y el cliente la eligen", async ({
   page,
   browser,
 }, info) => {
@@ -10,26 +23,25 @@ test("cartas por horario: el encargado la crea, el camarero la ve primero y el c
   await entrar(page, "1234");
   await page.goto("/gestion/carta");
   await listo(page);
-  const seccion = page.getByRole("region", { name: "Cartas por horario" });
+  const seccion = page.getByRole("region", { name: "Cartas", exact: true });
   await seccion.getByRole("button", { name: "Añadir" }).click();
   const dialogo = page.getByRole("dialog");
-  await dialogo.getByLabel(/^Nombre/).first().fill(nombre);
-  // Todo el día, para que toque ahora sea la hora que sea.
-  await dialogo.getByLabel("Desde").fill("00:00");
-  await dialogo.getByLabel("Hasta").fill("23:59");
+  await dialogo
+    .getByLabel(/^Nombre/)
+    .first()
+    .fill(nombre);
   await dialogo.getByRole("button", { name: "Tapas", exact: true }).click();
-  const axe = await new AxeBuilder({ page }).include("dialog").analyze();
+  // «region» es de la página entera, no de un diálogo.
+  const axe = await new AxeBuilder({ page }).include("dialog").disableRules(["region"]).analyze();
   expect(axe.violations.map((v) => v.id)).toEqual([]);
   await dialogo.getByRole("button", { name: "Guardar" }).click();
   await expect(seccion.getByText(nombre)).toBeVisible();
 
-  // El camarero ve primero la carta que toca, y puede abrir toda.
+  // Sin horario: el camarero la tiene a un toque, y puede abrir toda.
   await page.goto("/sala/rapida");
   await listo(page);
   const elegir = page.getByRole("group", { name: "Carta" });
-  await expect(
-    elegir.getByRole("button", { name: new RegExp(`^Ahora · .*${nombre}`) }),
-  ).toBeVisible();
+  await expect(elegir.getByRole("button", { name: nombre, exact: true })).toBeVisible();
   await elegir.getByRole("button", { name: "Toda la carta" }).click();
   await expect(page.getByRole("tab", { name: "Tapas" })).toBeVisible();
 
@@ -38,12 +50,34 @@ test("cartas por horario: el encargado la crea, el camarero la ve primero y el c
   const cliente = await (await browser.newContext()).newPage();
   await cliente.goto(`/m/local/${token}`);
   await expect(cliente.getByText(nombre)).toBeVisible();
-  await cliente.context().close();
 
-  // La quitamos para no cambiar las demás pruebas.
+  // Con una segunda carta, el cliente elige entre las dos con pestañas.
+  const copas = `Copas ${info.project.name}`;
   await page.goto("/gestion/carta");
   await listo(page);
-  page.once("dialog", (d) => void d.accept());
-  await seccion.getByRole("button", { name: `Quitar ${nombre}` }).click();
-  await expect(seccion.getByText(nombre)).toHaveCount(0);
+  await seccion.getByRole("button", { name: "Añadir" }).click();
+  await dialogo
+    .getByLabel(/^Nombre/)
+    .first()
+    .fill(copas);
+  await dialogo.getByRole("button", { name: "Cervezas", exact: true }).click();
+  await dialogo.getByRole("button", { name: "Guardar" }).click();
+  await expect(seccion.getByText(copas)).toBeVisible();
+  await cliente.reload();
+  const pestanas = cliente.getByRole("group", { name: "Cartas" });
+  await pestanas.getByRole("button", { name: copas }).click();
+  await expect(cliente.getByRole("heading", { name: "Cervezas" })).toBeVisible();
+  await expect(cliente.getByRole("heading", { name: "Tapas" })).toHaveCount(0);
+  await pestanas.getByRole("button", { name: nombre }).click();
+  await expect(cliente.getByRole("heading", { name: "Tapas" })).toBeVisible();
+  const axeCliente = await new AxeBuilder({ page: cliente }).analyze();
+  expect(axeCliente.violations.map((v) => v.id)).toEqual([]);
+  await cliente.context().close();
+
+  // Las quitamos para no cambiar las demás pruebas.
+  for (const n of [nombre, copas]) {
+    page.once("dialog", (d) => void d.accept());
+    await seccion.getByRole("button", { name: `Quitar ${n}` }).click();
+    await expect(seccion.getByText(n)).toHaveCount(0);
+  }
 });

@@ -4,7 +4,7 @@ import clsx from "clsx";
 import { Clock, Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useDatos, useFuncion } from "@/components/datos-personal";
-import { Boton, Campo, claseEntrada, Dialogo } from "@/components/ui";
+import { Boton, Campo, claseEntrada, Dialogo, Interruptor } from "@/components/ui";
 import { cartasAhora } from "@/lib/dominio/cartas";
 import { describirHorario, NOMBRE_DIA } from "@/lib/dominio/horario";
 import type { CartaHoraria } from "@/lib/dominio/tipos";
@@ -15,40 +15,26 @@ const DIAS = [1, 2, 3, 4, 5, 6, 0];
 
 type Borrador = Omit<CartaHoraria, "id"> & { id?: string };
 
-/** Para empezar con un toque. */
+/** Para empezar con un toque (sin horario: se le pone si se quiere). */
 const MODELOS: Borrador[] = [
-  {
-    nombre: "Desayunos",
-    nombreEn: "Breakfast",
-    horario: { desde: "07:00", hasta: "12:30", dias: [] },
-    categoriaIds: [],
-  },
-  {
-    nombre: "Mediodía",
-    nombreEn: "Lunch",
-    horario: { desde: "12:30", hasta: "17:00", dias: [] },
-    categoriaIds: [],
-  },
-  {
-    nombre: "Cenas",
-    nombreEn: "Dinner",
-    horario: { desde: "20:00", hasta: "00:00", dias: [] },
-    categoriaIds: [],
-  },
+  { nombre: "Desayunos", nombreEn: "Breakfast", categoriaIds: [] },
+  { nombre: "Comidas", nombreEn: "Lunch", categoriaIds: [] },
+  { nombre: "Cenas", nombreEn: "Dinner", categoriaIds: [] },
+  { nombre: "Copas", nombreEn: "Drinks", categoriaIds: [] },
 ];
 
 /**
- * Cartas por horario: desayunos, mediodía, cenas… En el QR el cliente solo ve la que toca; el
- * camarero la ve primero, pero puede abrir otra o toda la carta. Lo que no está en ninguna carta
- * (bebidas, por ejemplo) sale siempre.
+ * Cartas del bar: Desayunos, Comidas, Copas… Cada una es un nombre y sus categorías; el camarero
+ * y el cliente eligen cuál ver. Si se le pone horario, solo está disponible en su franja y sale
+ * sola cuando toca. Lo que no está en ninguna carta sale siempre.
  */
-export function CartasHorarias() {
+export function Cartas() {
   const { estado, hacer } = useDatos();
   const ingles = useFuncion("cartaIngles");
   const ahora = useAhora(60_000);
   const cartas = estado.cartas ?? [];
   const [borrador, setBorrador] = useState<Borrador | null>(null);
-  const activas = new Set(cartasAhora(estado, ahora).map((c) => c.id));
+  const tocan = new Set(cartasAhora(estado, ahora).map((c) => c.id));
   const enAlguna = new Set(cartas.flatMap((c) => c.categoriaIds));
   const siempre = estado.categorias.filter((c) => !enAlguna.has(c.id));
   const nombres = (ids: string[]) =>
@@ -58,24 +44,16 @@ export function CartasHorarias() {
     <section className="mt-8 rounded-2xl bg-white p-4 ring-1 ring-zinc" aria-labelledby="t-cartas">
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <h2 id="t-cartas" className="mr-auto font-rotulo text-2xl font-bold">
-          Cartas por horario
+          Cartas
         </h2>
-        <Boton
-          onClick={() =>
-            setBorrador({
-              nombre: "",
-              horario: { desde: "08:00", hasta: "12:00", dias: [] },
-              categoriaIds: [],
-            })
-          }
-        >
+        <Boton onClick={() => setBorrador({ nombre: "", categoriaIds: [] })}>
           <Plus aria-hidden className="size-4" /> Añadir
         </Boton>
       </div>
       <p className="mb-3 text-sm text-tinta-suave">
-        Desayunos, mediodía, cenas… Cada carta tiene su horario y sus categorías. En el QR el
-        cliente solo ve la que toca; el camarero la ve primero y puede abrir las demás. Lo que no
-        esté en ninguna carta (las bebidas, por ejemplo) sale siempre.
+        Separa la carta en varias (Desayunos, Comidas, Copas…) con las categorías que quieras. El
+        camarero y el cliente del QR eligen cuál ver, así encuentran antes lo que buscan. Si le
+        pones horario, solo sale a esas horas. Lo que no esté en ninguna carta sale en todas.
       </p>
 
       {cartas.length === 0 ? (
@@ -83,7 +61,7 @@ export function CartasHorarias() {
           <span className="text-sm text-tinta-suave">Empieza por:</span>
           {MODELOS.map((m) => (
             <Boton key={m.nombre} tamano="pequeno" onClick={() => setBorrador(m)}>
-              {m.nombre} ({m.horario.desde}–{m.horario.hasta})
+              {m.nombre}
             </Boton>
           ))}
         </div>
@@ -95,15 +73,20 @@ export function CartasHorarias() {
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold">
                     {c.nombre}
-                    {activas.has(c.id) && (
+                    {tocan.has(c.id) && (
                       <span className="ml-2 rounded-full bg-cuenta-claro px-2 py-0.5 text-xs">
                         Ahora
                       </span>
                     )}
                   </p>
                   <p className="text-sm text-tinta-suave">
-                    <Clock aria-hidden className="mr-1 inline size-3.5" />
-                    {describirHorario(c.horario)} · {nombres(c.categoriaIds) || "sin categorías"}
+                    {c.horario && (
+                      <>
+                        <Clock aria-hidden className="mr-1 inline size-3.5" />
+                        {describirHorario(c.horario)} ·{" "}
+                      </>
+                    )}
+                    {nombres(c.categoriaIds) || "sin categorías"}
                   </p>
                 </div>
                 <Boton
@@ -119,7 +102,7 @@ export function CartasHorarias() {
                   variante="fantasma"
                   aria-label={`Quitar ${c.nombre}`}
                   onClick={() => {
-                    if (confirm(`¿Quitar la carta «${c.nombre}»? Sus categorías saldrán siempre.`))
+                    if (confirm(`¿Quitar la carta «${c.nombre}»? No se borra ningún producto.`))
                       void hacer(
                         { tipo: "borrar_carta_horaria", cartaId: c.id },
                         `${c.nombre} quitada`,
@@ -132,7 +115,8 @@ export function CartasHorarias() {
             ))}
           </ul>
           <p className="mt-2 text-sm text-tinta-suave">
-            Siempre: {siempre.length ? siempre.map((c) => c.nombre).join(", ") : "nada"}.
+            En todas las cartas: {siempre.length ? siempre.map((c) => c.nombre).join(", ") : "nada"}
+            .
           </p>
         </>
       )}
@@ -182,6 +166,7 @@ function Formulario({
     );
   const categorias = [...estado.categorias].sort((a, b) => a.orden - b.orden);
   const valida = c.nombre.trim() && c.categoriaIds.length > 0;
+  const h = c.horario;
 
   return (
     <form
@@ -189,19 +174,17 @@ function Formulario({
       onSubmit={(e) => {
         e.preventDefault();
         if (!valida) return;
-        const { nombreEn, ...resto } = c;
+        const { nombreEn, horario, ...resto } = c;
         void alGuardar({
           ...resto,
           nombre: c.nombre.trim(),
           ...(ingles && nombreEn?.trim() ? { nombreEn: nombreEn.trim() } : {}),
+          ...(horario ? { horario } : {}),
         });
       }}
     >
       <div className={clsx("grid gap-3", ingles && "sm:grid-cols-2")}>
-        <Campo
-          etiqueta="Nombre"
-          ayuda="Lo ven el cliente y el camarero: «Desayunos», «Menú de noche»…"
-        >
+        <Campo etiqueta="Nombre" ayuda="Lo ven el camarero y el cliente: «Desayunos», «Copas»…">
           <input
             className={claseEntrada}
             value={c.nombre}
@@ -223,53 +206,6 @@ function Formulario({
       </div>
 
       <fieldset>
-        <legend className="mb-2 font-semibold">Horario</legend>
-        <div className="grid grid-cols-2 gap-3 sm:w-80">
-          <Campo etiqueta="Desde">
-            <input
-              type="time"
-              className={claseEntrada}
-              value={c.horario.desde}
-              onChange={(e) => setC({ ...c, horario: { ...c.horario, desde: e.target.value } })}
-              required
-            />
-          </Campo>
-          <Campo etiqueta="Hasta">
-            <input
-              type="time"
-              className={claseEntrada}
-              value={c.horario.hasta}
-              onChange={(e) => setC({ ...c, horario: { ...c.horario, hasta: e.target.value } })}
-              required
-            />
-          </Campo>
-        </div>
-        <div
-          className="mt-3 flex flex-wrap gap-1.5"
-          role="group"
-          aria-label="Días (ninguno: todos)"
-        >
-          {DIAS.map((d) => (
-            <button
-              key={d}
-              type="button"
-              aria-pressed={c.horario.dias.includes(d)}
-              className={chip(c.horario.dias.includes(d))}
-              onClick={() =>
-                setC({ ...c, horario: { ...c.horario, dias: alternar(c.horario.dias, d) } })
-              }
-            >
-              {NOMBRE_DIA[d]!.slice(0, 3)}
-            </button>
-          ))}
-          <span className="self-center text-xs text-tinta-suave">
-            Ninguno marcado: todos los días.
-          </span>
-        </div>
-        <p className="mt-2 text-sm text-tinta-suave">{describirHorario(c.horario)}</p>
-      </fieldset>
-
-      <fieldset>
         <legend className="mb-2 font-semibold">Qué categorías lleva</legend>
         <div className="flex flex-wrap gap-1.5">
           {categorias.map((cat) => (
@@ -285,8 +221,60 @@ function Formulario({
           ))}
         </div>
         <p className="mt-1 text-xs text-tinta-suave">
-          Una categoría puede estar en varias cartas (los cafés, en desayunos y cenas).
+          Una categoría puede estar en varias cartas (los cafés, en desayunos y en comidas).
         </p>
+      </fieldset>
+
+      <fieldset>
+        <Interruptor
+          activo={Boolean(h)}
+          alCambiar={(v) =>
+            setC({ ...c, horario: v ? { desde: "08:00", hasta: "12:00", dias: [] } : undefined })
+          }
+          etiqueta="Solo a ciertas horas"
+          ayuda="Si no, está siempre y se elige a mano. Con horario, sale sola cuando toca y fuera de él no se puede pedir desde el QR."
+        />
+        {h && (
+          <div className="mt-3 space-y-3">
+            <div className="grid grid-cols-2 gap-3 sm:w-80">
+              <Campo etiqueta="Desde">
+                <input
+                  type="time"
+                  className={claseEntrada}
+                  value={h.desde}
+                  onChange={(e) => setC({ ...c, horario: { ...h, desde: e.target.value } })}
+                  required
+                />
+              </Campo>
+              <Campo etiqueta="Hasta">
+                <input
+                  type="time"
+                  className={claseEntrada}
+                  value={h.hasta}
+                  onChange={(e) => setC({ ...c, horario: { ...h, hasta: e.target.value } })}
+                  required
+                />
+              </Campo>
+            </div>
+            <div className="flex flex-wrap gap-1.5" role="group" aria-label="Días (ninguno: todos)">
+              {DIAS.map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  aria-pressed={h.dias.includes(d)}
+                  className={chip(h.dias.includes(d))}
+                  onClick={() => setC({ ...c, horario: { ...h, dias: alternar(h.dias, d) } })}
+                >
+                  {NOMBRE_DIA[d]!.slice(0, 3)}
+                </button>
+              ))}
+              <span className="self-center text-xs text-tinta-suave">
+                Ninguno marcado: todos los días.
+              </span>
+            </div>
+            <p className="text-sm text-tinta-suave">{describirHorario(h)}</p>
+          </div>
+        )}
       </fieldset>
 
       <div className="flex justify-end gap-2">
