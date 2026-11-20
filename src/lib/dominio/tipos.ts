@@ -319,6 +319,8 @@ export type Producto = {
    * anotarlo igualmente (por ejemplo, un plato fuera de carta).
    */
   oculto?: boolean;
+  /** Favorito: lo fija el encargado y sale siempre en «Rápidos» (y destacado en la carta QR). */
+  favorito?: boolean;
 };
 
 export type EstadoLinea =
@@ -797,6 +799,8 @@ export type Estado = {
   ultimosTickets?: Ticket[];
   /** Solo al leer de la nube (no se guarda): lo más pedido a esta hora (pestaña «Rápidos»). */
   masPedidos?: string[];
+  /** Solo al leer de la nube (no se guarda): lo que más pide cada persona del equipo. */
+  masPedidosEquipo?: Record<Id, string[]>;
   ajustes: Ajustes;
   empleados: Empleado[];
   zonas: Zona[];

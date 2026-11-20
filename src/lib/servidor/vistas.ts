@@ -9,9 +9,9 @@ import { pagadoCuenta, totalCuenta } from "../dominio/importes";
 import { cartaInicial, cartasDisponibles, categoriaEnServicio } from "../dominio/cartas";
 import { resumenTurno } from "../dominio/caja";
 import { inicioDelDia } from "../dominio/informes";
-import { masPedidos } from "../dominio/rapidos";
+import { MAX_SUYOS, masPedidos, mezclarRapidos } from "../dominio/rapidos";
 import { diaLocal } from "../fechas";
-import type { Cuenta, Empleado, Estado, LineaCuenta } from "../dominio/tipos";
+import type { Cuenta, Empleado, Estado, LineaCuenta, Producto } from "../dominio/tipos";
 
 /**
  * Lo que ve el personal: todo menos los PIN y el historial antiguo. Las cuentas cerradas no
@@ -39,15 +39,25 @@ export function vistaPersonal(
     vinculos,
     ultimosTickets,
     masPedidos: calculados,
+    masPedidosEquipo,
     ticketsDesde,
     ...resto
   } = estado;
+  const favoritos = favoritosDe(estado);
   return {
     ...resto,
     gastos: encargado ? gastos : [],
     vinculos: encargado ? vinculos : [],
-    /** Lo más pedido a esta hora (pestaña «Rápidos»), ya calculado. */
-    rapidos: calculados ?? masPedidos(estado.tickets, ahoraIso),
+    /**
+     * Pestaña «Rápidos» de esta persona: los favoritos, lo que más pide ella y lo más pedido en
+     * el bar a esta hora.
+     */
+    rapidos: mezclarRapidos({
+      favoritos,
+      suyos:
+        masPedidosEquipo?.[quien.id] ?? masPedidos(estado.tickets, ahoraIso, MAX_SUYOS, quien.id),
+      bar: calculados ?? masPedidos(estado.tickets, ahoraIso),
+    }),
     /** Si el bar ya ha cobrado alguna vez (primeros pasos). */
     hayTickets: estado.tickets.length > 0 || Boolean(ultimosTickets?.length),
     // El correo del dueño solo lo ve el encargado.
@@ -91,6 +101,17 @@ export type LineaCliente = Pick<
 
 /** Lo que tarda en desaparecer de la carta el ticket de la cuenta recién pagada. */
 const MINUTOS_ULTIMO_TICKET = 30;
+
+/** Nombres de los favoritos que se pueden pedir, por el orden de la carta. */
+function favoritosDe(estado: Estado): string[] {
+  return estado.productos
+    .filter((p) => p.favorito && !p.oculto)
+    .sort((a, b) => a.orden - b.orden)
+    .map((p) => p.nombre);
+}
+
+/** Cuántos platos salen en «Lo más pedido» de la carta QR. */
+const MAX_DESTACADOS = 6;
 
 /**
  * Lo que ve un cliente desde el QR: la carta y su mesa (o su encargo para llevar, si el código
@@ -171,6 +192,24 @@ export function vistaCliente(estado: Estado, token: string, ahora = new Date().t
       nombreEn,
       categoriaIds: categoriaIds.filter((c) => ids.has(c)),
     })),
+    /**
+     * «Lo más pedido», arriba de la carta: los favoritos del bar y lo que más se pide a esta hora,
+     * solo de lo que se puede pedir aquí y ahora (ids de producto).
+     */
+    destacados: mezclarRapidos({
+      favoritos: favoritosDe(estado),
+      suyos: [],
+      bar: estado.masPedidos ?? masPedidos(estado.tickets, ahora),
+      max: 40,
+    })
+      .map((nombre) =>
+        estado.productos.find(
+          (p) => p.nombre === nombre && ids.has(p.categoriaId) && !p.oculto && p.disponible,
+        ),
+      )
+      .filter((p): p is Producto => Boolean(p))
+      .slice(0, MAX_DESTACADOS)
+      .map((p) => p.id),
     /** La que se enseña primero (la que toca por horario, o la primera). */
     cartaInicial: cartaInicial(estado, ahora),
     /** Solo en los encargos para llevar. */

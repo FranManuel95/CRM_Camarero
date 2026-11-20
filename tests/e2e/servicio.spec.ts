@@ -64,7 +64,7 @@ test("un cliente pide desde el QR y el camarero lo acepta", async ({ page, brows
   await cliente.goto(`/m/${token}`);
   await listo(cliente);
   await expect(cliente.getByRole("heading", { name: "La Esquina", exact: true })).toBeVisible();
-  await cliente.getByRole("button", { name: "Añadir Croquetas de jamón (4 uds.)" }).click();
+  await cliente.getByRole("button", { name: "Añadir Croquetas de jamón (4 uds.)" }).first().click();
   await cliente.getByRole("button", { name: "Añadir Hamburguesa La Esquina" }).click();
   await cliente.getByRole("button", { name: "Al punto" }).click();
   await cliente.getByRole("button", { name: "Bacon +1,50 €" }).click();

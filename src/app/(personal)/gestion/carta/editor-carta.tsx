@@ -1,7 +1,7 @@
 "use client";
 
 import clsx from "clsx";
-import { ArrowDown, ArrowUp, Clock, ImagePlus, Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Clock, ImagePlus, Pencil, Plus, Star, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useDatos, useFuncion } from "@/components/datos-personal";
 import { Boton, Campo, claseEntrada, Dialogo, Interruptor, Vacio } from "@/components/ui";
@@ -319,6 +319,27 @@ export function EditorCarta({
                   </div>
                   <div className="ml-auto flex items-center gap-1">
                     <span className="mr-1 font-semibold tabular-nums">{euros(p.precio)}</span>
+                    <button
+                      type="button"
+                      aria-pressed={Boolean(p.favorito)}
+                      aria-label={`Favorito: ${p.nombre}`}
+                      title="Favorito: siempre en «Rápidos» y destacado en la carta QR"
+                      onClick={() =>
+                        void hacer(
+                          { tipo: "marcar_favorito", productoId: p.id, favorito: !p.favorito },
+                          p.favorito ? `${p.nombre} ya no es favorito` : `${p.nombre}: favorito`,
+                        )
+                      }
+                      className="rounded-md p-2 hover:bg-zinc"
+                    >
+                      <Star
+                        aria-hidden
+                        className={clsx(
+                          "size-4",
+                          p.favorito ? "fill-ocupada text-[#9a6200]" : "text-tinta-suave",
+                        )}
+                      />
+                    </button>
                     <label>
                       <span className="sr-only">Cómo está {p.nombre} en la carta</span>
                       <select

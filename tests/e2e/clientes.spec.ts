@@ -89,7 +89,7 @@ test("un cliente encarga para llevar desde el móvil y el bar lo acepta", async 
   await listo(cliente);
   await expect(cliente.getByText("Recoges a las 23:59")).toBeVisible();
   await expect(cliente.getByRole("button", { name: "Llamar camarero" })).toBeHidden();
-  await cliente.getByRole("button", { name: "Añadir Croquetas de jamón (4 uds.)" }).click();
+  await cliente.getByRole("button", { name: "Añadir Croquetas de jamón (4 uds.)" }).first().click();
   await cliente.getByRole("button", { name: /Ver pedido \(1\)/ }).click();
   await cliente.getByRole("button", { name: "Enviar pedido" }).click();
   await expect(cliente.getByText("¡Pedido enviado!")).toBeVisible();

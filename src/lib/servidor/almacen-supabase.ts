@@ -22,6 +22,7 @@ let sinCargaV3 = 0;
 
 /** «Rápidos» por bar y hora, recordados un rato en este servidor. */
 const rapidos = new Map<string, { lista: string[]; hasta: number }>();
+const rapidosEquipo = new Map<string, { porPersona: Record<string, string[]>; hasta: number }>();
 
 /**
  * Cola por bar dentro de este servidor: los cambios de un mismo bar que llegan a la vez a este
@@ -141,7 +142,10 @@ export function almacenSupabase(local: string, esDemo: boolean): Almacen {
       revision: c.revision,
       ticketsDesde,
       ultimosTickets: c.ultimos ?? [],
-      masPedidos: await masPedidosAhora(),
+      ...(await (async () => {
+        const [bar, equipo] = await Promise.all([masPedidosAhora(), masPedidosEquipoAhora()]);
+        return { masPedidos: bar, masPedidosEquipo: equipo };
+      })()),
     };
     return {
       revision: c.revision,
@@ -191,6 +195,30 @@ export function almacenSupabase(local: string, esDemo: boolean): Almacen {
     return lista;
   }
 
+  /**
+   * Lo que más pide cada persona del equipo en las últimas semanas (para su «Rápidos»),
+   * calculado en la base de datos y recordado media hora. Sin la función, nada (cada uno ve lo
+   * del bar).
+   */
+  async function masPedidosEquipoAhora(): Promise<Record<string, string[]>> {
+    const clave = `${local}|equipo`;
+    const recordado = rapidosEquipo.get(clave);
+    if (recordado && recordado.hasta > Date.now()) return recordado.porPersona;
+    let porPersona: Record<string, string[]> = {};
+    try {
+      porPersona = await rpc<Record<string, string[]>>("tpv_mas_pedidos_equipo", {
+        p_hora: null,
+        p_dias: 28,
+        p_cuantos: 8,
+      });
+    } catch {
+      // Sin la función nueva: se calcula con los tickets que ya hay a mano.
+    }
+    if (rapidosEquipo.size > 2000) rapidosEquipo.clear();
+    rapidosEquipo.set(clave, { porPersona, hasta: Date.now() + 30 * 60_000 });
+    return porPersona;
+  }
+
   /** Lo que se guarda como documento: sin tickets ni fichajes (van aparte) ni cuentas cerradas. */
   function documento(estado: Estado): Estado {
     // Lo que solo existe al leer no se guarda.
@@ -199,9 +227,10 @@ export function almacenSupabase(local: string, esDemo: boolean): Almacen {
       ticketsDesde: _d,
       ultimosTickets: _u,
       masPedidos: _m,
+      masPedidosEquipo: _e,
       ...guardable
     } = estado;
-    void [_r, _d, _u, _m];
+    void [_r, _d, _u, _m, _e];
     return {
       ...guardable,
       tickets: [],

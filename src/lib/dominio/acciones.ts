@@ -295,6 +295,8 @@ export const accionEncargado = z.discriminatedUnion("tipo", [
     }),
   }),
   z.object({ tipo: z.literal("borrar_categoria"), categoriaId: id }),
+  /** Fijar o quitar un producto de favoritos (siempre en «Rápidos»). */
+  z.object({ tipo: z.literal("marcar_favorito"), productoId: id, favorito: z.boolean() }),
   z.object({
     tipo: z.literal("guardar_carta_horaria"),
     carta: z.object({

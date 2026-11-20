@@ -372,6 +372,19 @@ Estado en versión 7 (`clientes`; fuera `pagosOnline`). Todo con pruebas unitari
 - Gestión → Carta → «Cartas», con modelos para empezar (Desayunos, Comidas, Cenas, Copas).
 - Next.js 16.4.2 → 16.4.6 (GHSA-mfr8-8qww-v76h, moderada; el build se paraba por ella).
 
+## Favoritos y «Rápidos» de cada camarero (20/11/2026)
+
+- `producto.favorito` (acción `marcar_favorito`, estrella en Gestión → Carta): sale siempre en
+  «Rápidos» (la pestaña aparece aunque no haya historia) y primero en «Lo más pedido» del QR.
+- «Rápidos» de cada persona (`mezclarRapidos` en `rapidos.ts`): favoritos, después lo que más
+  pide ella (hasta 6) y luego lo más pedido en el bar a esta hora; hasta 16, sin repetir.
+  En la nube, lo de cada persona sale de `tpv_mas_pedidos_equipo` (migración
+  `20261119120000_mas_pedidos_equipo.sql`, **aplicada** el 20/11/2026; día entero, 28 días,
+  8 por persona, cache 30 min en `estado.masPedidosEquipo`, que no se guarda ni viaja). Sin
+  ella, se calcula con los tickets que hay a mano.
+- Carta QR: sección «Lo más pedido» arriba (`vista.destacados`, hasta 6, solo lo que se puede
+  pedir de la carta que se ve y sin los alérgenos quitados; sale con 3 o más).
+
 ## Pendiente (por orden)
 
 1. **Planes de pago**: Vercel Pro (Hobby no permite uso comercial) y Supabase Pro (copias y sin

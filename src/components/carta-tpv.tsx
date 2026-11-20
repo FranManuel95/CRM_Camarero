@@ -1,7 +1,7 @@
 "use client";
 
 import clsx from "clsx";
-import { Minus, MoreHorizontal, Plus, Search, Zap } from "lucide-react";
+import { Minus, MoreHorizontal, Plus, Search, Star, Zap } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useDatos, useFuncion } from "@/components/datos-personal";
 import { useAhora } from "@/lib/cliente/use-ahora";
@@ -50,15 +50,16 @@ export function CartaTpv({
       : cartaInicial(estado, ahora);
   const categorias = useMemo(() => categoriasVisibles(estado, ver, ahora), [estado, ver, ahora]);
   const tocan = new Set(conCartas ? cartasAhora(estado, ahora).map((c) => c.id) : []);
-  // «Rápidos»: lo que más se pide a esta hora, a un toque (si hay historia suficiente).
+  // «Rápidos»: los favoritos, lo que más pide esta persona y lo más pedido a esta hora, a un
+  // toque. Lo calcula el servidor con las últimas semanas (aquí solo llegan los tickets de hoy).
   const rapidos = useMemo(() => {
-    // Lo calcula el servidor con las últimas semanas (aquí solo llegan los tickets de hoy).
     const nombres = estado.rapidos ?? [];
     return nombres
       .map((n) => estado.productos.find((p) => p.nombre === n))
       .filter((p): p is Producto => Boolean(p && !p.oculto && p.disponible));
   }, [estado.rapidos, estado.productos]);
-  const hayRapidos = rapidos.length >= 4;
+  // Con favoritos, siempre; si no, cuando hay historia suficiente.
+  const hayRapidos = rapidos.length >= 4 || rapidos.some((p) => p.favorito);
   const [elegida, setCategoriaId] = useState(hayRapidos ? RAPIDOS : (categorias[0]?.id ?? ""));
   // Al cambiar de carta (o de hora), si la categoría elegida ya no está, la primera que haya.
   const categoriaId =
@@ -133,7 +134,7 @@ export function CartaTpv({
               type="button"
               aria-selected={categoriaId === RAPIDOS}
               onClick={() => setCategoriaId(RAPIDOS)}
-              title="Lo que más se pide a esta hora"
+              title="Favoritos, lo que más pides y lo más pedido a esta hora"
               className={clsx(
                 "inline-flex h-10 items-center gap-1 rounded-full px-4 text-sm font-semibold",
                 categoriaId === RAPIDOS
@@ -177,7 +178,16 @@ export function CartaTpv({
                     "border-2 border-dashed border-zinc-oscuro bg-zinc-claro ring-0",
                 )}
               >
-                <span className="line-clamp-2 pr-7 leading-tight font-semibold">{p.nombre}</span>
+                <span className="line-clamp-2 pr-7 leading-tight font-semibold">
+                  {p.favorito && (
+                    <Star
+                      aria-hidden
+                      className="mr-1 inline size-3.5 fill-ocupada align-[-1px] text-[#9a6200]"
+                    />
+                  )}
+                  {p.nombre}
+                  {p.favorito && <span className="sr-only"> (favorito)</span>}
+                </span>
                 <span className="text-sm text-tinta-suave">
                   {p.oculto ? (
                     <span className="font-semibold">Oculto · {euros(precioDe(p).precio)}</span>

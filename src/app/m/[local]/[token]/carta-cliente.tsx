@@ -164,6 +164,74 @@ export function CartaCliente({
   const categorias = cartaVista
     ? vista.categorias.filter((c) => !conCarta.has(c.id) || cartaVista.categoriaIds.includes(c.id))
     : vista.categorias;
+  // Una fila de la carta (en su categoría o en «Lo más pedido»).
+  const fila = (p: (typeof visibles)[number], clave = p.id) => {
+    const nombre = en(idioma, p.nombre, p.nombreEn);
+    const descripcion = en(idioma, p.descripcion, p.descripcionEn);
+    return (
+      <li key={clave} className={clsx("flex gap-3 py-3", !p.disponible && "opacity-50")}>
+        {p.foto && (
+          // Fotos que suben los bares a su almacenamiento; tamaño ya reducido al subir.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={p.foto}
+            alt=""
+            width={80}
+            height={80}
+            loading="lazy"
+            decoding="async"
+            className="size-20 shrink-0 rounded-xl object-cover"
+          />
+        )}
+        <div className="min-w-0 flex-1">
+          <h3 className="text-lg leading-tight font-semibold">{nombre}</h3>
+          {descripcion && <p className="text-sm text-tinta-suave">{descripcion}</p>}
+          {p.alergenos.length > 0 && (
+            <p className="mt-1 text-xs text-tinta-suave">
+              {t.contiene}
+              {p.alergenos.map(nombreAlergeno).join(", ")}
+            </p>
+          )}
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
+          <span className="text-right">
+            <span className="block font-rotulo text-xl font-bold">{euros(p.precio)}</span>
+            {p.precioCarta !== undefined && (
+              <span className="block text-xs text-tinta-suave">
+                <span className="line-through">{euros(p.precioCarta)}</span> {p.tarifa}
+              </span>
+            )}
+          </span>
+          {!p.disponible ? (
+            <span className="text-sm font-semibold">{t.agotado}</span>
+          ) : pedir ? (
+            <button
+              type="button"
+              onClick={() =>
+                p.grupos.length
+                  ? setDetalle(p)
+                  : añadir({
+                      productoId: p.id,
+                      cantidad: 1,
+                      opciones: [],
+                      nota: "",
+                    })
+              }
+              className="flex h-10 items-center gap-1 rounded-full bg-cobalto px-4 text-sm font-semibold text-white active:scale-95"
+              aria-label={t.añadirA(nombre)}
+            >
+              <Plus aria-hidden className="size-4" /> {t.añadir}
+            </button>
+          ) : null}
+        </div>
+      </li>
+    );
+  };
+  // «Lo más pedido»: lo destacado que está en la carta que se ve (y sin los alérgenos quitados).
+  const enVista = new Set(categorias.map((c) => c.id));
+  const destacados = vista.destacados
+    .map((id) => visibles.find((p) => p.id === id && enVista.has(p.categoriaId)))
+    .filter((p): p is (typeof visibles)[number] => Boolean(p));
   const llamado = vista.avisos.includes("llamar");
   const cuentaPedida = vista.avisos.includes("cuenta");
 
@@ -312,6 +380,19 @@ export function CartaCliente({
         </details>
 
         <div className="px-4">
+          {destacados.length >= 3 && (
+            <section className="pt-6" aria-labelledby="t-destacados">
+              <h2
+                id="t-destacados"
+                className="mb-2 flex items-center gap-2 border-b-2 border-cobalto pb-1 font-rotulo text-3xl font-bold text-cobalto"
+              >
+                <Star aria-hidden className="size-6 fill-current" /> {t.masPedido}
+              </h2>
+              <ul className="divide-y divide-zinc">
+                {destacados.map((p) => fila(p, `destacado-${p.id}`))}
+              </ul>
+            </section>
+          )}
           {categorias.map((c) => {
             const productos = visibles.filter((p) => p.categoriaId === c.id);
             if (!productos.length) return null;
@@ -328,76 +409,7 @@ export function CartaCliente({
                 >
                   {en(idioma, c.nombre, c.nombreEn)}
                 </h2>
-                <ul className="divide-y divide-zinc">
-                  {productos.map((p) => {
-                    const nombre = en(idioma, p.nombre, p.nombreEn);
-                    const descripcion = en(idioma, p.descripcion, p.descripcionEn);
-                    return (
-                      <li
-                        key={p.id}
-                        className={clsx("flex gap-3 py-3", !p.disponible && "opacity-50")}
-                      >
-                        {p.foto && (
-                          // Fotos que suben los bares a su almacenamiento; tamaño ya reducido al subir.
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={p.foto}
-                            alt=""
-                            width={80}
-                            height={80}
-                            loading="lazy"
-                            decoding="async"
-                            className="size-20 shrink-0 rounded-xl object-cover"
-                          />
-                        )}
-                        <div className="min-w-0 flex-1">
-                          <h3 className="text-lg leading-tight font-semibold">{nombre}</h3>
-                          {descripcion && <p className="text-sm text-tinta-suave">{descripcion}</p>}
-                          {p.alergenos.length > 0 && (
-                            <p className="mt-1 text-xs text-tinta-suave">
-                              {t.contiene}
-                              {p.alergenos.map(nombreAlergeno).join(", ")}
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex shrink-0 flex-col items-end gap-1.5">
-                          <span className="text-right">
-                            <span className="block font-rotulo text-xl font-bold">
-                              {euros(p.precio)}
-                            </span>
-                            {p.precioCarta !== undefined && (
-                              <span className="block text-xs text-tinta-suave">
-                                <span className="line-through">{euros(p.precioCarta)}</span>{" "}
-                                {p.tarifa}
-                              </span>
-                            )}
-                          </span>
-                          {!p.disponible ? (
-                            <span className="text-sm font-semibold">{t.agotado}</span>
-                          ) : pedir ? (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                p.grupos.length
-                                  ? setDetalle(p)
-                                  : añadir({
-                                      productoId: p.id,
-                                      cantidad: 1,
-                                      opciones: [],
-                                      nota: "",
-                                    })
-                              }
-                              className="flex h-10 items-center gap-1 rounded-full bg-cobalto px-4 text-sm font-semibold text-white active:scale-95"
-                              aria-label={t.añadirA(nombre)}
-                            >
-                              <Plus aria-hidden className="size-4" /> {t.añadir}
-                            </button>
-                          ) : null}
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
+                <ul className="divide-y divide-zinc">{productos.map((p) => fila(p))}</ul>
               </section>
             );
           })}

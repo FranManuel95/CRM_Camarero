@@ -1308,6 +1308,12 @@ function reducirEncargado(
           categoriaIds: c.categoriaIds.filter((id) => id !== accion.categoriaId),
         }));
       break;
+    case "marcar_favorito": {
+      const producto = buscar(estado.productos, accion.productoId, "ese producto");
+      if (accion.favorito) producto.favorito = true;
+      else delete producto.favorito;
+      break;
+    }
     case "guardar_carta_horaria": {
       const { id, ...datos } = accion.carta;
       for (const c of datos.categoriaIds) buscar(estado.categorias, c, "esa categoría");
