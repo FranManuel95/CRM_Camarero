@@ -56,7 +56,24 @@ const TEXTO_ESTADO: Record<EstadoLinea, string> = {
  * La cuenta de una mesa. `alSalir`, si viene, sustituye a volver a /sala (sin red no se puede
  * navegar: la sala abre la mesa dentro de sí misma).
  */
-export function Comanda({ mesaId, alSalir }: { mesaId: string; alSalir?: () => void }) {
+/** Lo que puede abrir un enlace (de la ayuda) al entrar en la mesa. */
+export type AbrirEnMesa = "cuenta" | "cobrar" | "mover" | "precios" | "anular";
+
+export function Comanda({
+  mesaId,
+  alSalir,
+  abrir,
+  lineas: lineasMarcadas = [],
+  resaltar,
+}: {
+  mesaId: string;
+  alSalir?: () => void;
+  abrir?: AbrirEnMesa;
+  /** Líneas ya marcadas en «Precios y descuentos». */
+  lineas?: string[];
+  /** Línea que se resalta en la cuenta. */
+  resaltar?: string;
+}) {
   const { estado, hacer } = useDatos();
   const paraDespues = useFuncion("paraDespues");
   const porPartes = useFuncion("cobrarPorPartes");
@@ -70,10 +87,14 @@ export function Comanda({ mesaId, alSalir }: { mesaId: string; alSalir?: () => v
   const cuenta = estado.cuentas.find((c) => c.mesaId === mesaId && c.estado === "abierta");
   // Si hay un pedido del QR por aceptar, en el móvil se abre directamente la cuenta.
   const [panel, setPanel] = useState<"carta" | "cuenta">(() =>
-    cuenta?.lineas.some((l) => l.estado === "por_confirmar") ? "cuenta" : "carta",
+    abrir || resaltar || cuenta?.lineas.some((l) => l.estado === "por_confirmar")
+      ? "cuenta"
+      : "carta",
   );
-  const [dialogo, setDialogo] = useState<null | "cobrar" | "mover" | "precios" | "anular">(null);
-  const [preseleccion, setPreseleccion] = useState<string[]>([]);
+  const [dialogo, setDialogo] = useState<null | "cobrar" | "mover" | "precios" | "anular">(
+    abrir && abrir !== "cuenta" && cuenta ? abrir : null,
+  );
+  const [preseleccion, setPreseleccion] = useState<string[]>(lineasMarcadas);
   const enlaceResena = useEnlaceResena();
   /** Mensaje del cobro, mientras se enseña el QR de la reseña. */
   const [cobrado, setCobrado] = useState<string | null>(null);
@@ -312,6 +333,7 @@ export function Comanda({ mesaId, alSalir }: { mesaId: string; alSalir?: () => v
                 cuenta={cuenta}
                 lineas={cuenta.lineas.filter((l) => l.estado !== "por_confirmar")}
                 alTocarPrecio={puedePrecios ? (id) => abrirPrecios([id]) : undefined}
+                resaltar={resaltar}
               />
             )}
           </div>
@@ -478,11 +500,14 @@ function Lineas({
   cuenta,
   lineas,
   alTocarPrecio,
+  resaltar,
 }: {
   cuenta: Cuenta;
   lineas: LineaCuenta[];
   /** Tocar el importe de una línea abre «Precios y descuentos» con ella marcada. */
   alTocarPrecio?: (lineaId: string) => void;
+  /** Línea a la que lleva un enlace de la ayuda: se resalta y se ve. */
+  resaltar?: string;
 }) {
   const { hacer } = useDatos();
   const paraDespues = useFuncion("paraDespues");
@@ -499,7 +524,15 @@ function Lineas({
           const editable = l.estado === "anotada";
           const anulada = l.estado === "anulada";
           return (
-            <li key={l.id} className={clsx("py-2", anulada && "opacity-50")}>
+            <li
+              key={l.id}
+              ref={l.id === resaltar ? (el) => el?.scrollIntoView({ block: "center" }) : undefined}
+              className={clsx(
+                "py-2",
+                anulada && "opacity-50",
+                l.id === resaltar && "-mx-2 rounded-lg bg-ocupada-claro px-2 ring-2 ring-ocupada",
+              )}
+            >
               <div className="flex items-start gap-2">
                 <span className="w-7 shrink-0 text-right font-rotulo text-xl font-bold">
                   {l.cantidad}

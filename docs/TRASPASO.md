@@ -385,6 +385,25 @@ Estado en versión 7 (`clientes`; fuera `pagosOnline`). Todo con pruebas unitari
 - Carta QR: sección «Lo más pedido» arriba (`vista.destacados`, hasta 6, solo lo que se puede
   pedir de la carta que se ve y sin los alérgenos quitados; sale con 3 o más).
 
+## Ayuda dentro de la app (21/11/2026)
+
+- Manual en `src/lib/ayuda/` (sin React): una entrada por tarea con preguntas, pasos con los
+  nombres reales de los botones, `ruta` para «Llévame ahí», quién puede (`quien`, `permiso`,
+  `funcion`) y qué cubre (`acciones`, `pantallas`, `apis`, `funciones`).
+- **`tests/unit/ayuda.test.ts` falla si algo queda sin explicar**: cada acción (camarero,
+  encargado, cliente y páginas públicas), cada pantalla de `src/app`, cada función activable y
+  cada `/api` (salvo las internas listadas). También comprueba que las rutas existen, que una
+  entrada «equipo» no use acciones solo del encargado ni lleve a Gestión, y que el buscador
+  acierta con las dudas típicas. **Al añadir una acción o pantalla, añade su entrada.**
+- Buscador sin IA (`buscar.ts`): sin tildes, raíces y sinónimos; a quien no puede hacerlo le dice
+  quién lo hace («Esto lo hace el encargado», permiso, función apagada).
+- Botón «Ayuda» en la barra (`src/components/ayuda.tsx`): frecuentes según el papel, dictado por
+  voz si el navegador lo tiene, y «Llévame ahí» que pregunta con botones lo que falta (mesa
+  abierta, línea de la cuenta, producto, cliente) y abre la pantalla.
+- La cuenta de una mesa acepta `?abrir=cuenta|cobrar|mover|precios|anular`, `&lineas=a,b`
+  (marcadas en «Precios y descuentos») y `&linea=x` (resaltada).
+- Siguiente paso posible: respuestas con IA usando solo estas entradas y capturas automáticas.
+
 ## Pendiente (por orden)
 
 1. **Planes de pago**: Vercel Pro (Hobby no permite uso comercial) y Supabase Pro (copias y sin

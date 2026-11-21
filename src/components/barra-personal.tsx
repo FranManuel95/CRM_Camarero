@@ -3,6 +3,7 @@
 import clsx from "clsx";
 import { Beer, ChefHat, Clock, LayoutGrid, LogOut, Settings, Wallet } from "lucide-react";
 import Link from "next/link";
+import { Ayuda } from "./ayuda";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { NotificarAlertas, useAlertas } from "./alertas";
 import { useEffect, useRef } from "react";
@@ -115,6 +116,7 @@ export function BarraPersonal() {
           ))}
         </ul>
         <span className="hidden text-sm text-zinc-oscuro md:inline">{empleado.nombre}</span>
+        <Ayuda className={clsx(CLASE_BOTON, "shrink-0 text-zinc hover:bg-white/10")} />
         {fichajes && (
           <Link
             href="/fichar"
