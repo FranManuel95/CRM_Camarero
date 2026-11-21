@@ -123,7 +123,7 @@ export const SALA: EntradaAyuda[] = [
     quien: "equipo",
     permiso: "descuentos",
     acciones: ["ajustar_lineas"],
-    nota: "Solo cambia esa cuenta, no la carta. Para cambiar el precio de la carta para todos, ver «Subir o bajar precios de golpe» o «Editar un producto».",
+    nota: "Solo cambia esa cuenta, no la carta. Para cambiar el precio de la carta para todos, ver «Subir o bajar precios de golpe» o «Cambiar el precio, el nombre o la foto de un producto».",
     ver: ["subir-precios", "editar-producto"],
   },
   {
