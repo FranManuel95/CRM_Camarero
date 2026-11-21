@@ -93,3 +93,24 @@ test("al camarero le dice que eso lo hace el encargado, sin llevarle", async ({ 
   await expect(respuesta.getByText(/Cuánto \(%\)/)).toBeVisible();
   await expect(respuesta.getByRole("button", { name: "Llévame ahí" })).toHaveCount(0);
 });
+
+test("sin buscar, enseña todo el manual por temas y subtemas", async ({ page }) => {
+  await entrar(page, "1111");
+  await page.getByRole("button", { name: "Ayuda" }).click();
+  const dialogo = page.getByRole("dialog", { name: "Ayuda" });
+  await expect(dialogo.getByRole("heading", { name: "Todo, por temas" })).toBeVisible();
+  const tema = dialogo.locator("summary").filter({ hasText: "Cobrar y cuentas" });
+  await expect(tema).toContainText(/\d+ preguntas/);
+  await tema.click();
+  await expect(
+    dialogo.getByRole("heading", { name: "Precios, descuentos e invitaciones" }),
+  ).toBeVisible();
+  const pregunta = dialogo
+    .locator("summary")
+    .filter({ hasText: "Cambiar el precio de un producto en una cuenta" })
+    .last();
+  await pregunta.click();
+  await expect(dialogo.getByText(/Precio nuevo por unidad/).last()).toBeVisible();
+  const axe = await new AxeBuilder({ page }).include("dialog").disableRules(["region"]).analyze();
+  expect(axe.violations.map((v) => v.id)).toEqual([]);
+});

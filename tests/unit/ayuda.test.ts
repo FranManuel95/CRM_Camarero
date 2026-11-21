@@ -3,7 +3,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { accionCamarero, accionCliente, accionEncargado } from "@/lib/dominio/acciones";
 import { LISTA_FUNCIONES } from "@/lib/dominio/funciones";
-import { buscarAyuda, MANUAL, rutaCon, datosQuePide } from "@/lib/ayuda";
+import { buscarAyuda, MANUAL, rutaCon, datosQuePide, TEMAS } from "@/lib/ayuda";
 import type { QuienPregunta } from "@/lib/ayuda";
 
 type Union = { options: readonly { shape: { tipo: { value: string } } }[] };
@@ -69,6 +69,23 @@ describe("manual de la app", () => {
       expect(e.pasos.length, e.id).toBeGreaterThan(0);
       for (const v of e.ver ?? []) expect(ids, `${e.id} → ${v}`).toContain(v);
     }
+  });
+
+  it("el índice por temas tiene TODAS las preguntas, cada una en un solo sitio", () => {
+    const enIndice = TEMAS.flatMap((t) => t.subtemas.flatMap((s) => s.entradas));
+    const ids = MANUAL.map((e) => e.id);
+    const repetidas = enIndice.filter((id, i) => enIndice.indexOf(id) !== i);
+    expect(repetidas, "Preguntas en dos sitios del índice").toEqual([]);
+    expect(
+      enIndice.filter((id) => !ids.includes(id)),
+      "En el índice pero no en el manual",
+    ).toEqual([]);
+    expect(
+      ids.filter((id) => !enIndice.includes(id)),
+      "Preguntas que faltan en el índice",
+    ).toEqual([]);
+    for (const t of TEMAS)
+      for (const s of t.subtemas) expect(s.entradas.length, s.nombre).toBeGreaterThan(0);
   });
 
   it("explica TODAS las acciones de la app, y no nombra ninguna que no exista", () => {

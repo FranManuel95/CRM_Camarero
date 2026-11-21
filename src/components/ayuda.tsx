@@ -13,6 +13,7 @@ import {
   entradaPorId,
   MANUAL,
   rutaCon,
+  TEMAS,
   type DatoContexto,
   type EntradaAyuda,
   type QuienPregunta,
@@ -170,7 +171,61 @@ function Contenido({ alIr }: { alIr: () => void }) {
           </ul>
         )}
       </div>
+
+      {!texto.trim() && <Temas quien={quien} alIr={alIr} />}
     </div>
+  );
+}
+
+/** Todo el manual por temas y subtemas, para quien prefiere mirar a buscar. */
+function Temas({ quien, alIr }: { quien: QuienPregunta; alIr: () => void }) {
+  return (
+    <section aria-labelledby="t-temas">
+      <h3 id="t-temas" className="mb-2 font-rotulo text-xl font-bold">
+        Todo, por temas
+      </h3>
+      <ul className="space-y-2">
+        {TEMAS.map((t) => {
+          const total = t.subtemas.reduce((n, s) => n + s.entradas.length, 0);
+          return (
+            <li key={t.id}>
+              <details className="rounded-xl bg-zinc-claro">
+                <summary className="flex cursor-pointer items-center justify-between gap-2 p-3 font-semibold">
+                  {t.nombre}
+                  <span className="text-sm font-normal text-tinta-suave">
+                    {total} {total === 1 ? "pregunta" : "preguntas"}
+                  </span>
+                </summary>
+                <div className="space-y-4 px-3 pb-3">
+                  {t.subtemas.map((s) => (
+                    <div key={s.nombre}>
+                      <h4 className="mb-1.5 text-sm font-bold tracking-wide text-tinta-suave uppercase">
+                        {s.nombre}
+                      </h4>
+                      <ul className="space-y-2">
+                        {s.entradas
+                          .map((id) => entradaPorId(id))
+                          .filter((e): e is EntradaAyuda => Boolean(e))
+                          .map((entrada) => (
+                            <Respuesta
+                              key={entrada.id}
+                              entrada={entrada}
+                              aviso={avisoPara(entrada, quien)}
+                              abierta={false}
+                              alIr={alIr}
+                              fondo
+                            />
+                          ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
 
@@ -179,11 +234,14 @@ function Respuesta({
   aviso,
   abierta,
   alIr,
+  fondo = false,
 }: {
   entrada: EntradaAyuda;
   aviso?: string;
   abierta: boolean;
   alIr: () => void;
+  /** Dentro de un tema: con fondo blanco, para que se distinga. */
+  fondo?: boolean;
 }) {
   const router = useRouter();
   const { empleado } = useDatos();
@@ -200,7 +258,7 @@ function Respuesta({
   }
 
   return (
-    <li className="rounded-xl ring-1 ring-zinc">
+    <li className={clsx("rounded-xl ring-1 ring-zinc", fondo && "bg-white")}>
       <details open={abierta} className="group">
         <summary className="cursor-pointer list-none p-3 font-semibold">
           {entrada.titulo}

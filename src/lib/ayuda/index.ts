@@ -18,5 +18,6 @@ export const MANUAL: EntradaAyuda[] = [
 
 export const entradaPorId = (id: string) => MANUAL.find((e) => e.id === id);
 
+export { TEMAS, type Subtema, type Tema } from "./categorias";
 export { avisoPara, buscarAyuda, datosQuePide, rutaCon } from "./buscar";
 export type { DatoContexto, EntradaAyuda, QuienPregunta } from "./tipos";
