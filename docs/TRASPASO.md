@@ -395,6 +395,12 @@ Estado en versión 7 (`clientes`; fuera `pagosOnline`). Todo con pruebas unitari
   cada `/api` (salvo las internas listadas). También comprueba que las rutas existen, que una
   entrada «equipo» no use acciones solo del encargado ni lleve a Gestión, y que el buscador
   acierta con las dudas típicas. **Al añadir una acción o pantalla, añade su entrada.**
+- **Capturas** (`public/ayuda/<id>.webp` + `src/lib/ayuda/capturas.json`): `npm run capturas`
+  (requiere el build) entra con los datos de ejemplo, abre la pantalla de cada pregunta, señala en
+  naranja lo primero de los pasos que se vea (saltando la barra de arriba) y guarda la captura de
+  móvil. Si señala algo raro, `captura: { ruta, marca, clic }` en la entrada; `captura: false`
+  para lo que solo existe con la cuenta en la nube. **Vuelve a sacarlas si cambias una pantalla**;
+  la prueba unitaria falla si una pregunta con pantalla se queda sin captura.
 - Índice por temas (`categorias.ts`): 14 temas → subtemas → preguntas; sale debajo de los
   frecuentes cuando no se busca nada. **Cada entrada nueva va también en un subtema** (la
   prueba falla si falta o está repetida).

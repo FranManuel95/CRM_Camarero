@@ -2,6 +2,7 @@
 
 import clsx from "clsx";
 import { ArrowRight, CircleHelp, Mic, Search } from "lucide-react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useDatos } from "@/components/datos-personal";
@@ -11,6 +12,7 @@ import {
   buscarAyuda,
   datosQuePide,
   entradaPorId,
+  CAPTURAS,
   MANUAL,
   rutaCon,
   TEMAS,
@@ -271,6 +273,7 @@ function Respuesta({
             ))}
           </ol>
           {entrada.nota && <p className="text-sm text-tinta-suave">{entrada.nota}</p>}
+          {entrada.id in CAPTURAS && <Captura entrada={entrada} marca={CAPTURAS[entrada.id]} />}
           {puedeIr && !eligiendo && (
             <Boton
               variante="primario"
@@ -377,5 +380,30 @@ function Elegir({
         </div>
       )}
     </fieldset>
+  );
+}
+
+/**
+ * La pantalla de la que hablan los pasos, con el botón señalado. Las saca `npm run capturas`
+ * (todas del mismo tamaño). Solo se descarga al abrir la pregunta.
+ */
+function Captura({ entrada, marca }: { entrada: EntradaAyuda; marca?: string | null }) {
+  return (
+    <figure>
+      <Image
+        src={`/ayuda/${entrada.id}.webp`}
+        alt={`Así se ve la pantalla de «${entrada.titulo}»${marca ? `, con «${marca}» señalado` : ""}.`}
+        width={618}
+        height={1259}
+        loading="lazy"
+        unoptimized
+        className="mx-auto h-auto max-h-[60vh] w-auto rounded-lg ring-1 ring-zinc"
+      />
+      {marca && (
+        <figcaption className="mt-1.5 text-center text-xs text-tinta-suave">
+          En naranja: «{marca}»
+        </figcaption>
+      )}
+    </figure>
   );
 }

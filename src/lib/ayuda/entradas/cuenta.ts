@@ -19,6 +19,7 @@ export const CUENTA: EntradaAyuda[] = [
       "Pulsa «Crear el bar»: este aparato queda listo para entrar con tu PIN.",
     ],
     ruta: "/mis-bares",
+    captura: false, // Solo con la cuenta en la nube: no sale en las capturas.
     quien: "encargado",
     apis: ["/api/dueno", "/api/locales"],
     pantallas: ["/registro", "/mis-bares"],
@@ -34,6 +35,7 @@ export const CUENTA: EntradaAyuda[] = [
       "Cada bar lleva su carta, su equipo, sus tickets y su caja por separado.",
     ],
     ruta: "/mis-bares",
+    captura: false, // Solo con la cuenta en la nube: no sale en las capturas.
     quien: "encargado",
     apis: ["/api/locales"],
   },
@@ -45,6 +47,7 @@ export const CUENTA: EntradaAyuda[] = [
       "En la pantalla de entrar, pulsa «Entra con tu cuenta» y pon tu correo y tu contraseña.",
     ],
     ruta: "/acceder",
+    captura: false, // Solo con la cuenta en la nube: no sale en las capturas.
     quien: "encargado",
     apis: ["/api/dueno"],
     pantallas: ["/acceder"],
@@ -64,6 +67,7 @@ export const CUENTA: EntradaAyuda[] = [
       "Pulsa «Guardar contraseña» y «Entra con ella».",
     ],
     ruta: "/acceder",
+    captura: false, // Solo con la cuenta en la nube: no sale en las capturas.
     quien: "encargado",
     apis: ["/api/dueno"],
     pantallas: ["/acceder/nueva-clave"],
@@ -90,6 +94,7 @@ export const CUENTA: EntradaAyuda[] = [
       "Con una cuenta de administración, «Mis bares» → «Panel de Comanda» lista todos los bares, de quién son y si se usan.",
     ],
     ruta: "/admin",
+    captura: false, // Solo con la cuenta en la nube: no sale en las capturas.
     quien: "encargado",
     pantallas: ["/admin"],
   },

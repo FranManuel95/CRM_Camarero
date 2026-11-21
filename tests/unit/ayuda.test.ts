@@ -1,9 +1,9 @@
-import { readdirSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { accionCamarero, accionCliente, accionEncargado } from "@/lib/dominio/acciones";
 import { LISTA_FUNCIONES } from "@/lib/dominio/funciones";
-import { buscarAyuda, MANUAL, rutaCon, datosQuePide, TEMAS } from "@/lib/ayuda";
+import { buscarAyuda, CAPTURAS, MANUAL, rutaCon, datosQuePide, TEMAS } from "@/lib/ayuda";
 import type { QuienPregunta } from "@/lib/ayuda";
 
 type Union = { options: readonly { shape: { tipo: { value: string } } }[] };
@@ -149,6 +149,21 @@ describe("manual de la app", () => {
       expect(hecha.startsWith("/") && !hecha.startsWith("//"), e.id).toBe(true);
     }
     expect(() => rutaCon("//otra-web.example", {})).toThrow();
+  });
+});
+
+describe("capturas de la ayuda", () => {
+  it("cada captura es de una pregunta del manual y su imagen existe", () => {
+    const ids = new Set(MANUAL.map((e) => e.id));
+    for (const id of Object.keys(CAPTURAS)) {
+      expect(ids.has(id), id).toBe(true);
+      expect(existsSync(path.join(process.cwd(), "public", "ayuda", `${id}.webp`)), id).toBe(true);
+    }
+  });
+
+  it("toda pregunta que lleva a una pantalla tiene su captura", () => {
+    const sin = MANUAL.filter((e) => e.ruta && e.captura !== false && !(e.id in CAPTURAS));
+    expect(sin.map((e) => e.id)).toEqual([]);
   });
 });
 

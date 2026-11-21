@@ -1,3 +1,4 @@
+import capturas from "./capturas.json";
 import { AJUSTES } from "./entradas/ajustes";
 import { CAJA_COCINA } from "./entradas/caja-cocina";
 import { CARTA } from "./entradas/carta";
@@ -21,3 +22,6 @@ export const entradaPorId = (id: string) => MANUAL.find((e) => e.id === id);
 export { TEMAS, type Subtema, type Tema } from "./categorias";
 export { avisoPara, buscarAyuda, datosQuePide, rutaCon } from "./buscar";
 export type { DatoContexto, EntradaAyuda, QuienPregunta } from "./tipos";
+
+/** Las preguntas que tienen captura, con el texto que sale señalado en ella (o null). */
+export const CAPTURAS: Record<string, string | null | undefined> = capturas;

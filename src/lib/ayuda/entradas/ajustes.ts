@@ -30,6 +30,7 @@ export const AJUSTES: EntradaAyuda[] = [
       "Encuentra productos, tickets (para verlos o reimprimirlos), clientes, mesas, equipo, gastos, stock y secciones.",
     ],
     ruta: "/gestion",
+    captura: { marca: "Buscar un producto…" },
     quien: "encargado",
   },
   {
@@ -80,6 +81,7 @@ export const AJUSTES: EntradaAyuda[] = [
     ],
     pasos: ["Entra en Gestión → Historial: cada cambio sensible con quién y cuándo, por días."],
     ruta: "/gestion/historial",
+    captura: { marca: "Buscar" },
     quien: "encargado",
     funcion: "historial",
     funciones: ["historial"],
@@ -223,6 +225,7 @@ export const AJUSTES: EntradaAyuda[] = [
       "Lo apagado desaparece de las pantallas de todo el equipo; los datos se guardan y vuelven al encenderlo.",
     ],
     ruta: "/gestion/funciones",
+    captura: { marca: "Venta rápida" },
     quien: "encargado",
     acciones: ["cambiar_funcion"],
     pantallas: ["/gestion/funciones"],
@@ -277,6 +280,7 @@ export const AJUSTES: EntradaAyuda[] = [
       "Arranca solo al encender el ordenador; la tarjeta dice si está funcionando.",
     ],
     ruta: "/gestion/impresoras#t-puente",
+    captura: false, // Solo con la cuenta en la nube: no sale en las capturas.
     quien: "encargado",
     apis: ["/api/puente", "/api/impresoras/equipo"],
   },

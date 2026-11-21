@@ -37,6 +37,14 @@ export type EntradaAyuda = {
   funciones?: Funcion[];
   /** Un consejo o aviso que va después de los pasos. */
   nota?: string;
+  /**
+   * Para la captura de la ayuda (`npm run capturas`), si la de siempre no vale: otra pantalla y
+   * el texto del botón o campo que se señala, y antes qué se toca (`clic`). Sin esto, se señala
+   * lo primero de los pasos que se vea en la pantalla. La ruta puede llevar además {enviada}
+   * (una mesa ya mandada a cocina) y {qr} (una mesa con un pedido del QR). `false`: sin
+   * captura (pantallas que solo existen con la cuenta en la nube).
+   */
+  captura?: { ruta?: string; marca?: string; clic?: string } | false;
   /** Entradas relacionadas (por id). */
   ver?: string[];
 };

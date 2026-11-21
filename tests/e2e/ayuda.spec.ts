@@ -111,6 +111,10 @@ test("sin buscar, enseña todo el manual por temas y subtemas", async ({ page })
     .last();
   await pregunta.click();
   await expect(dialogo.getByText(/Precio nuevo por unidad/).last()).toBeVisible();
+  // Con la captura de la pantalla y lo que hay que tocar señalado.
+  const captura = dialogo.getByRole("img", { name: /Así se ve la pantalla de «Cambiar el precio/ });
+  await expect(captura.last()).toBeVisible();
+  await expect(dialogo.getByText("En naranja: «Precio nuevo por unidad»").last()).toBeVisible();
   const axe = await new AxeBuilder({ page }).include("dialog").disableRules(["region"]).analyze();
   expect(axe.violations.map((v) => v.id)).toEqual([]);
 });
