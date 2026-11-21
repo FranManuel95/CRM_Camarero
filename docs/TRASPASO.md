@@ -395,6 +395,9 @@ Estado en versión 7 (`clientes`; fuera `pagosOnline`). Todo con pruebas unitari
   cada `/api` (salvo las internas listadas). También comprueba que las rutas existen, que una
   entrada «equipo» no use acciones solo del encargado ni lleve a Gestión, y que el buscador
   acierta con las dudas típicas. **Al añadir una acción o pantalla, añade su entrada.**
+- Índice por temas (`categorias.ts`): 14 temas → subtemas → preguntas; sale debajo de los
+  frecuentes cuando no se busca nada. **Cada entrada nueva va también en un subtema** (la
+  prueba falla si falta o está repetida).
 - Buscador sin IA (`buscar.ts`): sin tildes, raíces y sinónimos; a quien no puede hacerlo le dice
   quién lo hace («Esto lo hace el encargado», permiso, función apagada).
 - Botón «Ayuda» en la barra (`src/components/ayuda.tsx`): frecuentes según el papel, dictado por
