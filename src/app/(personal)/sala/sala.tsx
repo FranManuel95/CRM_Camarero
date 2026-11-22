@@ -116,11 +116,7 @@ export function Sala() {
           <h1 id="titulo-sala" className="sr-only">
             Sala
           </h1>
-          <div
-            role="tablist"
-            aria-label="Zonas"
-            className="flex basis-full gap-1 overflow-x-auto sm:flex-1 sm:basis-0"
-          >
+          <div role="tablist" aria-label="Zonas" className="flex basis-full gap-1 overflow-x-auto">
             {zonas.map((z) => {
               const conAviso = estado.mesas.some(
                 (m) =>

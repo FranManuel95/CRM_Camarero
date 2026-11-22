@@ -87,13 +87,16 @@ export function BarraPersonal() {
         aria-label="Principal"
         className="mx-auto flex h-14 max-w-screen-2xl items-center gap-0.5 px-1 sm:gap-1 sm:px-4"
       >
-        <Link href="/sala" className="mr-2 hidden font-rotulo text-2xl font-bold sm:block">
+        <Link
+          href="/sala"
+          className="mr-2 hidden max-w-64 shrink-0 truncate font-rotulo text-2xl font-bold lg:block"
+        >
           {estado.ajustes.nombreLocal}
         </Link>
         {/* En el móvil caben todas: icono con el nombre debajo, cada una en su hueco. */}
         <ul className="flex min-w-0 flex-1 items-center gap-0.5 sm:gap-1">
           {enlaces.map(({ href, texto, icono: Icono, activo, contador }) => (
-            <li key={href} className="min-w-0 flex-1 sm:flex-none">
+            <li key={href} className="min-w-0 flex-1 sm:flex-initial">
               <Link
                 href={href}
                 aria-current={activo ? "page" : undefined}
@@ -104,7 +107,7 @@ export function BarraPersonal() {
                 )}
               >
                 <Icono aria-hidden className="size-5 sm:size-4" />
-                <span className="max-w-full truncate">{texto}</span>
+                <span className="max-w-full truncate sm:max-md:sr-only">{texto}</span>
                 {contador ? (
                   <span className="absolute top-0 right-0.5 grid min-w-5 place-items-center rounded-full bg-aviso px-1 text-xs text-white sm:static sm:ml-0.5">
                     {contador}
@@ -115,7 +118,9 @@ export function BarraPersonal() {
             </li>
           ))}
         </ul>
-        <span className="hidden text-sm text-zinc-oscuro md:inline">{empleado.nombre}</span>
+        <span className="hidden max-w-32 shrink-0 truncate text-sm text-zinc-oscuro xl:inline">
+          {empleado.nombre}
+        </span>
         <Ayuda className={clsx(CLASE_BOTON, "shrink-0 text-zinc hover:bg-white/10")} />
         {fichajes && (
           <Link
