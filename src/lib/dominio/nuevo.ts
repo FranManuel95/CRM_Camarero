@@ -26,6 +26,7 @@ export function estadoNuevo(ctx: Contexto, datos: DatosBarNuevo): Estado {
       nif: "",
       direccion: "",
       telefono: "",
+      correoContacto: "",
       pieTicket: "¡Gracias por tu visita!",
     },
     empleados: [

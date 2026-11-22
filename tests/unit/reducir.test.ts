@@ -297,6 +297,8 @@ describe("bares nuevos y vinculación", () => {
       conCartaDeEjemplo: false,
     });
     expect(vacio.ajustes.nombreLocal).toBe("Bar Paco");
+    // Nada de los datos del bar de ejemplo en el ticket ni en el aviso legal.
+    expect(vacio.ajustes.correoContacto).toBe("");
     expect(vacio.empleados).toEqual([
       expect.objectContaining({ nombre: "Paco", rol: "encargado", pin: resumenPin("4321") }),
     ]);
