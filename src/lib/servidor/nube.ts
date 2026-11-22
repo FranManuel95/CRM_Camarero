@@ -153,3 +153,38 @@ export async function crearLocal(dueno: Dueno, datos: DatosBarNuevo): Promise<st
   }
   throw new Error("No se ha podido crear el bar. Prueba con otro nombre.");
 }
+
+/** El id de la cuenta con ese correo, o null si no hay ninguna. */
+export const duenoPorCorreo = (correo: string) =>
+  rpc<string | null>("tpv_dueno_por_correo", { p_correo: correo });
+
+export type AltaDeBar = DatosBarNuevo & {
+  /** Correo del dueño: si ya tiene cuenta, el bar se le añade; si no, se le crea. */
+  correo: string;
+  /** Contraseña provisional para la cuenta nueva (la cambia él con «He olvidado la contraseña»). */
+  clave: string;
+};
+
+/**
+ * Alta de un bar por quien vende Comanda: para la cuenta del dueño (la crea si no existe, con
+ * la contraseña provisional). Devuelve el identificador del bar y si la cuenta es nueva.
+ */
+export async function altaDeBar(
+  alta: AltaDeBar,
+  volverA: string,
+): Promise<{ id: string; cuentaNueva: boolean }> {
+  const correo = alta.correo.trim().toLowerCase();
+  let id = await duenoPorCorreo(correo);
+  const cuentaNueva = !id;
+  if (!id) {
+    const r = await registrar(correo, alta.clave, volverA);
+    if (r.error) throw new ErrorAlta(r.error);
+    id = r.usuario?.id ?? (await duenoPorCorreo(correo));
+    if (!id) throw new ErrorAlta("No se ha podido crear la cuenta del dueño. Prueba otra vez.");
+  }
+  const bar = await crearLocal({ id, email: correo }, alta);
+  return { id: bar, cuentaNueva };
+}
+
+/** Un fallo del alta que se le puede enseñar tal cual a quien la hace. */
+export class ErrorAlta extends Error {}

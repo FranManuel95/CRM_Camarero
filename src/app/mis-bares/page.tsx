@@ -28,7 +28,7 @@ export default async function PaginaMisBares() {
           </>
         )}
       </p>
-      <MisBares bares={bares} vinculado={vinculado} />
+      <MisBares bares={bares} vinculado={vinculado} correo={dueno.email} admin={esAdmin(dueno)} />
     </PaginaCuenta>
   );
 }

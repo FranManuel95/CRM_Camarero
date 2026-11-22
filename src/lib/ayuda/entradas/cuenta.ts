@@ -13,10 +13,9 @@ export const CUENTA: EntradaAyuda[] = [
       "abrir otro bar",
     ],
     pasos: [
-      "En la web, «Da de alta tu bar»: crea tu cuenta con tu correo y una contraseña.",
-      "En «Mis bares», rellena «Nombre del bar», «Tu nombre» y «Tu PIN (4 a 6 cifras)».",
-      "Si quieres, «Empezar con una carta de ejemplo» para cambiar precios en vez de empezar de cero.",
-      "Pulsa «Crear el bar»: este aparato queda listo para entrar con tu PIN.",
+      "Las altas las hace Comanda: te deja el bar montado y te da tu cuenta (tu correo y una contraseña provisional).",
+      "El primer día, en «Entra con tu cuenta», pulsa «He olvidado la contraseña» y pon la tuya.",
+      "Si eres de la administración de Comanda: en «Mis bares», «Dar de alta un bar» con el «Correo del dueño», la «Contraseña provisional», el nombre del bar, el encargado y su PIN.",
     ],
     ruta: "/mis-bares",
     captura: false, // Solo con la cuenta en la nube: no sale en las capturas.
@@ -30,8 +29,8 @@ export const CUENTA: EntradaAyuda[] = [
     titulo: "Llevar varios bares con la misma cuenta",
     preguntas: ["otro bar", "segundo local", "cambiar de bar", "mis bares"],
     pasos: [
-      "Entra con tu cuenta y ve a «Mis bares».",
-      "«Dar de alta otro bar» crea uno nuevo; «Usar en este aparato» cambia de bar.",
+      "¿Abres otro local? Pídeselo a Comanda: te lo añade a tu misma cuenta.",
+      "En «Mis bares», «Usar en este aparato» cambia de bar.",
       "Cada bar lleva su carta, su equipo, sus tickets y su caja por separado.",
     ],
     ruta: "/mis-bares",

@@ -5,7 +5,13 @@ import { crearLimiteCompartido, ipDe } from "@/lib/servidor/limite";
 import { AVISO_CLAVE_FILTRADA, claveFiltrada } from "@/lib/servidor/clave-filtrada";
 import { acceder, cambiarClave, pedirCambioDeClave, registrar } from "@/lib/servidor/nube";
 import { json } from "@/lib/servidor/respuestas";
-import { COOKIE_DUENO, crearFirmado, DURACION, opcionesCookie } from "@/lib/servidor/sesion";
+import {
+  COOKIE_DUENO,
+  crearFirmado,
+  DURACION,
+  esAdmin,
+  opcionesCookie,
+} from "@/lib/servidor/sesion";
 
 export const dynamic = "force-dynamic";
 
@@ -61,6 +67,13 @@ export async function POST(request: Request) {
     return json({ ok: true });
   }
   if (p.accion === "registro") {
+    // Las cuentas de los bares las crea Comanda al darles de alta. Aquí solo se crea la cuenta
+    // de quien vende Comanda (ADMIN_EMAILS), la primera vez.
+    if (!esAdmin({ id: "", email: p.email }))
+      return json(
+        { error: "Las cuentas las crea Comanda al dar de alta tu bar. Pídenos la tuya." },
+        403,
+      );
     const r = await registrar(p.email, p.clave, `${origen}/acceder?confirmado=1`);
     if (r.error) return json({ error: r.error }, 400);
     if (!r.usuario) return json({ ok: true, confirmar: true });

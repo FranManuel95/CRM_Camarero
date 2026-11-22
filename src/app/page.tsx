@@ -54,7 +54,7 @@ export default async function Portada() {
                   href="/registro"
                   className="inline-flex h-12 items-center rounded-lg bg-white px-5 font-semibold text-cobalto-oscuro hover:bg-zinc"
                 >
-                  Dar de alta mi bar
+                  Quiero Comanda en mi bar
                 </Link>
                 <Link
                   href="/acceder"

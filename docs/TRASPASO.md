@@ -438,3 +438,13 @@ Estado en versión 7 (`clientes`; fuera `pagosOnline`). Todo con pruebas unitari
   ejecución.
 - Las pruebas E2E esperan a `html[data-conectado]`, que se pone cuando la pantalla recibe los datos
   en directo (antes de eso los clics se pierden porque React aún no ha hidratado).
+
+## Altas solo por Comanda (22/11/2026)
+
+- Solo los correos de `ADMIN_EMAILS` crean cuentas (`/api/dueno` registro) y bares
+  (`/api/locales`). El alta es para la cuenta del dueño: si su correo no tiene cuenta, se crea con
+  una contraseña provisional (`altaDeBar` en `nube.ts`, que busca el correo con
+  `tpv_dueno_por_correo`, migración `20261122120000_alta_por_admin.sql`).
+- `/registro` ya no es un formulario público: explica que el alta la hace Comanda; dentro de un
+  desplegable queda el formulario para crear la cuenta de administración la primera vez.
+- «Mis bares» del dueño: solo sus bares, sin «Dar de alta un bar».

@@ -13,12 +13,16 @@ mejor con el bar cerrado. Imprímela y ve tachando.
 - [ ] Si emiten con VERI\*FACTU: su certificado digital (.p12) y su contraseña.
 - [ ] Lleva un cable de red y, si puede ser, una impresora de tickets de repuesto para probar.
 
-## 1. Cuenta y bar (10 min)
+## 1. Cuenta y bar (10 min, mejor antes de ir)
 
-- [ ] El dueño se da de alta en la web (**Dar de alta tu bar**) con su correo.
-- [ ] En **Mis bares → Bar nuevo**: nombre del bar, su nombre y su PIN de encargado. Si su carta
-      se parece a la de un bar normal, marca «Empezar con una carta de ejemplo» y luego se
-      cambian precios y nombres.
+- [ ] Las altas las haces tú con tu cuenta de administración (la de `ADMIN_EMAILS`): en
+      **Mis bares → Dar de alta un bar**, con el **correo del dueño**, una **contraseña
+      provisional** (sale una ya hecha), el nombre del bar, el encargado y su PIN. Si su carta se
+      parece a la de un bar normal, marca «Empezar con una carta de ejemplo». Apunta la
+      contraseña y el PIN: solo se enseñan una vez. Nadie más puede crear cuentas ni bares.
+- [ ] Para prepararlo, entra con la cuenta del dueño y «Usar en este aparato».
+- [ ] El día de la instalación, el dueño pone su contraseña con «He olvidado la contraseña» y
+      cambia su PIN en **Gestión → Equipo**.
 - [ ] **Gestión → Ajustes**: razón social, NIF, dirección, teléfono y **correo de contacto**.
       El aviso de abajo dice qué falta para que el aviso legal esté completo. Revisa la serie de
       los tickets y el mensaje del pie.

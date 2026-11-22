@@ -104,7 +104,7 @@ export function FormularioCuenta({ modo, aviso }: { modo: Modo; aviso?: string }
           <>
             ¿Aún no tienes cuenta?{" "}
             <Link className="font-semibold text-cobalto underline" href="/registro">
-              Da de alta tu bar
+              Cómo conseguirla
             </Link>
             <br />
             <Link className="font-semibold text-cobalto underline" href="/acceder?olvido=1">
