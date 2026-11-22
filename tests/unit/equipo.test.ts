@@ -413,3 +413,74 @@ describe("reparto de propinas", () => {
     expect(iguales.filas.reduce((s, f) => s + f.importe, 0)).toBe(1001);
   });
 });
+
+describe("anular varias cosas de golpe", () => {
+  function mesaConComanda() {
+    const t = preparar();
+    const mesa = t.estado.mesas[0]!;
+    t.hacer({ tipo: "abrir_cuenta", mesaId: mesa.id, comensales: 2 }, t.luis);
+    const cuentaId = cuentaDeMesa(t.estado, mesa.id)!.id;
+    t.hacer(
+      {
+        tipo: "anotar",
+        cuentaId,
+        lineas: [
+          { productoId: "prod-1-1", cantidad: 3, opciones: [], nota: "" },
+          { productoId: "prod-5-2", cantidad: 1, opciones: [], nota: "" },
+          { productoId: "prod-8-2", cantidad: 1, opciones: [], nota: "" },
+        ],
+      },
+      t.luis,
+    );
+    t.hacer({ tipo: "enviar_comanda", cuentaId }, t.luis);
+    const lineas = () => cuentaDeMesa(t.estado, mesa.id)!.lineas;
+    return { t, cuentaId, lineas };
+  }
+
+  it("anula unas unidades de una línea y otra entera, sin motivo", () => {
+    const { t, cuentaId, lineas } = mesaConComanda();
+    const [cañas, bravas] = lineas();
+    t.hacer(
+      {
+        tipo: "anular_lineas",
+        cuentaId,
+        lineas: [{ lineaId: cañas!.id, cantidad: 2 }, { lineaId: bravas!.id }],
+        motivo: "",
+      },
+      t.ana,
+    );
+    const ahora = lineas();
+    // Las 3 cañas quedan en 1 servida y 2 anuladas en su propia línea.
+    expect(ahora).toHaveLength(4);
+    expect(ahora[0]).toMatchObject({ id: cañas!.id, cantidad: 1, estado: "enviada" });
+    expect(ahora[1]).toMatchObject({ cantidad: 2, estado: "anulada", productoId: "prod-1-1" });
+    expect(ahora[1]!.id).not.toBe(cañas!.id);
+    expect(ahora[2]).toMatchObject({ id: bravas!.id, estado: "anulada" });
+    expect(ahora[2]!.motivoAnulacion).toBe("Anulado por Ana");
+    expect(t.estado.incidencias.map((i) => i.motivo)).toEqual(["Sin motivo", "Sin motivo"]);
+  });
+
+  it("sin permiso de anular no anula nada de lo mandado", () => {
+    const { t, cuentaId, lineas } = mesaConComanda();
+    const marta = { ...t.marta, permisos: { anular: false } };
+    expect(() =>
+      t.hacer(
+        { tipo: "anular_lineas", cuentaId, lineas: [{ lineaId: lineas()[0]!.id }], motivo: "" },
+        marta,
+      ),
+    ).toThrow();
+    expect(lineas().every((l) => l.estado !== "anulada")).toBe(true);
+  });
+
+  it("lo ya anulado no se anula dos veces", () => {
+    const { t, cuentaId, lineas } = mesaConComanda();
+    const flan = lineas()[2]!;
+    t.hacer({ tipo: "anular_linea", cuentaId, lineaId: flan.id, motivo: "" }, t.ana);
+    expect(() =>
+      t.hacer(
+        { tipo: "anular_lineas", cuentaId, lineas: [{ lineaId: flan.id }], motivo: "" },
+        t.ana,
+      ),
+    ).toThrow(/ya estaba anulado/);
+  });
+});

@@ -22,7 +22,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useDatos, useFuncion, usePuede } from "@/components/datos-personal";
-import { Boton, Campo, claseEntrada, Dialogo, Vacio } from "@/components/ui";
+import { Boton, Dialogo, Vacio } from "@/components/ui";
 import {
   euros,
   importeLinea,
@@ -37,6 +37,7 @@ import { formatearHora, minutosEntre } from "@/lib/fechas";
 import { useAhora } from "@/lib/cliente/use-ahora";
 import { CartaTpv } from "@/components/carta-tpv";
 import { buscarMesa, esParaLlevar } from "@/lib/dominio/selectores";
+import { AnularLineas } from "./anular";
 import { Cobrar } from "./cobrar";
 import { PreciosYDescuentos } from "./precios";
 import { ClienteDeCuenta } from "./cliente";
@@ -107,10 +108,13 @@ export function Comanda({
   };
   // Si la comanda sale en papel: lo que diga Ajustes, y se puede cambiar en cada envío.
   const [enPapel, setEnPapel] = useState(estado.ajustes.imprimirComandas ?? true);
-  const mandar = () =>
+  // O, si el bar lo prefiere, se pregunta cada vez al pulsar «Mandar».
+  const preguntarPapel = estado.ajustes.preguntarPapel ?? false;
+  const [eligiendoPapel, setEligiendoPapel] = useState(false);
+  const mandar = (papel = enPapel) =>
     hacer(
-      { tipo: "enviar_comanda", cuentaId: cuenta!.id, imprimir: enPapel },
-      enPapel ? "Comanda mandada" : "Mandada a pantalla (sin papel)",
+      { tipo: "enviar_comanda", cuentaId: cuenta!.id, imprimir: papel },
+      papel ? "Comanda mandada" : "Mandada a pantalla (sin papel)",
     );
 
   if (!mesa)
@@ -282,7 +286,11 @@ export function Comanda({
             <Boton onClick={() => setPanel("cuenta")}>
               Ver cuenta · {euros(totalCuenta(cuenta))}
             </Boton>
-            <Boton variante="primario" disabled={!sinMandar.length} onClick={mandar}>
+            <Boton
+              variante="primario"
+              disabled={!sinMandar.length}
+              onClick={() => (preguntarPapel ? setEligiendoPapel(true) : mandar())}
+            >
               <ChefHat aria-hidden className="size-5" />
               Mandar{sinMandar.length ? ` (${unidades(sinMandar)})` : ""}
             </Boton>
@@ -382,20 +390,22 @@ export function Comanda({
               <span className="font-semibold">{pagado > 0 ? "Pendiente" : "Total"}</span>
               <span className="font-rotulo text-4xl font-bold">{euros(totalCuenta(cuenta))}</span>
             </p>
-            <button
-              type="button"
-              aria-pressed={enPapel}
-              onClick={() => setEnPapel((v) => !v)}
-              className="mb-2 flex items-center gap-2 text-sm font-semibold text-tinta-suave"
-            >
-              {enPapel ? (
-                <Printer aria-hidden className="size-4" />
-              ) : (
-                <MonitorSmartphone aria-hidden className="size-4" />
-              )}
-              Comanda en papel: {enPapel ? "sí" : "no, solo en pantalla"}
-              <span className="font-normal underline">cambiar</span>
-            </button>
+            {!preguntarPapel && (
+              <button
+                type="button"
+                aria-pressed={enPapel}
+                onClick={() => setEnPapel((v) => !v)}
+                className="mb-2 flex items-center gap-2 text-sm font-semibold text-tinta-suave"
+              >
+                {enPapel ? (
+                  <Printer aria-hidden className="size-4" />
+                ) : (
+                  <MonitorSmartphone aria-hidden className="size-4" />
+                )}
+                Comanda en papel: {enPapel ? "sí" : "no, solo en pantalla"}
+                <span className="font-normal underline">cambiar</span>
+              </button>
+            )}
             <div className="grid grid-cols-[auto_1fr_1fr] gap-2">
               <Boton
                 aria-label="Imprimir la cuenta"
@@ -412,7 +422,7 @@ export function Comanda({
                 variante="primario"
                 tamano="grande"
                 disabled={!sinMandar.length}
-                onClick={mandar}
+                onClick={() => (preguntarPapel ? setEligiendoPapel(true) : mandar())}
               >
                 <ChefHat aria-hidden className="size-5" />
                 Mandar{sinMandar.length ? ` (${unidades(sinMandar)})` : ""}
@@ -471,6 +481,41 @@ export function Comanda({
         alCerrar={() => setDialogo(null)}
       />
       <Dialogo
+        abierto={eligiendoPapel}
+        alCerrar={() => setEligiendoPapel(false)}
+        titulo="¿Cómo lo mandas?"
+      >
+        <div className="grid gap-3 sm:grid-cols-2">
+          {(
+            [
+              [true, "Con papel", "Sale la comanda en cocina y barra.", Printer],
+              [false, "Solo en pantalla", "Sin papel: lo ven en su pantalla.", MonitorSmartphone],
+            ] as const
+          ).map(([papel, titulo, detalle, Icono]) => (
+            <button
+              key={titulo}
+              type="button"
+              onClick={async () => {
+                setEligiendoPapel(false);
+                await mandar(papel);
+              }}
+              className={clsx(
+                "flex min-h-28 flex-col items-center justify-center gap-1 rounded-xl p-4 text-center",
+                papel
+                  ? "bg-cobalto text-white hover:bg-cobalto-oscuro"
+                  : "bg-white ring-1 ring-zinc-oscuro hover:bg-zinc-claro",
+              )}
+            >
+              <Icono aria-hidden className="size-7" />
+              <span className="font-rotulo text-2xl font-bold">{titulo}</span>
+              <span className={clsx("text-sm", papel ? "text-white/85" : "text-tinta-suave")}>
+                {detalle}
+              </span>
+            </button>
+          ))}
+        </div>
+      </Dialogo>
+      <Dialogo
         abierto={dialogo === "anular"}
         alCerrar={() => setDialogo(null)}
         titulo="Anular la mesa"
@@ -515,7 +560,6 @@ function Lineas({
   const puedeInvitar = usePuede("invitar");
   const ahora = useAhora();
   const [anulando, setAnulando] = useState<LineaCuenta | null>(null);
-  const [motivo, setMotivo] = useState("");
 
   return (
     <>
@@ -704,59 +748,14 @@ function Lineas({
           );
         })}
       </ul>
-      <Dialogo
-        abierto={anulando !== null}
-        alCerrar={() => setAnulando(null)}
-        titulo={`Anular ${anulando?.nombre ?? ""}`}
-      >
-        <p className="mb-3 text-sm text-tinta-suave">
-          Ya está en cocina o barra. Queda apuntado quién lo anula y por qué.
-        </p>
-        <div className="mb-3 flex flex-wrap gap-2">
-          {["Error al pedir", "El cliente lo cancela", "Se ha caído", "Tarda demasiado"].map(
-            (m) => (
-              <Boton
-                key={m}
-                tamano="pequeno"
-                variante={motivo === m ? "primario" : "secundario"}
-                onClick={() => setMotivo(m)}
-              >
-                {m}
-              </Boton>
-            ),
-          )}
-        </div>
-        <Campo etiqueta="Motivo" className="mb-4">
-          <input
-            className={claseEntrada}
-            value={motivo}
-            onChange={(e) => setMotivo(e.target.value)}
-            maxLength={140}
-          />
-        </Campo>
-        <div className="flex justify-end">
-          <Boton
-            variante="peligro"
-            disabled={!motivo.trim()}
-            onClick={async () => {
-              if (
-                anulando &&
-                (await hacer({
-                  tipo: "anular_linea",
-                  cuentaId: cuenta.id,
-                  lineaId: anulando.id,
-                  motivo: motivo.trim(),
-                }))
-              ) {
-                setAnulando(null);
-                setMotivo("");
-              }
-            }}
-          >
-            Anular
-          </Boton>
-        </div>
-      </Dialogo>
+      {anulando && (
+        <AnularLineas
+          key={anulando.id}
+          cuenta={cuenta}
+          inicial={anulando}
+          alCerrar={() => setAnulando(null)}
+        />
+      )}
     </>
   );
 }

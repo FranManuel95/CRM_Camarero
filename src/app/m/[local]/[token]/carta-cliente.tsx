@@ -309,7 +309,7 @@ export function CartaCliente({
         >
           {cartaVista && (
             <div
-              className="flex gap-1 overflow-x-auto px-3 pt-2"
+              className="flex gap-1 overflow-x-auto px-3 pt-2 pb-0.5"
               role="group"
               aria-label={t.cartas}
             >

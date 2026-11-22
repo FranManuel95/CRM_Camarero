@@ -91,7 +91,18 @@ export const accionCamarero = z.discriminatedUnion("tipo", [
     tipo: z.literal("anular_linea"),
     cuentaId: id,
     lineaId: id,
-    motivo: texto(140).min(1),
+    /** Opcional: si no se pone, queda apuntado quién la anula. */
+    motivo: texto(140).default(""),
+  }),
+  /** Anular varias líneas de golpe, o solo unas unidades de una (2 de 3 cañas). */
+  z.object({
+    tipo: z.literal("anular_lineas"),
+    cuentaId: id,
+    lineas: z
+      .array(z.object({ lineaId: id, cantidad: z.number().int().min(1).max(99).optional() }))
+      .min(1, "Elige qué anular.")
+      .max(200),
+    motivo: texto(140).default(""),
   }),
   z.object({
     tipo: z.literal("invitar_linea"),
@@ -492,6 +503,7 @@ export const accionEncargado = z.discriminatedUnion("tipo", [
       pieTicket: texto(200),
       serieTicket: z.string().regex(/^[A-Z0-9-]{1,10}$/, "Solo mayúsculas, números y guiones"),
       imprimirComandas: z.boolean().optional(),
+      preguntarPapel: z.boolean().optional(),
       preciosSoloEncargado: z.boolean().optional(),
       enlaceResena: z
         .union([

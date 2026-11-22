@@ -102,7 +102,7 @@ export function Stock() {
         </div>
       )}
 
-      <div role="tablist" aria-label="Stock" className="mb-4 flex gap-1 overflow-x-auto">
+      <div role="tablist" aria-label="Stock" className="mb-4 flex gap-1 overflow-x-auto p-0.5">
         {PESTANAS.map((p) => (
           <button
             key={p.id}

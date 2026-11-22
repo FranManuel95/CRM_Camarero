@@ -146,10 +146,16 @@ export const AJUSTES: EntradaAyuda[] = [
   {
     id: "ajustes-servicio",
     titulo: "Comandas en papel y quién puede hacer descuentos",
-    preguntas: ["comandas sin papel", "no imprimir comandas", "solo el encargado hace descuentos"],
+    preguntas: [
+      "comandas sin papel",
+      "no imprimir comandas",
+      "preguntar si imprime",
+      "solo el encargado hace descuentos",
+    ],
     pasos: [
       "En Gestión → Ajustes → «Servicio»:",
       "«Las comandas salen en papel en cocina y barra» (si lo quitas, solo en pantalla).",
+      "«Preguntar al mandar si sale en papel»: al pulsar «Mandar», el camarero elige cada vez.",
       "«Solo el encargado cambia precios y hace descuentos».",
       "Pulsa «Guardar ajustes».",
     ],

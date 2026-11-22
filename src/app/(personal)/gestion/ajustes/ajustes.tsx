@@ -102,6 +102,12 @@ export function Ajustes() {
             ayuda="Es lo que pasa al pulsar «Mandar». El camarero puede cambiarlo en cada envío; si lo quitas, solo se ven en la pantalla de cocina."
           />
           <Interruptor
+            activo={a.preguntarPapel ?? false}
+            alCambiar={(v) => setA({ ...a, preguntarPapel: v })}
+            etiqueta="Preguntar al mandar si sale en papel"
+            ayuda="Al pulsar «Mandar», el camarero elige «Con papel» o «Solo en pantalla» cada vez."
+          />
+          <Interruptor
             activo={a.preciosSoloEncargado ?? false}
             alCambiar={(v) => setA({ ...a, preciosSoloEncargado: v })}
             etiqueta="Solo el encargado cambia precios y hace descuentos"

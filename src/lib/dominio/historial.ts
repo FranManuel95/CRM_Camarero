@@ -26,7 +26,21 @@ export function describir(accion: AccionPersonal, antes: Estado, despues: Estado
       const c = cuenta(antes, accion.cuentaId);
       const l = c?.lineas.find((x) => x.id === accion.lineaId);
       if (!c || !l) return null;
-      return `Anuló ${l.cantidad} ${l.nombre} en ${nombreMesa(antes, c.mesaId)} («${accion.motivo}»)`;
+      const porque = accion.motivo.trim() ? ` («${accion.motivo.trim()}»)` : "";
+      return `Anuló ${l.cantidad} ${l.nombre} en ${nombreMesa(antes, c.mesaId)}${porque}`;
+    }
+    case "anular_lineas": {
+      const c = cuenta(antes, accion.cuentaId);
+      if (!c) return null;
+      const que = accion.lineas
+        .map(({ lineaId, cantidad }) => {
+          const l = c.lineas.find((x) => x.id === lineaId);
+          return l ? `${cantidad ?? l.cantidad} ${l.nombre}` : null;
+        })
+        .filter(Boolean)
+        .join(", ");
+      const porque = accion.motivo.trim() ? ` («${accion.motivo.trim()}»)` : "";
+      return `Anuló ${que} en ${nombreMesa(antes, c.mesaId)}${porque}`;
     }
     case "anular_cuenta": {
       const c = cuenta(antes, accion.cuentaId);

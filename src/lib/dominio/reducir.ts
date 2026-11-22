@@ -635,18 +635,29 @@ function aplicarPersonal(
       break;
     }
     case "anular_linea": {
-      const linea = buscar(
-        cuentaAbierta(estado, accion.cuentaId).lineas,
-        accion.lineaId,
-        "esa línea",
+      const cuenta = cuentaAbierta(estado, accion.cuentaId);
+      anularLinea(
+        estado,
+        ctx,
+        empleado,
+        buscar(cuenta.lineas, accion.lineaId, "esa línea"),
+        accion.motivo,
       );
-      if (linea.estado === "anulada") falla("Esta línea ya estaba anulada.");
-      if (mandada(linea)) permiso(estado, empleado, "anular");
-      if (mandada(linea))
-        apuntarIncidencia(estado, ctx, "anulacion", linea, empleado, accion.motivo);
-      linea.estado = "anulada";
-      linea.motivoAnulacion = `${accion.motivo} (${empleado.nombre})`;
-      devolver(estado, [linea]);
+      break;
+    }
+    case "anular_lineas": {
+      const cuenta = cuentaAbierta(estado, accion.cuentaId);
+      for (const { lineaId, cantidad } of accion.lineas) {
+        const linea = buscar(cuenta.lineas, lineaId, "esa línea");
+        let aAnular = linea;
+        // Solo unas unidades: se separan en su propia línea y se anula esa.
+        if (cantidad && cantidad < linea.cantidad && linea.estado !== "anulada") {
+          aAnular = { ...structuredClone(linea), id: ctx.nuevoId(), cantidad };
+          linea.cantidad -= cantidad;
+          cuenta.lineas.splice(cuenta.lineas.indexOf(linea) + 1, 0, aAnular);
+        }
+        anularLinea(estado, ctx, empleado, aAnular, accion.motivo);
+      }
       break;
     }
     case "invitar_linea": {
@@ -1804,6 +1815,28 @@ function apagada(estado: Estado, funcion: Funcion) {
 /** La línea ya había salido hacia cocina o barra (anularla es una anulación de verdad). */
 function mandada(linea: LineaCuenta) {
   return !["anotada", "por_confirmar", "anulada"].includes(linea.estado);
+}
+
+/** Anula una línea: si ya estaba en cocina o barra, hace falta permiso y queda apuntado. */
+function anularLinea(
+  estado: Estado,
+  ctx: Contexto,
+  empleado: Empleado,
+  linea: LineaCuenta,
+  motivo: string,
+) {
+  if (linea.estado === "anulada") falla(`${linea.nombre} ya estaba anulado.`);
+  if (linea.ticketId) falla(`${linea.nombre} ya está cobrado: rectifica el ticket.`);
+  const texto = motivo.trim();
+  if (mandada(linea)) {
+    permiso(estado, empleado, "anular");
+    apuntarIncidencia(estado, ctx, "anulacion", linea, empleado, texto || "Sin motivo");
+  }
+  linea.estado = "anulada";
+  linea.motivoAnulacion = texto
+    ? `${texto} (${empleado.nombre})`
+    : `Anulado por ${empleado.nombre}`;
+  devolver(estado, [linea]);
 }
 
 function apuntarIncidencia(

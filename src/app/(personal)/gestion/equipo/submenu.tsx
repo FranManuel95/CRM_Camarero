@@ -21,7 +21,7 @@ export function SubmenuEquipo() {
   const encendidas = { cuadrante: useFuncion("cuadrante"), fichajes: useFuncion("fichajes") };
   return (
     <nav aria-label="Equipo" className="no-imprimir mb-4">
-      <ul className="flex gap-1 overflow-x-auto">
+      <ul className="flex gap-1 overflow-x-auto p-0.5">
         {SECCIONES.filter((s) => !s.funcion || encendidas[s.funcion]).map(({ href, texto }) => {
           const activo = ruta === href;
           return (

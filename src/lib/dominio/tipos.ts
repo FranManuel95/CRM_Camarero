@@ -51,6 +51,8 @@ export type Ajustes = {
   serieTicket: string;
   /** Al mandar una comanda, si sale en papel en cocina y barra (si no, solo en su pantalla). */
   imprimirComandas?: boolean;
+  /** Al pulsar «Mandar», preguntar si sale en papel o solo en pantalla (en vez de lo de arriba). */
+  preguntarPapel?: boolean;
   /** Solo el encargado puede cambiar precios y hacer descuentos al cobrar. */
   preciosSoloEncargado?: boolean;
   /** Funciones encendidas o apagadas (ver funciones.ts). Lo que no está, va por defecto. */
